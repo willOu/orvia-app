@@ -1,0 +1,4931 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Heures">
+<title>Orvia</title>
+
+<meta name="theme-color" content="#0b1f2a">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0b1f2a;
+    --surface: #0b1f2a;
+    --card: #0b1f2a;
+    --border: #2e3248;
+    --accent: #6c63ff;
+    --accent2: #ff6584;
+    --green: #3ecf8e;
+    --orange: #f59e0b;
+    --text: #e8eaf6;
+    --muted: #8b8fa8;
+    --radius: 16px;
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  :root.light-mode {
+    --bg: #f2f3f8;
+    --surface: #ffffff;
+    --card: #ffffff;
+    --border: #e2e4ec;
+    --text: #1a1d29;
+    --muted: #6b7280;
+  }
+
+  body { transition: background .25s ease, color .25s ease; }
+  .settings-card, .stat-card, .session-item { transition: background .25s ease, border-color .25s ease; }
+
+  .switch { position: relative; display: inline-block; width: 16px; height: 14px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: var(--border); border-radius: 14px; transition: .2s; }
+  .switch .slider:before { position: absolute; content: ""; height: 10px; width: 10px; left: 2px; bottom: 2px; background: white; border-radius: 50%; transition: .2s; }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider:before { transform: translateX(4px); }
+
+  .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,.55); display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+  .modal-box { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 20px; width: 100%; max-width: 340px; }
+  .modal-title { font-weight: 800; font-size: 16px; margin-bottom: 14px; color: var(--text); }
+  .modal-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .modal-row label { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .modal-row input { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 9px 10px; color: var(--text); font-size: 14px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+  .modal-actions button { flex: 1; padding: 10px; border-radius: 10px; border: none; font-weight: 700; font-size: 14px; cursor: pointer; }
+  .modal-btn-cancel { background: var(--border); color: var(--text); }
+  .modal-btn-save { background: var(--accent); color: #fff; }
+  .modal-error { color: var(--orange); font-size: 12px; margin-top: -6px; margin-bottom: 10px; display: none; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+    overflow-x: hidden;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: var(--surface);
+    padding: calc(env(safe-area-inset-top, 0px) + 16px) 20px 16px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    text-align: center;
+    z-index: 100;
+    backdrop-filter: blur(12px);
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin: 0;
+    width: 100%;
+  }
+  .header-title {
+    width: 100%;
+    text-align: center;
+    margin: 0;
+    padding-top: 2px;
+    min-height: 44px;
+  }
+  .header-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .header .date {
+    font-size: 13px;
+    color: var(--muted);
+    text-transform: capitalize;
+  }
+  .version-badge-topright {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: rgba(108,99,255,.16);
+    color: var(--accent);
+    border: 1px solid rgba(108,99,255,.35);
+    letter-spacing: .4px;
+  }
+
+  /* ── NAV TABS ── */
+  .tabs {
+    display: flex;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    z-index: 99;
+  }
+  .tab {
+    flex: 1;
+    padding: 12px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all .2s;
+  }
+  .tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+
+  /* ── PAGES ── */
+  .page { display: none; padding: 20px 16px calc(90px + var(--safe-bottom)); }
+  .page.active { display: block; }
+
+  /* ── CLOCK CARD ── */
+  .clock-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 28px 20px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+  .big-time {
+    font-size: 56px;
+    font-weight: 700;
+    letter-spacing: -2px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .big-time.running { color: var(--green); }
+  .big-time.paused { color: var(--orange); }
+  .elapsed-label {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* ── STATUS ROW ── */
+  .status-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .status-pill {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+  }
+  .status-pill .label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .status-pill .value { font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+
+  /* ── BUTTONS ── */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .btn {
+    flex: 1;
+    padding: 16px;
+    border-radius: 14px;
+    border: none;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn-start { background: var(--green); color: #0b1f2a; }
+  .btn-stop  { background: var(--accent2); color: #fff; }
+  .btn-pause { background: var(--orange); color: #0b1f2a; }
+  .btn-resume { background: var(--accent); color: #fff; }
+  .btn-disabled { background: var(--border); color: var(--muted); pointer-events: none; }
+
+  /* ── NOTE INPUT ── */
+  .note-row {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    padding: 4px 12px;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .note-row input {
+    flex: 1;
+    background: none;
+    border: none;
+    color: var(--text);
+    font-size: 14px;
+    padding: 10px 0;
+    outline: none;
+  }
+  .note-row input::placeholder { color: var(--muted); }
+  .note-icon { color: var(--muted); font-size: 16px; }
+
+  /* ── TODAY SESSIONS ── */
+  .section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    margin-bottom: 10px;
+  }
+  .session-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .session-left .session-time { font-size: 13px; color: var(--muted); }
+  .session-left .session-note { font-size: 14px; color: var(--text); margin-top: 2px; }
+  .session-duration {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--green);
+    font-variant-numeric: tabular-nums;
+  }
+  .session-pause-badge {
+    font-size: 11px;
+    color: var(--orange);
+    margin-top: 2px;
+    text-align: right;
+  }
+  .session-delete {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px 8px;
+    margin-left: 8px;
+  }
+
+  /* ── HISTORY ── */
+  .view-selector {
+    display: flex;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 16px;
+    gap: 4px;
+  }
+  .view-btn {
+    flex: 1;
+    padding: 8px;
+    border-radius: 9px;
+    border: none;
+    background: none;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .view-btn.active { background: var(--accent); color: #fff; }
+  .day-group { margin-bottom: 20px; }
+  .group-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .group-label { font-size: 16px; font-weight: 800; letter-spacing: -.3px; }
+  .group-total { font-size: 14px; color: var(--accent); font-weight: 700; }
+  .day-subheader {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin: 10px 0 6px;
+  }
+  .day-sublabel { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .day-subtotal { font-size: 13px; color: var(--green); font-weight: 700; }
+  .day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .day-label { font-size: 15px; font-weight: 700; }
+  .day-total { font-size: 14px; color: var(--accent); font-weight: 700; }
+
+  /* ── GEO ── */
+  .geo-badge {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .geo-badge a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .geo-end { color: var(--accent2); }
+
+  /* ── EXPORT ── */
+  .export-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .export-card h3 { font-size: 16px; margin-bottom: 6px; }
+  .export-card p { font-size: 13px; color: var(--muted); margin-bottom: 14px; line-height: 1.5; }
+  .btn-export {
+    width: 100%;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .btn-export:active { transform: scale(.97); }
+  .btn-csv { background: var(--accent); color: #fff; }
+  .btn-clear { background: transparent; border: 1px solid var(--accent2) !important; color: var(--accent2); margin-top: 8px; }
+
+  /* ── STATS ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+  }
+  .stat-card .stat-val { font-size: 24px; font-weight: 800; letter-spacing: -1px; }
+  .stat-card .stat-lbl { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .stat-card.full { grid-column: 1/-1; }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    text-align: center;
+    padding: 40px 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .empty .emoji { font-size: 36px; margin-bottom: 10px; }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: calc(80px + var(--safe-bottom));
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--green);
+    color: #0b1f2a;
+    padding: 10px 20px;
+    border-radius: 100px;
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0;
+    transition: all .3s;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── CONGES ── */
+  .solde-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .solde-card {
+    border-radius: 14px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    position: relative;
+  }
+  .solde-card .sc-type { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; margin-bottom: 6px; }
+  .solde-card .sc-nums { display: flex; align-items: baseline; gap: 4px; }
+  .solde-card .sc-taken { font-size: 26px; font-weight: 800; }
+  .solde-card .sc-total { font-size: 13px; color: var(--muted); }
+  .solde-card .sc-bar { height: 4px; border-radius: 2px; background: var(--border); margin-top: 8px; overflow: hidden; }
+  .solde-card .sc-fill { height: 100%; border-radius: 2px; transition: width .4s; }
+  .solde-card .sc-edit { position: absolute; top: 10px; right: 10px; background: none; border: none; color: var(--muted); font-size: 14px; cursor: pointer; }
+
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cal-nav button { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 6px 12px; font-size: 16px; cursor: pointer; }
+  .cal-nav .cal-month { font-size: 16px; font-weight: 700; text-transform: capitalize; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; margin-bottom: 16px; }
+  .cal-dow { text-align: center; font-size: 11px; color: var(--muted); font-weight: 600; padding: 4px 0; }
+  .cal-day {
+    aspect-ratio: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    position: relative;
+    transition: background .15s;
+  }
+  .cal-day:active { transform: scale(.92); }
+  .cal-day.today { border: 2px solid var(--accent); font-weight: 800; }
+  .cal-day.other-month { color: var(--border); }
+  .cal-day.cp    { background: rgba(108,99,255,.35); color: #a89fff; }
+  .cal-day.rtt   { background: rgba(62,207,142,.3);  color: #3ecf8e; }
+  .cal-day.css   { background: rgba(245,158,11,.3);  color: #f59e0b; }
+  .cal-day.csp   { background: rgba(255,101,132,.3); color: #ff6584; }
+  .cal-day.work  { background: rgba(62,207,142,.1);  }
+  .cal-day.weekend { color: var(--muted); }
+  .cal-day.has-conge:hover { opacity: .8; }
+  .cal-day-dot { position: absolute; bottom: 3px; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+  .cal-day.holiday:not(.cp):not(.rtt):not(.css):not(.csp) { background: rgba(255,255,255,.06); border: 1px dashed var(--muted); }
+  .cal-day.holiday::after { content: ''; position: absolute; top: 3px; right: 3px; width: 5px; height: 5px; border-radius: 50%; background: #ffd166; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  .add-conge-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .add-conge-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+  .form-row { display: flex; flex-direction: column; gap: 10px; }
+  .form-field { display: flex; flex-direction: column; gap: 4px; }
+  .form-field label { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .form-field input, .form-field select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 14px;
+    padding: 10px 12px;
+    outline: none;
+    width: 100%;
+    -webkit-appearance: none;
+  }
+  .form-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .btn-add-conge {
+    width: 100%;
+    margin-top: 12px;
+    padding: 14px;
+    border-radius: 12px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .conge-list-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .conge-list-item .cl-type { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 3px; }
+  .conge-list-item .cl-dates { font-size: 13px; color: var(--muted); }
+  .conge-list-item .cl-days { font-size: 18px; font-weight: 800; }
+  .conge-delete { background: none; border: none; color: var(--muted); font-size: 16px; cursor: pointer; padding: 4px 8px; }
+
+  /* ── REGLAGES ── */
+  .settings-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+    gap: 12px;
+  }
+  .settings-row:last-child { border-bottom: none; }
+  .settings-row label:not(.switch) { font-size: 14px; font-weight: 600; flex:1; }
+  .settings-row label.switch { flex: none; }
+  .settings-row .settings-dot { width: 10px; height: 10px; border-radius: 3px; flex-shrink:0; }
+  .settings-desc-box {
+    margin: 0 16px 12px;
+    padding: 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: var(--muted);
+  }
+  .settings-row input[type=number], .settings-row input[type=text] {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 700;
+    padding: 6px 10px;
+    width: 70px;
+    text-align: center;
+    outline: none;
+  }
+  .settings-row input[type=text] { width: 140px; text-align: left; font-weight: 500; }
+  /* ── OBJECTIFS ── */
+  .objectif-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .objectif-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .objectif-label { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; }
+  .objectif-values { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .objectif-bar-bg {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .objectif-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width .4s ease;
+  }
+  .objectif-bar-fill.done { background: var(--green); }
+  .objectif-bar-fill.progress { background: var(--accent); }
+  .objectif-bar-fill.warning { background: var(--orange); }
+
+  #historyList { transition: opacity .22s ease, transform .22s ease; }
+  #historyList.view-transitioning { opacity: 0; transform: translateY(6px); }
+
+
+@media print { .tabs, .header, .btn-row, .toast, .view-selector { display:none !important; } .page { display:block !important; padding:0 !important; } body { background:#fff !important; color:#000 !important; } }
+</style>
+
+
+</head>
+<body><div id='topSplashLogo' style='position:absolute;left:50%;top:calc(env(safe-area-inset-top, 0px) + 12px);transform:translateX(-50%);width:120px;height:50px;display:flex;justify-content:center;align-items:center;overflow:auto;pointer-events:auto;z-index:9999'><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 340 140' width='120' height='50' role='img' aria-label='Orvia' style='display:block;margin:0 auto'><g fill='none' stroke='var(--text)' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'><circle cx='82' cy='58' r='30'></circle><path d='M82 38v20l16 11'></path></g><text x='170' y='100' text-anchor='middle' dominant-baseline='middle' fill='var(--text)' font-family='Inter, Arial, sans-serif' font-size='42' font-weight='800' letter-spacing='6'>ORVIA</text></svg></div><div class="tabs-guard"></div>
+<div id="orvia-splash" style="position:fixed;inset:0;z-index:99999;background:#0b1f2a;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;transition:opacity .8s ease, transform .8s ease;text-align:center">
+  <div style="display:flex;align-items:center;justify-content:center;width:100%">
+    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 340 140' width='280' height='118' role='img' aria-label='' style='display:block;margin:0 auto'>
+      <g fill='none' stroke='#f8fafc' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'>
+        <circle cx='82' cy='58' r='30'/>
+        <path d='M82 38v20l16 11'/>
+      </g>
+      <text x='170' y='100' text-anchor='middle' dominant-baseline='middle' fill='#f8fafc' font-family='Inter, Arial, sans-serif' font-size='42' font-weight='800' letter-spacing='6'>ORVIA</text>
+    </svg>
+  </div>
+  <div style="width:140px;height:4px;border-radius:4px;background:rgba(248,250,252,.15);overflow:hidden;">
+    <div style="width:100%;height:100%;border-radius:4px;background:#6c63ff;transform-origin:left;animation:orviaSplashLoad 2.6s ease-in-out forwards;"></div>
+  </div>
+  <div style='color:#b3c3c8;font-family:Inter,Arial,sans-serif;font-size:14px;letter-spacing:2px;text-transform:uppercase;text-align:center'>Chargement de l'application</div>
+</div>
+<style>
+@keyframes orviaSplashLoad {
+  0%   { transform: scaleX(0); }
+  70%  { transform: scaleX(.85); }
+  100% { transform: scaleX(1); }
+}
+</style>
+<script>
+window.addEventListener('load',()=>{const s=document.getElementById('orvia-splash'); if(s){setTimeout(()=>{s.style.opacity='0'; s.style.transform='scale(1.02)'; setTimeout(()=>s.remove(),800);}, 3000);}});
+</script>
+
+
+<div class="header">
+  
+  <h1 class="header-title"> </h1>
+  <div class="header-meta">
+    <div class="date" id="headerDate"></div>
+    <div class="date" id="headerTime" style="font-variant-numeric:tabular-nums;letter-spacing:.5px"></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('today')">Aujourd'hui</div>
+  <div class="tab" onclick="switchTab('history')">Historique</div>
+  <div class="tab" onclick="switchTab('conges')">Congés</div>
+  <div class="tab" onclick="switchTab('reglages')">⚙️</div>
+</div>
+
+<!-- PAGE TODAY -->
+<div class="page active" id="page-today">
+
+  <div class="clock-card">
+    <div class="big-time" id="bigTime">00:00:00</div>
+    <div class="elapsed-label" id="elapsedLabel">Prêt à démarrer</div>
+  </div>
+
+  <div class="status-row">
+    <div class="status-pill">
+      <div class="label">Arrivée</div>
+      <div class="value" id="startTimeDisplay">--:--</div>
+    </div>
+    <div class="status-pill">
+      <div class="label">Pause</div>
+      <div class="value" id="pauseDisplay" style="color:var(--orange)">00:00</div>
+    </div>
+    <div class="status-pill">
+      <div class="label">Net</div>
+      <div class="value" id="netDisplay" style="color:var(--green)">00:00</div>
+    </div>
+  </div>
+
+  <div class="btn-row" id="btnRow">
+    <button class="btn btn-start" id="mainBtn" onclick="handleMainBtn()">▶ Démarrer</button>
+  </div>
+
+  <div class="note-row">
+    <span class="note-icon">📝</span>
+    <input type="text" id="noteInput" placeholder="Note (ex: réunion client, dev…)" maxlength="60">
+  </div>
+
+  <div class="section-title">Objectifs</div>
+  <div id="objectifsBlock" style="margin-bottom:16px"></div>
+
+  <div class="section-title">Heures supplémentaires</div>
+  <div id="overtimeCard" style="margin-bottom:16px"></div>
+
+  <div class="section-title">Rémunération</div>
+  <div id="remunerationCard" style="margin-bottom:16px"></div>
+
+  <div class="section-title">Sessions du jour</div>
+  <div id="todaySessions"></div>
+  <div class="empty" id="emptyToday" style="display:none">
+    <div class="emoji">🕐</div>
+    Aucune session enregistrée aujourd'hui
+  </div>
+</div>
+
+<!-- PAGE HISTORY -->
+<div class="page" id="page-history">
+  <div id="anomalyBanner" style="display:none;"></div>
+  <div class="stats-grid" id="statsGrid"></div>
+
+  <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+    <span>Tendance vs objectif</span>
+    <div class="view-selector" style="margin:0;width:auto;padding:2px;">
+      <button class="view-btn trend-btn active" id="trendBtn7" onclick="setTrendRange(7)">7j</button>
+      <button class="view-btn trend-btn" id="trendBtn30" onclick="setTrendRange(30)">30j</button>
+    </div>
+  </div>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:16px;position:relative;">
+    <canvas id="trendChart" style="width:100%;height:160px;display:block;cursor:pointer;"></canvas>
+    <div id="trendTooltip" style="display:none;position:absolute;background:#0b1f2a;border:1px solid var(--accent);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.4);pointer-events:none;z-index:10;white-space:nowrap;"></div>
+    <div style="display:flex;gap:14px;margin-top:8px;justify-content:center;">
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);"><div style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></div>Réalisé</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);"><div style="width:14px;height:2px;background:var(--muted)"></div>Objectif</div>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
+    <div class="view-selector" style="margin:0;flex:1;">
+      <button class="view-btn active" onclick="setView('day')">Jour</button>
+      <button class="view-btn" onclick="setView('week')">Semaine</button>
+      <button class="view-btn" onclick="setView('month')">Mois</button>
+      <button class="view-btn" onclick="setView('year')">Année</button>
+    </div>
+    <button onclick="openAddSessionModal()" title="Ajouter une session oubliée" style="background:var(--accent);color:#fff;border:none;border-radius:10px;width:38px;height:38px;font-size:20px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">+</button>
+  </div>
+  <div id="historyList"></div>
+  <div class="empty" id="emptyHistory" style="display:none">
+    <div class="emoji">📅</div>
+    Aucun historique disponible
+  </div>
+</div>
+
+<!-- PAGE CONGES -->
+<div class="page" id="page-conges">
+
+  <!-- Soldes -->
+  <div class="section-title">Soldes annuels</div>
+  <div class="solde-grid" id="soldeGrid"></div>
+
+  <!-- Calendrier -->
+  <div class="section-title">Calendrier</div>
+  <div class="cal-nav">
+    <button onclick="calPrev()">‹</button>
+    <span class="cal-month" id="calMonth"></span>
+    <button onclick="calNext()">›</button>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(108,99,255,.5)"></div>CP</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(62,207,142,.4)"></div>RTT</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(245,158,11,.4)"></div>Sans solde</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(255,101,132,.4)"></div>Enfant malade</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(62,207,142,.1);border:1px solid var(--border)"></div>Travaillé</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,.06);border:1px dashed var(--muted)"></div>Jour férié</div>
+  </div>
+  <div class="cal-grid" id="calGrid"></div>
+
+  <!-- Ajouter un congé -->
+  <div class="add-conge-card">
+    <h3>➕ Ajouter un congé</h3>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Type de congé</label>
+        <select id="congeType">
+          <option value="cp">🟣 Congé payé (CP)</option>
+          <option value="rtt">🟢 RTT</option>
+          <option value="css">🟡 Congé sans solde</option>
+          <option value="csp">🔴 Enfant malade</option>
+        </select>
+      </div>
+      <div class="form-dates">
+        <div class="form-field">
+          <label>Du</label>
+          <input type="date" id="congeStart">
+        </div>
+        <div class="form-field">
+          <label>Au</label>
+          <input type="date" id="congeEnd">
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Note (optionnel)</label>
+        <input type="text" id="congeNote" placeholder="ex: vacances été…">
+      </div>
+    </div>
+    <button class="btn-add-conge" onclick="addConge()">Enregistrer</button>
+  </div>
+
+  <!-- Liste des congés -->
+  <div class="section-title">Congés enregistrés</div>
+  <div id="congeList"></div>
+  <div class="empty" id="emptyConges" style="display:none">
+    <div class="emoji">🏖</div>
+    Aucun congé enregistré
+  </div>
+
+</div>
+
+<!-- PAGE REGLAGES -->
+<div class="page" id="page-reglages">
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openObjectifsSettings()">
+      <label style="font-weight:800;color:var(--accent);">Objectifs</label>
+    </div>
+    <div class="settings-desc-box">Durée cible par jour et par semaine</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openOvertimeSettings()">
+      <label style="font-weight:800;color:var(--accent);">Heures supplémentaires</label>
+    </div>
+    <div class="settings-desc-box">Solde cumulé et récupérations</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openRemunerationSettings()">
+      <label style="font-weight:800;color:var(--accent);">Rémunération</label>
+    </div>
+    <div class="settings-desc-box">Taux horaire et majoration heures sup</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openArrondiSettings()">
+      <label style="font-weight:800;color:var(--accent);">Arrondi des pointages</label>
+    </div>
+    <div class="settings-desc-box">Arrondir les sessions au quart d'heure</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openInactiviteSettings()">
+      <label style="font-weight:800;color:var(--accent);">Session oubliée</label>
+    </div>
+    <div class="settings-desc-box">Détecter un chrono resté lancé trop longtemps</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:800;color:var(--accent);">Résumé du jour</label>
+      <label class="switch">
+        <input type="checkbox" id="resumeJourEnabled" onchange="onResumeJourToggle()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="settings-desc-box">Affiche le résumé de la veille à la toute première ouverture de l'app</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openCongesSettings()">
+      <label style="font-weight:800;color:var(--accent);">Congés</label>
+    </div>
+    <div class="settings-desc-box">Quotas annuels et noms des types</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openThemeSettings()">
+      <label style="font-weight:800;color:var(--accent);">Thème</label>
+    </div>
+    <div class="settings-desc-box">Choisir la couleur d'accent de l'application</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openReminderSettings()">
+      <label style="font-weight:800;color:var(--accent);">Rappel</label>
+    </div>
+    <div class="settings-desc-box" id="reminderSummary">Notification si aucune session démarrée</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openAboutSettings()">
+      <label style="font-weight:800;color:var(--accent);">A propos</label>
+    </div>
+    <div class="settings-desc-box">Informations sur l'application</div>
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openExportSettings()">
+      <label style="font-weight:800;color:var(--accent);">Exporter en PDF</label>
+    </div>
+    <div class="settings-desc-box">Exporter l'application en PDF</div>
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openExportListSettings()">
+      <label style="font-weight:800;color:var(--accent);">Exporter les données</label>
+    </div>
+    <div class="settings-desc-box">CSV, Excel ou copier le résumé</div>
+  
+  
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openBackupSettings()">
+      <label style="font-weight:800;color:var(--accent);">Sauvegarde</label>
+    </div>
+    <div class="settings-desc-box">Exporter ou importer toutes les données</div>
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openClearSettings()">
+      <label style="font-weight:800;color:var(--accent2);">Effacer les données</label>
+    </div>
+    <div class="settings-desc-box">Supprimer définitivement tout l'historique</div>
+  </div>
+
+
+
+
+
+
+</div>
+
+
+<div class="page" id="page-conges-settings">
+  <div class="section-title">Congés</div>
+<div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+<div class="section-title">Quotas annuels de congés</div>
+  <div style="margin-bottom:20px" id="quotaCards"></div>
+  <div class="section-title">Noms des types de congés</div>
+  <div id="labelCards"></div>
+</div>
+
+
+<div class="page" id="page-about-settings">
+  <div class="section-title">A propos</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row"><label>Créateur</label><div class="settings-summary">PERRIER William</div></div>
+    <div class="settings-row"><label>Génération</label><div class="settings-summary">Généré par IA avec l'aide de Perplexity</div></div>
+    <div class="settings-row"><label>Version</label><div class="settings-summary" id="aboutVersionLabel">—</div></div>
+  </div>
+  <div class="settings-card">
+    <div class="settings-row" style="cursor:pointer;" onclick="openChangelogSettings()">
+      <label style="font-weight:800;color:var(--accent);">Historique des versions</label>
+      <div class="settings-summary">Voir le journal des changements</div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-changelog-settings">
+  <div class="section-title">Historique des versions</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('about-settings')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir à propos</div>
+    </div>
+  </div>
+  <div id="changelogList"></div>
+</div>
+
+<div class="page" id="page-overtime-settings">
+  <div class="section-title">Heures supplémentaires</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div id="overtimeCardSettings" style="margin-bottom:16px"></div>
+
+  <div class="settings-card" style="margin-bottom:16px;padding:14px;">
+    <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">Enregistrer une récupération (heures posées pour compenser le solde).</div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input type="number" id="recupHours" placeholder="Heures" min="0" max="24" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);">
+      <input type="number" id="recupMinutes" placeholder="Minutes" min="0" max="59" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);">
+    </div>
+    <input type="text" id="recupNote" placeholder="Note (optionnel)" maxlength="80" style="width:100%;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);margin-bottom:10px;">
+    <button class="btn-add-conge" onclick="submitRecuperation()">Enregistrer la récupération</button>
+  </div>
+
+  <div class="section-title">Historique des récupérations</div>
+  <div id="recuperationsList"></div>
+</div>
+
+<div class="page" id="page-remuneration-settings">
+  <div class="section-title">Rémunération</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:700">Activer la rémunération</label>
+      <label class="switch">
+        <input type="checkbox" id="remunerationEnabled" onchange="onRemunerationToggle()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:16px;padding:14px;">
+    <div class="form-field">
+      <label>Taux horaire de base (€/h)</label>
+      <input type="number" id="tauxHoraireInput" min="0" step="0.01" placeholder="ex: 15.50" onchange="onTauxHoraireChange()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+    </div>
+  </div>
+
+  <div class="section-title">Tranches horaires hebdomadaires</div>
+  <div class="settings-card" style="margin-bottom:16px;padding:14px;">
+    <div class="form-row" style="display:flex;gap:10px;margin-bottom:14px;">
+      <div class="form-field" style="flex:1;">
+        <label>Seuil tranche 1 (h)</label>
+        <input type="number" id="seuil1Input" min="0" max="80" step="1" placeholder="35" onchange="onSeuil1Change()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+      </div>
+      <div class="form-field" style="flex:1;">
+        <label>Seuil tranche 2 (h)</label>
+        <input type="number" id="seuil2Input" min="0" max="80" step="1" placeholder="39" onchange="onSeuil2Change()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+      </div>
+    </div>
+
+    <div class="form-field" style="margin-bottom:14px;">
+      <label id="labelTranche1">Majoration tranche 35h–39h (%)</label>
+      <input type="number" id="majorationTranche1Input" min="0" max="200" step="1" placeholder="25" onchange="onMajorationTranche1Change()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+    </div>
+
+    <div class="form-field">
+      <label id="labelTranche2">Majoration au-delà de 39h (%)</label>
+      <input type="number" id="majorationTranche2Input" min="0" max="200" step="1" placeholder="50" onchange="onMajorationTranche2Change()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+    </div>
+
+    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.4;">
+      Les heures travaillées dans la semaine sont réparties automatiquement entre ces tranches selon le barème légal ou ton propre accord d'entreprise.
+    </div>
+  </div>
+
+  <div class="section-title">Salaire net</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:700">Estimer le net après impôts</label>
+      <label class="switch">
+        <input type="checkbox" id="netEnabledInput" onchange="onNetEnabledToggle()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:16px;padding:14px;">
+    <div class="form-field">
+      <label>Taux d'imposition estimé (%)</label>
+      <input type="number" id="tauxImpositionInput" min="0" max="100" step="1" placeholder="22" onchange="onTauxImpositionChange()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.4;">
+      Estimation simplifiée (prélèvement forfaitaire). Pour un calcul précis, réfère-toi à ton bulletin de paie ou à un simulateur officiel.
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-arrondi-settings">
+  <div class="section-title">Arrondi des pointages</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:700">Activer l'arrondi</label>
+      <label class="switch">
+        <input type="checkbox" id="arrondiEnabled" onchange="onArrondiEnabledToggle()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:16px;padding:14px;">
+    <div class="form-field" style="margin-bottom:14px;">
+      <label>Précision de l'arrondi</label>
+      <select id="arrondiMinutesSelect" onchange="onArrondiMinutesChange()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+        <option value="5">5 minutes</option>
+        <option value="10">10 minutes</option>
+        <option value="15">15 minutes (quart d'heure)</option>
+        <option value="30">30 minutes</option>
+      </select>
+    </div>
+
+    <div class="form-field">
+      <label>Mode d'arrondi</label>
+      <select id="arrondiModeSelect" onchange="onArrondiModeChange()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+        <option value="nearest">Au plus proche (neutre)</option>
+        <option value="favor_salarie">En ma faveur (arrivée tôt, départ tard)</option>
+        <option value="favor_entreprise">Strict (arrivée tard, départ tôt)</option>
+      </select>
+    </div>
+
+    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.4;">
+      L'arrondi s'applique automatiquement à chaque session terminée (chrono) ou ajoutée manuellement. Les sessions déjà enregistrées ne sont pas modifiées rétroactivement.
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-inactivite-settings">
+  <div class="section-title">Session oubliée</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:700">Activer la détection</label>
+      <label class="switch">
+        <input type="checkbox" id="inactiviteEnabled" onchange="onInactiviteEnabledToggle()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:16px;padding:14px;">
+    <div class="form-field">
+      <label>Alerter après (heures)</label>
+      <select id="inactiviteSeuilSelect" onchange="onInactiviteSeuilChange()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+        <option value="6">6 heures</option>
+        <option value="10">10 heures</option>
+        <option value="12">12 heures</option>
+        <option value="16">16 heures</option>
+        <option value="20">20 heures</option>
+      </select>
+    </div>
+
+    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.4;">
+      Si le chrono reste lancé plus longtemps que ce seuil (arrivée sur l'app ou retour depuis un autre écran), Orvia te propose de corriger l'heure de fin.
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-theme-settings">
+  <div class="section-title">Thème</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">Apparence générale de l'application.</div>
+    <div id="modeSwitch" style="display:flex;gap:10px;"></div>
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">Choisis la couleur d'accent principale de l'application.</div>
+    <div id="themeSwatches" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="exportThemeBackup()">
+      <label style="font-weight:800;color:var(--accent);">Exporter le thème</label>
+      <div class="settings-summary">Sauvegarder couleur et mode dans un fichier</div>
+    </div>
+  </div>
+  <div class="settings-card">
+    <div class="settings-row" style="cursor:pointer;" onclick="document.getElementById('themeImportInput').click()">
+      <label style="font-weight:800;color:var(--accent);">Importer le thème</label>
+      <div class="settings-summary">Restaurer une apparence sauvegardée</div>
+    </div>
+    <input type="file" id="themeImportInput" accept="application/json" style="display:none;" onchange="importThemeBackup(event)">
+  </div>
+</div>
+
+<div class="page" id="page-reminder-settings">
+  <div class="section-title">Rappel</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div class="settings-row" style="margin-bottom:10px;">
+      <label style="font-weight:700;">Activer le rappel</label>
+      <label class="switch">
+        <input type="checkbox" id="reminderEnabled" onchange="onReminderToggle()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">Reçois une notification si aucune session n'a démarré à l'heure choisie.</div>
+    <div class="settings-row">
+      <label>Heure du rappel</label>
+      <input type="time" id="reminderTime" value="09:30" onchange="onReminderTimeChange()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);">
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="editTimeModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">Modifier les horaires</div>
+    <div class="modal-row">
+      <label>Date</label>
+      <input type="date" id="editTimeDate">
+    </div>
+    <div class="modal-row">
+      <label>Heure de début</label>
+      <input type="time" id="editTimeStart">
+    </div>
+    <div class="modal-row">
+      <label>Heure de fin</label>
+      <input type="time" id="editTimeEnd">
+    </div>
+    <div class="modal-error" id="editTimeError"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="closeEditTimeModal()">Annuler</button>
+      <button class="modal-btn-save" onclick="saveEditTimeModal()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="calDayDetailModal" style="display:none;">
+  <div class="modal-box" id="calDayDetailBox"></div>
+</div>
+
+<div class="modal-overlay" id="dailySummaryModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">👋 Résumé de ta journée d'hier</div>
+    <div id="dailySummaryContent"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-save" onclick="closeDailySummaryModal()" style="width:100%;">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="forgottenSessionModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">⏰ Session peut-être oubliée ?</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.4;">
+      Ton chrono tourne depuis longtemps. Démarré à <strong id="forgottenSessionStart"></strong>, soit <strong id="forgottenSessionElapsed"></strong> écoulées.
+    </div>
+    <div class="modal-row">
+      <label>Corriger l'heure de fin</label>
+      <input type="time" id="forgottenSessionEndTime">
+    </div>
+    <div class="modal-error" id="forgottenSessionError"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="keepForgottenSessionRunning()">Laisser tourner</button>
+      <button class="modal-btn-save" onclick="fixForgottenSessionEnd()">Corriger et terminer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="addSessionModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">Ajouter une session</div>
+    <div class="modal-row">
+      <label>Date</label>
+      <input type="date" id="addSessionDate">
+    </div>
+    <div class="modal-row">
+      <label>Heure de début</label>
+      <input type="time" id="addSessionStart">
+    </div>
+    <div class="modal-row">
+      <label>Heure de fin</label>
+      <input type="time" id="addSessionEnd">
+    </div>
+    <div class="modal-row">
+      <label>Pause (minutes)</label>
+      <input type="number" id="addSessionPause" min="0" value="0">
+    </div>
+    <div class="modal-row">
+      <label>Note (optionnel)</label>
+      <input type="text" id="addSessionNote" maxlength="60" placeholder="ex: réunion client, dev…">
+    </div>
+    <div class="modal-error" id="addSessionError"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="closeAddSessionModal()">Annuler</button>
+      <button class="modal-btn-save" onclick="saveAddSessionModal()">Ajouter</button>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-export-settings">
+  <div class="section-title">Exporter en PDF</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+  <div class="settings-card">
+    <div class="settings-row" style="cursor:pointer;" onclick="exportPDF()">
+      <label style="font-weight:800;color:var(--accent);">Exporter en PDF</label>
+      <div class="settings-summary">Ouvre la boîte d’impression. Choisir “Enregistrer en PDF”</div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-export-list-settings">
+  <div class="section-title">Exporter en CSV</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="exportCSV()">
+      <label style="font-weight:800;color:var(--accent);">Télécharger le CSV</label>
+      <div class="settings-summary">Toutes les sessions en fichier CSV</div>
+    </div>
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="exportXLSX()">
+      <label style="font-weight:800;color:var(--accent);">Télécharger l'Excel (.xlsx)</label>
+      <div class="settings-summary">Toutes les sessions en fichier Excel mis en forme</div>
+    </div>
+  </div>
+  <div class="settings-card">
+    <div class="settings-row" style="cursor:pointer;" onclick="copyWeekSummary()">
+      <label style="font-weight:800;color:var(--accent);">Copier le résumé</label>
+      <div class="settings-summary">Résumé hebdomadaire à copier</div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-clear-settings">
+  <div class="section-title">Effacer les données</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+  <div class="settings-card">
+    <div class="settings-row" style="cursor:pointer;" onclick="clearAll()">
+      <label style="font-weight:800;color:var(--accent2);">Effacer tout l'historique</label>
+      <div class="settings-summary">Suppression définitive et irréversible</div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-backup-settings">
+  <div class="section-title">Sauvegarde</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="exportBackup()">
+      <label style="font-weight:800;color:var(--accent);">⬇ Exporter la sauvegarde</label>
+      <div class="settings-summary">Télécharge un fichier .json avec sessions et congés</div>
+    </div>
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="document.getElementById('importFileInput').click()">
+      <label style="font-weight:800;color:var(--accent);">⬆ Importer une sauvegarde</label>
+      <div class="settings-summary">Restaure sessions et congés depuis un .json</div>
+    </div>
+    <input type="file" id="importFileInput" accept=".json" style="display:none" onchange="importBackup(event)">
+  </div>
+  <div class="section-title">Sauvegarde automatique</div>
+  <div class="settings-card" id="autoBackupSettingsCard"></div>
+  <div class="section-title" style="margin-top:16px;">Historique des versions</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="manualVersionSnapshot()">
+      <label style="font-weight:800;color:var(--accent);">＋ Créer un point de restauration</label>
+      <div class="settings-summary">Enregistre l'état actuel dans l'historique</div>
+    </div>
+  </div>
+  <div class="settings-card" id="versionHistoryList"></div>
+</div>
+
+<div class="page" id="page-objectifs-settings">
+  <div class="section-title">Objectifs</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <div class="settings-dot" style="background:var(--green)"></div>
+      <label>Objectif hebdomadaire</label>
+      <div class="settings-summary" id="objectifSemAuto" style="font-weight:700;color:var(--text)">—</div>
+    </div>
+    <div class="settings-summary" style="padding:8px 16px 12px;font-size:11px;margin-top:0;line-height:1.4;">Calculé automatiquement à partir des objectifs par jour ci-dessous</div>
+  </div>
+  <div class="section-title" style="margin-top:20px;">Objectif par jour de la semaine</div>
+  <div class="settings-card" id="objectifsParJourCard"></div>
+</div>
+
+<script>
+// ── STATE ──
+let state = {
+  status: 'idle',
+  startTs: null,
+  pauseStart: null,
+  totalPauseMs: 0,
+  startGeo: null,
+  sessions: [],
+  conges: [],
+  quotas: { cp:25, rtt:10, css:0, csp:5 },
+};
+
+let objectifs = {
+  jour: 8 * 3600000,
+  semaine: 35 * 3600000,
+  parJour: { 1: 8*3600000, 2: 8*3600000, 3: 8*3600000, 4: 8*3600000, 5: 8*3600000, 6: 0, 0: 0 } // 0=dimanche...6=samedi
+}; // ms
+
+
+let timerInterval = null;
+const APP_VERSION = '0.1.42';
+
+
+// ── STORAGE ──
+function save() {
+  localStorage.setItem('timetracker_sessions', JSON.stringify(state.sessions));
+  localStorage.setItem('timetracker_current', JSON.stringify({
+    status: state.status,
+    startTs: state.startTs,
+    pauseStart: state.pauseStart,
+    totalPauseMs: state.totalPauseMs,
+    startGeo: state.startGeo,
+  }));
+}
+
+function load() {
+  try {
+    const s = localStorage.getItem('timetracker_sessions');
+    if (s) state.sessions = JSON.parse(s);
+    const c = localStorage.getItem('timetracker_current');
+    if (c) {
+      const cur = JSON.parse(c);
+      state.status = cur.status;
+      state.startTs = cur.startTs;
+      state.pauseStart = cur.pauseStart;
+      state.totalPauseMs = cur.totalPauseMs;
+      state.startGeo = cur.startGeo || null;
+    }
+  } catch(e) {}
+}
+
+function saveObjectifs() {
+  localStorage.setItem('timetracker_objectifs', JSON.stringify(objectifs));
+}
+
+function loadObjectifs() {
+  try {
+    const o = localStorage.getItem('timetracker_objectifs');
+    if (o) {
+      const parsed = JSON.parse(o);
+      objectifs = Object.assign({ jour:8*3600000, semaine:35*3600000, parJour:{1:8*3600000,2:8*3600000,3:8*3600000,4:8*3600000,5:8*3600000,6:0,0:0} }, parsed);
+      if (!objectifs.parJour) objectifs.parJour = {1:8*3600000,2:8*3600000,3:8*3600000,4:8*3600000,5:8*3600000,6:0,0:0};
+    }
+  } catch(e) {}
+}
+
+// ── REMUNERATION ──
+let remuneration = {
+  enabled: false,
+  tauxHoraire: 0,
+  seuil1: 35,
+  seuil2: 39,
+  majorationTranche1: 25,
+  majorationTranche2: 50,
+  netEnabled: false,
+  tauxImposition: 22
+};
+
+function saveRemuneration() {
+  localStorage.setItem('orvia_remuneration', JSON.stringify(remuneration));
+}
+
+function loadRemuneration() {
+  try {
+    const r = localStorage.getItem('orvia_remuneration');
+    if (r) {
+      const parsed = JSON.parse(r);
+      remuneration = Object.assign({
+        enabled: false, tauxHoraire: 0, seuil1: 35, seuil2: 39,
+        majorationTranche1: 25, majorationTranche2: 50,
+        netEnabled: false, tauxImposition: 22
+      }, parsed);
+    }
+  } catch(e) {}
+}
+
+// ── ARRONDI ──
+let arrondi = { enabled: false, minutes: 15, mode: 'nearest' };
+
+function saveArrondi() {
+  localStorage.setItem('orvia_arrondi', JSON.stringify(arrondi));
+}
+
+function loadArrondi() {
+  try {
+    const a = localStorage.getItem('orvia_arrondi');
+    if (a) {
+      const parsed = JSON.parse(a);
+      arrondi = Object.assign({ enabled: false, minutes: 15, mode: 'nearest' }, parsed);
+    }
+  } catch(e) {}
+}
+
+// ── DÉTECTION D'INACTIVITÉ (session oubliée) ──
+let inactivite = { enabled: true, seuilHeures: 12 };
+
+function saveInactivite() {
+  localStorage.setItem('orvia_inactivite', JSON.stringify(inactivite));
+}
+
+function loadInactivite() {
+  try {
+    const a = localStorage.getItem('orvia_inactivite');
+    if (a) {
+      const parsed = JSON.parse(a);
+      inactivite = Object.assign({ enabled: true, seuilHeures: 12 }, parsed);
+    }
+  } catch(e) {}
+}
+
+// ── RÉSUMÉ DE LA VEILLE (première ouverture uniquement) ──
+let resumeJour = { enabled: true };
+
+function saveResumeJour() {
+  localStorage.setItem('orvia_resume_jour', JSON.stringify(resumeJour));
+}
+
+function loadResumeJour() {
+  try {
+    const a = localStorage.getItem('orvia_resume_jour');
+    if (a) {
+      const parsed = JSON.parse(a);
+      resumeJour = Object.assign({ enabled: true }, parsed);
+    }
+  } catch(e) {}
+}
+
+function hasYesterdaySummaryBeenShown() {
+  return localStorage.getItem('orvia_resume_veille_shown') === '1';
+}
+
+function markYesterdaySummaryShown() {
+  localStorage.setItem('orvia_resume_veille_shown', '1');
+}
+
+function getYesterdayKey() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return tsToKey(d.getTime());
+}
+
+function computeYesterdaySummaryData() {
+  const yesterday = getYesterdayKey();
+  const yesterdaySessions = state.sessions.filter(s => s.date === yesterday);
+  const dayTotal = yesterdaySessions.reduce((a, s) => a + s.net, 0);
+
+  const dowYesterday = new Date(Date.now() - 86400000).getDay();
+  const jourGoal = (objectifs.parJour && typeof objectifs.parJour[dowYesterday] !== 'undefined') ? objectifs.parJour[dowYesterday] : objectifs.jour;
+
+  let gainsInfo = null;
+  if (remuneration.enabled && remuneration.tauxHoraire) {
+    const gainsDayBrut = calcGainsJour(dayTotal);
+    gainsInfo = { day: gainsDayBrut };
+  }
+
+  return { dayTotal, jourGoal, gainsInfo, hadSessionYesterday: yesterdaySessions.length > 0 };
+}
+
+function renderYesterdaySummaryModal() {
+  const data = computeYesterdaySummaryData();
+  const contentEl = document.getElementById('dailySummaryContent');
+  if (!contentEl) return;
+
+  const dayPct = data.jourGoal > 0 ? Math.min(100, Math.round((data.dayTotal / data.jourGoal) * 100)) : 0;
+
+  const gainsHtml = data.gainsInfo ? `
+    <div style="font-size:12px;color:var(--muted);margin-top:10px;">
+      Gains estimés hier : <strong style="color:var(--accent)">${fmtEuros(data.gainsInfo.day)}</strong>
+    </div>
+  ` : '';
+
+  const messageHtml = !data.hadSessionYesterday ? `
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">Aucune session enregistrée hier.</div>
+  ` : '';
+
+  contentEl.innerHTML = `
+    ${messageHtml}
+    <div class="objectif-card">
+      <div class="objectif-header">
+        <span class="objectif-label">Hier</span>
+        <span class="objectif-values" style="color:${dayPct>=100?'var(--green)':dayPct>=75?'var(--orange)':'var(--accent)'}">${fmtHM(data.dayTotal)} / ${fmtHM(data.jourGoal)}</span>
+      </div>
+      <div class="objectif-bar-bg"><div class="objectif-bar-fill ${dayPct>=100?'done':dayPct>=75?'warning':'progress'}" style="width:${dayPct}%"></div></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">${dayPct>=100 ? 'Objectif du jour atteint 🎉' : (data.hadSessionYesterday ? 'Objectif non atteint' : '')}</div>
+    </div>
+    ${gainsHtml}
+  `;
+}
+
+function openYesterdaySummaryModal() {
+  const modal = document.getElementById('dailySummaryModal');
+  if (!modal) return;
+  renderYesterdaySummaryModal();
+  modal.style.display = 'flex';
+}
+
+function closeDailySummaryModal() {
+  const modal = document.getElementById('dailySummaryModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function maybeShowYesterdaySummary() {
+  if (!resumeJour.enabled) return;
+  if (hasYesterdaySummaryBeenShown()) return;
+  markYesterdaySummaryShown();
+  openYesterdaySummaryModal();
+}
+
+
+function checkForgottenSession() {
+  if (!inactivite.enabled) return;
+  if (state.status === 'idle') return;
+  if (!state.startTs) return;
+  const elapsedMs = Date.now() - state.startTs;
+  const seuilMs = inactivite.seuilHeures * 3600000;
+  if (elapsedMs >= seuilMs) {
+    openForgottenSessionModal();
+  }
+}
+
+function openForgottenSessionModal() {
+  const modal = document.getElementById('forgottenSessionModal');
+  if (!modal) return;
+  const startEl = document.getElementById('forgottenSessionStart');
+  const elapsedEl = document.getElementById('forgottenSessionElapsed');
+  if (startEl) startEl.textContent = fmtTime(state.startTs) + ' (' + tsToKey(state.startTs) + ')';
+  if (elapsedEl) elapsedEl.textContent = fmtHM(Date.now() - state.startTs);
+  const suggestedEndInput = document.getElementById('forgottenSessionEndTime');
+  if (suggestedEndInput) {
+    const suggested = new Date(state.startTs);
+    const dow = suggested.getDay();
+    const jourGoalMs = (objectifs.parJour && typeof objectifs.parJour[dow] !== 'undefined') ? objectifs.parJour[dow] : objectifs.jour;
+    suggested.setTime(state.startTs + (jourGoalMs || 8 * 3600000));
+    suggestedEndInput.value = tsToTimeInput(suggested.getTime());
+  }
+  modal.style.display = 'flex';
+}
+
+function closeForgottenSessionModal() {
+  const modal = document.getElementById('forgottenSessionModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function keepForgottenSessionRunning() {
+  closeForgottenSessionModal();
+  showToast('Session laissée en cours');
+}
+
+function fixForgottenSessionEnd() {
+  const endTimeInput = document.getElementById('forgottenSessionEndTime');
+  const errEl = document.getElementById('forgottenSessionError');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  if (!endTimeInput) return;
+  const startDate = new Date(state.startTs);
+  const dateStr = toLocalISO(startDate);
+  let endTs = combineDateTimeToTs(dateStr, endTimeInput.value);
+  if (!Number.isNaN(endTs) && endTs <= state.startTs) {
+    endTs += 24 * 3600000;
+  }
+  if (Number.isNaN(endTs) || endTs <= state.startTs) {
+    if (errEl) { errEl.textContent = 'Heure de fin invalide.'; errEl.style.display = 'block'; }
+    return;
+  }
+  stopTimer();
+  const pauseMs = state.totalPauseMs + ((state.status === 'paused' && state.pauseStart) ? (endTs - state.pauseStart) : 0);
+  const { start: finalStart, end: finalEnd } = applyArrondiToSession(state.startTs, endTs);
+  const net = Math.max(0, (finalEnd - finalStart) - pauseMs);
+
+  state.sessions.push({
+    date: tsToKey(finalStart),
+    start: finalStart,
+    end: finalEnd,
+    pauseMs,
+    net,
+    note: 'Session corrigée (oubli détecté)',
+    startGeo: state.startGeo || null,
+    endGeo: null,
+  });
+
+  state.status = 'idle';
+  state.startTs = null;
+  state.pauseStart = null;
+  state.totalPauseMs = 0;
+  state.startGeo = null;
+  document.getElementById('bigTime').textContent = '00:00:00';
+  document.getElementById('bigTime').className = 'big-time';
+  document.getElementById('elapsedLabel').textContent = 'Prêt à démarrer';
+  document.getElementById('startTimeDisplay').textContent = '--:--';
+  document.getElementById('pauseDisplay').textContent = '00:00';
+  document.getElementById('netDisplay').textContent = '00:00';
+  updateButtons();
+  save();
+  renderToday();
+  closeForgottenSessionModal();
+  showToast('Session corrigée ✓');
+}
+
+function roundTimestamp(ts, direction) {
+  const stepMs = arrondi.minutes * 60000;
+  if (direction === 'up') return Math.ceil(ts / stepMs) * stepMs;
+  if (direction === 'down') return Math.floor(ts / stepMs) * stepMs;
+  return Math.round(ts / stepMs) * stepMs;
+}
+
+function applyArrondiToSession(startTs, endTs) {
+  if (!arrondi.enabled) return { start: startTs, end: endTs };
+  let startDir = 'nearest';
+  let endDir = 'nearest';
+  if (arrondi.mode === 'favor_salarie') { startDir = 'down'; endDir = 'up'; }
+  else if (arrondi.mode === 'favor_entreprise') { startDir = 'up'; endDir = 'down'; }
+  const roundedStart = roundTimestamp(startTs, startDir);
+  const roundedEnd = roundTimestamp(endTs, endDir);
+  return { start: roundedStart, end: Math.max(roundedEnd, roundedStart) };
+}
+
+function calcNet(brutAmount) {
+  if (!remuneration.netEnabled) return brutAmount;
+  const taux = clampNumber(remuneration.tauxImposition, 0, 100, 22);
+  return brutAmount * (1 - taux / 100);
+}
+
+function calcGainsSemaine(weekNetMs) {
+  if (!remuneration.enabled || !remuneration.tauxHoraire) return 0;
+  const heures = weekNetMs / 3600000;
+  const seuil1 = remuneration.seuil1;
+  const seuil2 = remuneration.seuil2;
+  const taux = remuneration.tauxHoraire;
+
+  const heuresNormales = Math.min(heures, seuil1);
+  const heuresTranche1 = Math.max(0, Math.min(heures, seuil2) - seuil1);
+  const heuresTranche2 = Math.max(0, heures - seuil2);
+
+  const tauxTranche1 = taux * (1 + (remuneration.majorationTranche1 || 0) / 100);
+  const tauxTranche2 = taux * (1 + (remuneration.majorationTranche2 || 0) / 100);
+
+  return heuresNormales * taux + heuresTranche1 * tauxTranche1 + heuresTranche2 * tauxTranche2;
+}
+
+function calcGainsJour(dayNetMs) {
+  if (!remuneration.enabled || !remuneration.tauxHoraire) return 0;
+  return (dayNetMs / 3600000) * remuneration.tauxHoraire;
+}
+
+function calcTrancheGainForRange(cumulBeforeH, hoursH, taux, seuil1, seuil2, maj1, maj2) {
+  const cumulAfterH = cumulBeforeH + hoursH;
+  const normalH = Math.max(0, Math.min(cumulAfterH, seuil1) - Math.min(cumulBeforeH, seuil1));
+  const tranche1H = Math.max(0, Math.min(cumulAfterH, seuil2) - Math.max(cumulBeforeH, seuil1));
+  const tranche1HClamped = Math.max(0, Math.min(tranche1H, hoursH));
+  const tranche2H = Math.max(0, cumulAfterH - Math.max(cumulBeforeH, seuil2));
+  const tranche2HClamped = Math.max(0, Math.min(tranche2H, hoursH - normalH - tranche1HClamped));
+  const tauxT1 = taux * (1 + (maj1 || 0) / 100);
+  const tauxT2 = taux * (1 + (maj2 || 0) / 100);
+  return normalH * taux + tranche1HClamped * tauxT1 + tranche2HClamped * tauxT2;
+}
+
+function calcGainsMois(year, month) {
+  if (!remuneration.enabled || !remuneration.tauxHoraire) return 0;
+
+  const monthStart = new Date(year, month, 1).getTime();
+  const monthEnd = new Date(year, month + 1, 1).getTime();
+
+  const relevantSessions = state.sessions.filter(s => {
+    const mon = getMondayOf(new Date(s.start));
+    const weekEnd = new Date(mon); weekEnd.setDate(mon.getDate() + 7);
+    return weekEnd.getTime() > monthStart && mon.getTime() < monthEnd;
+  });
+
+  if (!relevantSessions.length) return 0;
+
+  const byWeek = {};
+  relevantSessions.forEach(s => {
+    const mon = getMondayOf(new Date(s.start));
+    const key = mon.getTime();
+    if (!byWeek[key]) byWeek[key] = [];
+    byWeek[key].push(s);
+  });
+
+  const taux = remuneration.tauxHoraire;
+  const seuil1 = remuneration.seuil1;
+  const seuil2 = remuneration.seuil2;
+  const maj1 = remuneration.majorationTranche1;
+  const maj2 = remuneration.majorationTranche2;
+
+  let totalMonthGains = 0;
+
+  Object.keys(byWeek).forEach(key => {
+    const weekSessions = byWeek[key].slice().sort((a, b) => a.start - b.start);
+    let cumulH = 0;
+    weekSessions.forEach(s => {
+      const hoursH = (s.net || 0) / 3600000;
+      const gain = calcTrancheGainForRange(cumulH, hoursH, taux, seuil1, seuil2, maj1, maj2);
+      if (s.start >= monthStart && s.start < monthEnd) {
+        totalMonthGains += gain;
+      }
+      cumulH += hoursH;
+    });
+  });
+
+  return totalMonthGains;
+}
+
+// ── SÉCURITÉ / ÉCHAPPEMENT HTML ──
+// Empêche l'injection HTML/JS via les notes de session (saisie utilisateur ou import de sauvegarde)
+function escapeHtml(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function fmtEuros(amount) {
+  return amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+
+function renderRemunerationCardInto(elId, dayTotal, dayGoal, weekTotal, weekGoal) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+
+  if (!remuneration.enabled || !remuneration.tauxHoraire) {
+    el.innerHTML = `
+      <div class="objectif-card">
+        <div style="font-size:13px;color:var(--muted);">
+          Active la rémunération dans les Réglages pour voir tes gains estimés.
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  const gainsDayBrut = calcGainsJour(dayTotal);
+  const gainsWeekBrut = calcGainsSemaine(weekTotal);
+  const gainsDayNet = calcNet(gainsDayBrut);
+  const gainsWeekNet = calcNet(gainsWeekBrut);
+  const weekHeures = weekTotal / 3600000;
+  const seuil1 = remuneration.seuil1;
+  const seuil2 = remuneration.seuil2;
+
+  let trancheInfo = '';
+  if (weekHeures > seuil2) {
+    trancheInfo = `Tranches: ${seuil1}h normal · ${seuil1}-${seuil2}h +${remuneration.majorationTranche1}% · au-delà +${remuneration.majorationTranche2}%`;
+  } else if (weekHeures > seuil1) {
+    trancheInfo = `Tranche ${seuil1}-${seuil2}h active: +${remuneration.majorationTranche1}%`;
+  } else {
+    trancheInfo = `Taux: ${remuneration.tauxHoraire.toLocaleString('fr-FR')} €/h (sous ${seuil1}h)`;
+  }
+
+  const now = new Date();
+  const gainsMonthBrut = calcGainsMois(now.getFullYear(), now.getMonth());
+  const gainsMonthNet = calcNet(gainsMonthBrut);
+
+  const netRow = remuneration.netEnabled
+    ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">Net estimé (−${remuneration.tauxImposition}%): <span style="color:var(--green);font-weight:700">${fmtEuros(gainsDayNet)}</span></div>`
+    : '';
+  const netRowWeek = remuneration.netEnabled
+    ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">Net estimé (−${remuneration.tauxImposition}%): <span style="color:var(--green);font-weight:700">${fmtEuros(gainsWeekNet)}</span></div>`
+    : '';
+  const netRowMonth = remuneration.netEnabled
+    ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">Net estimé (−${remuneration.tauxImposition}%): <span style="color:var(--green);font-weight:700">${fmtEuros(gainsMonthNet)}</span></div>`
+    : '';
+
+  el.innerHTML = `
+    <div class="objectif-card">
+      <div class="objectif-header">
+        <span class="objectif-label">Gains du jour (brut)</span>
+        <span class="objectif-values" style="color:var(--accent)">${fmtEuros(gainsDayBrut)}</span>
+      </div>
+      ${netRow}
+    </div>
+    <div class="objectif-card">
+      <div class="objectif-header">
+        <span class="objectif-label">Gains de la semaine (brut)</span>
+        <span class="objectif-values" style="color:var(--accent)">${fmtEuros(gainsWeekBrut)}</span>
+      </div>
+      ${netRowWeek}
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+        ${trancheInfo}
+      </div>
+    </div>
+    <div class="objectif-card">
+      <div class="objectif-header">
+        <span class="objectif-label">Gains du mois (brut)</span>
+        <span class="objectif-values" style="color:var(--accent)">${fmtEuros(gainsMonthBrut)}</span>
+      </div>
+      ${netRowMonth}
+    </div>
+  `;
+}
+
+// ── HELPERS ──
+function fmtHMS(ms) {
+  if (ms < 0) ms = 0;
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+}
+function fmtHM(ms) {
+  if (ms < 0) ms = 0;
+  const s = Math.floor(ms / 1000);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+}
+function fmtTime(ts) {
+  if (!ts) return '--:--';
+  const d = new Date(ts);
+  return d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+}
+function todayKey() { return new Date().toLocaleDateString('fr-FR'); }
+function tsToKey(ts) { return new Date(ts).toLocaleDateString('fr-FR'); }
+
+function toLocalISO(d) {
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+
+function getEasterSunday(year) {
+  const a = year % 19;
+  const b = Math.floor(year / 100);
+  const c = year % 100;
+  const d = Math.floor(b / 4);
+  const e = b % 4;
+  const f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4);
+  const k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  const day = ((h + l - 7 * m + 114) % 31) + 1;
+  return new Date(year, month - 1, day);
+}
+
+const _frHolidaysCache = {};
+
+function getFrenchHolidays(year) {
+  if (_frHolidaysCache[year]) return _frHolidaysCache[year];
+  const easter = getEasterSunday(year);
+  const easterMonday = new Date(easter); easterMonday.setDate(easter.getDate() + 1);
+  const ascension = new Date(easter); ascension.setDate(easter.getDate() + 39);
+  const whitMonday = new Date(easter); whitMonday.setDate(easter.getDate() + 50);
+
+  const fixed = [
+    new Date(year, 0, 1),
+    new Date(year, 4, 1),
+    new Date(year, 4, 8),
+    new Date(year, 6, 14),
+    new Date(year, 7, 15),
+    new Date(year, 10, 1),
+    new Date(year, 10, 11),
+    new Date(year, 11, 25),
+  ];
+
+  const labels = {
+    [`${year}-01-01`]: "Jour de l'An",
+    [`${year}-05-01`]: "Fête du Travail",
+    [`${year}-05-08`]: "Victoire 1945",
+    [`${year}-07-14`]: "Fête nationale",
+    [`${year}-08-15`]: "Assomption",
+    [`${year}-11-01`]: "Toussaint",
+    [`${year}-11-11`]: "Armistice",
+    [`${year}-12-25`]: "Noël",
+  };
+
+  const all = [...fixed, easterMonday, ascension, whitMonday];
+  const dateSet = new Set();
+  all.forEach(d => {
+    const key = toLocalISO(d);
+    dateSet.add(key);
+  });
+  labels[toLocalISO(easterMonday)] = "Lundi de Pâques";
+  labels[toLocalISO(ascension)] = "Ascension";
+  labels[toLocalISO(whitMonday)] = "Lundi de Pentecôte";
+
+  const result = { dateSet, labels };
+  _frHolidaysCache[year] = result;
+  return result;
+}
+
+function isDateHoliday(dateStr) {
+  const year = Number(dateStr.slice(0, 4));
+  if (!Number.isFinite(year)) return false;
+  const { dateSet } = getFrenchHolidays(year);
+  return dateSet.has(dateStr);
+}
+
+function getHolidayLabel(dateStr) {
+  const year = Number(dateStr.slice(0, 4));
+  if (!Number.isFinite(year)) return null;
+  const { labels } = getFrenchHolidays(year);
+  return labels[dateStr] || null;
+}
+
+
+// ── GEO ──
+async function getGeo() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) { resolve(null); return; }
+    navigator.geolocation.getCurrentPosition(
+      async pos => {
+        const lat = pos.coords.latitude.toFixed(5);
+        const lng = pos.coords.longitude.toFixed(5);
+        // Reverse geocode via nominatim
+        try {
+          // Nominatim exige une identification de l'app (politique d'usage), mais un
+          // navigateur interdit de personnaliser l'en-tête User-Agent depuis fetch().
+          // On s'assure donc que le Referer (seule identification possible côté client)
+          // est bien transmis, ce que fait déjà nativement navigator sauf override.
+          const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=16`, {
+            headers: { 'Accept-Language': 'fr' },
+            referrerPolicy: 'origin',
+          });
+          const d = await r.json();
+          const addr = d.address;
+          const label = [addr.road, addr.house_number, addr.city || addr.town || addr.village].filter(Boolean).join(' ');
+          resolve({ lat, lng, label: label || `${lat}, ${lng}` });
+        } catch {
+          resolve({ lat, lng, label: `${lat}, ${lng}` });
+        }
+      },
+      () => resolve(null),
+      { timeout: 6000, maximumAge: 30000 }
+    );
+  });
+}
+
+function geoMapsUrl(geo) {
+  // Lien universel : s'ouvre dans l'app Google Maps sur Android et dans le
+  // navigateur (ou l'app Google Maps si installée) sur iOS/desktop.
+  return `https://www.google.com/maps?q=${geo.lat},${geo.lng}`;
+}
+
+// ── TIMER ──
+function tick() {
+  if (state.status === 'idle') return;
+  const now = Date.now();
+  let elapsed = now - state.startTs;
+  let currentPause = state.totalPauseMs;
+  if (state.status === 'paused' && state.pauseStart) {
+    currentPause += (now - state.pauseStart);
+  }
+  const net = elapsed - currentPause;
+
+  document.getElementById('bigTime').textContent = fmtHMS(net);
+  document.getElementById('pauseDisplay').textContent = fmtHM(currentPause);
+  document.getElementById('netDisplay').textContent = fmtHM(net);
+
+  const el = document.getElementById('bigTime');
+  el.className = 'big-time ' + (state.status === 'paused' ? 'paused' : 'running');
+  renderObjectifs();
+}
+
+function startTimer() { timerInterval = setInterval(tick, 1000); tick(); }
+function stopTimer() { clearInterval(timerInterval); timerInterval = null; }
+
+// ── ACTIONS ──
+function handleMainBtn() {
+  if (state.status === 'idle') {
+    // START
+    state.startTs = Date.now();
+    state.totalPauseMs = 0;
+    state.pauseStart = null;
+    state.startGeo = null;
+    state.status = 'running';
+    document.getElementById('startTimeDisplay').textContent = fmtTime(state.startTs);
+    document.getElementById('elapsedLabel').textContent = 'En cours…';
+    updateButtons();
+    startTimer();
+    save();
+    showToast('Session démarrée ✓');
+    // Fetch geo in background
+    getGeo().then(geo => { if (geo) { state.startGeo = geo; save(); } });
+  } else if (state.status === 'running') {
+    // PAUSE
+    state.pauseStart = Date.now();
+    state.status = 'paused';
+    document.getElementById('elapsedLabel').textContent = 'En pause…';
+    updateButtons();
+    save();
+    showToast('Pause déjeuner ☕');
+  } else if (state.status === 'paused') {
+    // RESUME
+    state.totalPauseMs += Date.now() - state.pauseStart;
+    state.pauseStart = null;
+    state.status = 'running';
+    document.getElementById('elapsedLabel').textContent = 'En cours…';
+    updateButtons();
+    save();
+    showToast('Reprise du travail ✓');
+  }
+}
+
+async function stopSession() {
+  if (state.status === 'idle') return;
+  stopTimer();
+
+  const rawEndTs = Date.now();
+  let pauseMs = state.totalPauseMs;
+  if (state.status === 'paused' && state.pauseStart) {
+    pauseMs += rawEndTs - state.pauseStart;
+  }
+  const note = document.getElementById('noteInput').value.trim();
+
+  const { start: finalStart, end: finalEnd } = applyArrondiToSession(state.startTs, rawEndTs);
+  const net = Math.max(0, (finalEnd - finalStart) - pauseMs);
+
+  const newSession = {
+    date: tsToKey(finalStart),
+    start: finalStart,
+    end: finalEnd,
+    pauseMs,
+    net,
+    note: note || 'Session de travail',
+    startGeo: state.startGeo || null,
+    endGeo: null,
+  };
+  state.sessions.push(newSession);
+
+  // reset
+  state.status = 'idle';
+  state.startTs = null;
+  state.pauseStart = null;
+  state.totalPauseMs = 0;
+  state.startGeo = null;
+  document.getElementById('noteInput').value = '';
+  document.getElementById('bigTime').textContent = '00:00:00';
+  document.getElementById('bigTime').className = 'big-time';
+  document.getElementById('elapsedLabel').textContent = 'Prêt à démarrer';
+  document.getElementById('startTimeDisplay').textContent = '--:--';
+  document.getElementById('pauseDisplay').textContent = '00:00';
+  document.getElementById('netDisplay').textContent = '00:00';
+  updateButtons();
+  save();
+  renderToday();
+  showToast('Session enregistrée ✓');
+
+  // La géolocalisation ne doit jamais retarder l'enregistrement de la session :
+  // elle est résolue en arrière-plan et vient compléter la session une fois disponible.
+  getGeo().then(endGeo => {
+    if (endGeo) {
+      newSession.endGeo = endGeo;
+      save();
+      renderToday();
+    }
+  });
+}
+
+function updateButtons() {
+  const row = document.getElementById('btnRow');
+  if (state.status === 'idle') {
+    row.innerHTML = `<button class="btn btn-start" onclick="handleMainBtn()">▶ Démarrer</button>`;
+  } else if (state.status === 'running') {
+    row.innerHTML = `
+      <button class="btn btn-pause" onclick="handleMainBtn()">⏸ Pause</button>
+      <button class="btn btn-stop" onclick="stopSession()">⏹ Terminer</button>`;
+  } else {
+    row.innerHTML = `
+      <button class="btn btn-resume" onclick="handleMainBtn()">▶ Reprendre</button>
+      <button class="btn btn-stop" onclick="stopSession()">⏹ Terminer</button>`;
+  }
+}
+
+// ── RENDER TODAY ──
+function renderToday() {
+  const today = todayKey();
+  const todaySessions = state.sessions.filter(s => s.date === today);
+  const container = document.getElementById('todaySessions');
+  const empty = document.getElementById('emptyToday');
+
+  if (!todaySessions.length) {
+    container.innerHTML = '';
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    container.innerHTML = todaySessions.map(s => sessionItemHtml(s)).join('');
+  }
+  renderObjectifs();
+}
+
+
+function getReminderConfig() {
+  const raw = localStorage.getItem('orvia_reminder');
+  if (!raw) return { enabled: false, time: '09:30', firedDate: null };
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      enabled: !!parsed.enabled,
+      time: /^\d{2}:\d{2}$/.test(parsed.time) ? parsed.time : '09:30',
+      firedDate: typeof parsed.firedDate === 'string' ? parsed.firedDate : null
+    };
+  } catch(e) {
+    return { enabled: false, time: '09:30', firedDate: null };
+  }
+}
+
+function saveReminderConfig(cfg) {
+  localStorage.setItem('orvia_reminder', JSON.stringify(cfg));
+}
+
+function renderReminderSettings() {
+  const cfg = getReminderConfig();
+  const enabledEl = document.getElementById('reminderEnabled');
+  const timeEl = document.getElementById('reminderTime');
+  if (enabledEl) enabledEl.checked = cfg.enabled;
+  if (timeEl) timeEl.value = cfg.time;
+  updateReminderSummary(cfg);
+}
+
+function updateReminderSummary(cfg) {
+  const summaryEl = document.getElementById('reminderSummary');
+  if (!summaryEl) return;
+  summaryEl.textContent = cfg.enabled
+    ? `Actif à ${cfg.time} si aucune session démarrée`
+    : 'Notification si aucune session démarrée';
+}
+
+function onReminderToggle() {
+  const cfg = getReminderConfig();
+  const enabledEl = document.getElementById('reminderEnabled');
+  cfg.enabled = enabledEl ? enabledEl.checked : false;
+  cfg.firedDate = null;
+  saveReminderConfig(cfg);
+  updateReminderSummary(cfg);
+  if (cfg.enabled && ('Notification' in window) && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+  showToast(cfg.enabled ? 'Rappel activé ✓' : 'Rappel désactivé');
+}
+
+function onReminderTimeChange() {
+  const cfg = getReminderConfig();
+  const timeEl = document.getElementById('reminderTime');
+  cfg.time = timeEl && /^\d{2}:\d{2}$/.test(timeEl.value) ? timeEl.value : '09:30';
+  cfg.firedDate = null;
+  saveReminderConfig(cfg);
+  showToast(`Heure du rappel : ${cfg.time}`);
+}
+
+function checkReminderTrigger() {
+  const cfg = getReminderConfig();
+  if (!cfg.enabled) return;
+
+  const now = new Date();
+  const today = todayKey();
+  if (cfg.firedDate === today) return;
+
+  const [hh, mm] = cfg.time.split(':').map(Number);
+  const targetMinutes = hh * 60 + mm;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  if (nowMinutes < targetMinutes) return;
+
+  const hasSessionToday = state.sessions.some(s => s.date === today);
+  const isActive = state.status !== 'idle';
+  if (hasSessionToday || isActive) {
+    cfg.firedDate = today;
+    saveReminderConfig(cfg);
+    return;
+  }
+
+  cfg.firedDate = today;
+  saveReminderConfig(cfg);
+
+  const canNotify = ('Notification' in window) && Notification.permission === 'granted';
+  if (canNotify) {
+    new Notification('Rappel Orvia ⏰', { body: "Tu n'as pas encore démarré de session aujourd'hui." });
+  }
+  showToast("⏰ Rappel : aucune session démarrée aujourd'hui");
+}
+
+function requestNotifPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+let _notifState = { dayHit:false, weekHit:false, day80:false, week80:false, lastDate: null };
+function checkGoalNotifications(dayTotal, dayGoal, weekTotal, weekGoal) {
+  const today = todayKey();
+  if (_notifState.lastDate !== today) {
+    _notifState = { dayHit:false, weekHit:false, day80:false, week80:false, lastDate: today };
+  }
+  const canNotify = ('Notification' in window) && Notification.permission === 'granted';
+  if (dayGoal > 0) {
+    const pctDay = dayTotal / dayGoal;
+    if (pctDay >= 1 && !_notifState.dayHit) {
+      _notifState.dayHit = true;
+      if (canNotify) new Notification('Objectif du jour atteint 🎉', { body: `${fmtHM(dayTotal)} / ${fmtHM(dayGoal)}` });
+      showToast('Objectif du jour atteint 🎉');
+    } else if (pctDay >= 0.8 && pctDay < 1 && !_notifState.day80) {
+      _notifState.day80 = true;
+      if (canNotify) new Notification('Objectif du jour presque atteint', { body: `${fmtHM(dayTotal)} / ${fmtHM(dayGoal)}` });
+    }
+  }
+  if (weekGoal > 0) {
+    const pctWeek = weekTotal / weekGoal;
+    if (pctWeek >= 1 && !_notifState.weekHit) {
+      _notifState.weekHit = true;
+      if (canNotify) new Notification('Objectif de la semaine atteint 🎉', { body: `${fmtHM(weekTotal)} / ${fmtHM(weekGoal)}` });
+      showToast('Objectif de la semaine atteint 🎉');
+    } else if (pctWeek >= 0.8 && pctWeek < 1 && !_notifState.week80) {
+      _notifState.week80 = true;
+      if (canNotify) new Notification('Objectif de la semaine presque atteint', { body: `${fmtHM(weekTotal)} / ${fmtHM(weekGoal)}` });
+    }
+  }
+}
+
+function renderObjectifs() {
+  const today = todayKey();
+  // Heures du jour (sessions terminées)
+  const todaySessions = state.sessions.filter(s => s.date === today);
+  const dayDone = todaySessions.reduce((a, s) => a + s.net, 0);
+  // Ajouter la session en cours si running/paused
+  let liveMs = 0;
+  if (state.status !== 'idle' && state.startTs) {
+    const now = Date.now();
+    let pause = state.totalPauseMs;
+    if (state.status === 'paused' && state.pauseStart) pause += now - state.pauseStart;
+    liveMs = Math.max(0, now - state.startTs - pause);
+  }
+  const dayTotal = dayDone + liveMs;
+
+  // Heures de la semaine (sessions terminées + live)
+  const weekSessions = getWeekSessions();
+  const weekDone = weekSessions.reduce((a, s) => a + s.net, 0);
+  const weekTotal = weekDone + liveMs;
+
+  const block = document.getElementById('objectifsBlock');
+  if (!block) return;
+
+  const dowToday = new Date().getDay();
+  const jourGoal = (objectifs.parJour && typeof objectifs.parJour[dowToday] !== 'undefined') ? objectifs.parJour[dowToday] : objectifs.jour;
+  const weekGoalAjuste = getWeekGoalAjuste();
+
+  checkGoalNotifications(dayTotal, jourGoal, weekTotal, weekGoalAjuste);
+
+  function barHtml(done, goal, label) {
+    const pct = goal > 0 ? Math.min(100, (done / goal) * 100) : 0;
+    const colorClass = pct >= 100 ? 'done' : pct >= 75 ? 'warning' : 'progress';
+    const pctLabel = goal > 0 ? Math.round(pct) + '%' : '—';
+    return `<div class="objectif-card">
+      <div class="objectif-header">
+        <span class="objectif-label">${label}</span>
+        <span class="objectif-values" style="color:${pct>=100?'var(--green)':pct>=75?'var(--orange)':'var(--accent)'}">${fmtHM(done)} <span style="color:var(--muted);font-weight:500">/ ${fmtHM(goal)}</span> <span style="font-size:11px;color:var(--muted)">${pctLabel}</span></span>
+      </div>
+      <div class="objectif-bar-bg">
+        <div class="objectif-bar-fill ${colorClass}" style="width:${pct}%"></div>
+      </div>
+    </div>`;
+  }
+
+  block.innerHTML =
+    barHtml(dayTotal, jourGoal, 'Objectif du jour') +
+    barHtml(weekTotal, weekGoalAjuste, 'Objectif de la semaine' + (weekGoalAjuste !== getWeekGoalBase() ? ' (ajusté congés)' : ''));
+
+  renderOvertimeCard();
+  renderRemunerationCardInto('remunerationCard', dayTotal, jourGoal, weekTotal, weekGoalAjuste);
+}
+
+function isDateOnConge(dateStr) {
+  return state.conges.some(c => dateStr >= c.start && dateStr <= (c.end || c.start));
+}
+
+function getWeekGoalBase() {
+  const order = [1,2,3,4,5,6,0];
+  return order.reduce((sum, d) => sum + ((objectifs.parJour && typeof objectifs.parJour[d] !== 'undefined') ? objectifs.parJour[d] : objectifs.jour), 0);
+}
+
+function getWeekGoalForMonday(monday) {
+  let total = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday); d.setDate(monday.getDate() + i);
+    const dow = d.getDay();
+    const dateStr = toLocalISO(d);
+    const goalDay = (objectifs.parJour && typeof objectifs.parJour[dow] !== 'undefined') ? objectifs.parJour[dow] : objectifs.jour;
+    if (!isDateOnConge(dateStr) && !isDateHoliday(dateStr)) total += goalDay;
+  }
+  return total;
+}
+
+function getMonthGoal(year, month) {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  let total = 0;
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d = new Date(year, month, day);
+    const dow = d.getDay();
+    const dateStr = toLocalISO(d);
+    const goalDay = (objectifs.parJour && typeof objectifs.parJour[dow] !== 'undefined') ? objectifs.parJour[dow] : objectifs.jour;
+    if (!isDateOnConge(dateStr) && !isDateHoliday(dateStr)) total += goalDay;
+  }
+  return total;
+}
+
+function getWeekGoalAjuste() {
+  const now = new Date();
+  const day = now.getDay() || 7;
+  const monday = new Date(now); monday.setDate(now.getDate() - day + 1); monday.setHours(0,0,0,0);
+  return getWeekGoalForMonday(monday);
+}
+
+function deleteSession(idx) {
+  if (!confirm('Supprimer cette session ?')) return;
+  state.sessions.splice(idx, 1);
+  save();
+  renderToday();
+  renderHistory();
+}
+
+function getMondayOf(date) {
+  const d = new Date(date);
+  const day = d.getDay() || 7;
+  d.setDate(d.getDate() - day + 1);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function getRecuperations() {
+  try {
+    const raw = localStorage.getItem('orvia_recuperations');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(r => r && typeof r.ms === 'number' && Number.isFinite(r.ms) && typeof r.date === 'string');
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveRecuperations(list) {
+  localStorage.setItem('orvia_recuperations', JSON.stringify(list));
+}
+
+function addRecuperation(ms, note) {
+  const list = getRecuperations();
+  list.push({ id: Date.now(), date: toLocalISO(new Date()), ms: clampNumber(ms, 0, 24 * 3600000, 0), note: (note || '').slice(0, 80) });
+  saveRecuperations(list);
+}
+
+function deleteRecuperation(id) {
+  const list = getRecuperations().filter(r => r.id !== id);
+  saveRecuperations(list);
+}
+
+function getOvertimeBalance() {
+  const monday = getMondayOf(new Date());
+  const weekEnd = new Date(monday); weekEnd.setDate(monday.getDate() + 7);
+
+  const weekSessions = state.sessions.filter(s => s.start >= monday.getTime() && s.start < weekEnd.getTime());
+  let weekDone = weekSessions.reduce((a, s) => a + (s.net || 0), 0);
+
+  if (state.status !== 'idle' && state.startTs) {
+    const now = Date.now();
+    let pause = state.totalPauseMs;
+    if (state.status === 'paused' && state.pauseStart) pause += now - state.pauseStart;
+    weekDone += Math.max(0, now - state.startTs - pause);
+  }
+
+  const weekGoal = getWeekGoalForMonday(monday);
+
+  const recupThisWeek = getRecuperations()
+    .filter(r => {
+      const rd = new Date(r.date + 'T00:00:00');
+      return rd >= monday && rd < weekEnd;
+    })
+    .reduce((a, r) => a + r.ms, 0);
+
+  return weekDone - weekGoal - recupThisWeek;
+}
+
+function renderOvertimeCardInto(elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const balance = getOvertimeBalance();
+  const isPositive = balance >= 0;
+  const color = isPositive ? 'var(--green)' : 'var(--accent2)';
+  const sign = isPositive ? '+' : '-';
+  el.innerHTML = `
+    <div class="objectif-card">
+      <div class="objectif-header">
+        <span class="objectif-label">Solde heures supplémentaires</span>
+        <span class="objectif-values" style="color:${color}">${sign}${fmtHM(Math.abs(balance))}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+        ${isPositive ? 'Cette semaine, par rapport à ton objectif' : 'Déficit à rattraper cette semaine'}
+      </div>
+    </div>
+  `;
+}
+
+function renderOvertimeCard() {
+  renderOvertimeCardInto('overtimeCard');
+}
+
+function renderRecuperationsList() {
+  const el = document.getElementById('recuperationsList');
+  if (!el) return;
+  const list = getRecuperations().sort((a, b) => b.id - a.id);
+  if (!list.length) {
+    el.innerHTML = `<div class="empty"><div class="emoji">⏱</div>Aucune récupération enregistrée</div>`;
+    return;
+  }
+  el.innerHTML = list.map(r => `
+    <div class="conge-list-item">
+      <div>
+        <div class="cl-type" style="color:var(--accent)">Récupération</div>
+        <div class="cl-dates">${escapeHtml(r.date)}${r.note ? ' — ' + escapeHtml(r.note) : ''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="cl-days" style="color:var(--accent)">${fmtHM(r.ms)}</span>
+        <button class="conge-delete" onclick="removeRecuperation(${r.id})">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function submitRecuperation() {
+  const h = Number(document.getElementById('recupHours').value);
+  const m = Number(document.getElementById('recupMinutes').value);
+  const note = document.getElementById('recupNote').value;
+  if (!Number.isFinite(h) && !Number.isFinite(m)) { showToast('Durée invalide'); return; }
+  const ms = (Math.max(0, h || 0) * 3600000) + (Math.max(0, m || 0) * 60000);
+  if (ms <= 0) { showToast('Durée invalide'); return; }
+  addRecuperation(ms, note);
+  document.getElementById('recupHours').value = '';
+  document.getElementById('recupMinutes').value = '';
+  document.getElementById('recupNote').value = '';
+  renderRecuperationsList();
+  renderOvertimeCard();
+  showToast('Récupération enregistrée');
+}
+
+function removeRecuperation(id) {
+  if (!confirm('Supprimer cette récupération ?')) return;
+  deleteRecuperation(id);
+  renderRecuperationsList();
+  renderOvertimeCard();
+}
+
+
+
+// ── RENDER HISTORY ──
+let currentView = 'day';
+
+function setView(v) {
+  currentView = v;
+  document.querySelectorAll('.view-btn:not(.trend-btn)').forEach((b, i) => {
+    b.classList.toggle('active', ['day','week','month','year'][i] === v);
+  });
+  const listEl = document.getElementById('historyList');
+  if (listEl) {
+    listEl.classList.add('view-transitioning');
+    setTimeout(() => {
+      renderHistory();
+      requestAnimationFrame(() => listEl.classList.remove('view-transitioning'));
+    }, 160);
+  } else {
+    renderHistory();
+  }
+}
+
+function getWeekKey(ts) {
+  const d = new Date(ts);
+  const day = d.getDay() || 7;
+  const mon = new Date(d); mon.setDate(d.getDate() - day + 1); mon.setHours(0,0,0,0);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const fmt = t => t.toLocaleDateString('fr-FR', {day:'numeric', month:'short'});
+  return { key: mon.getTime(), label: `${fmt(mon)} – ${fmt(sun)}` };
+}
+
+function getYearKey(ts) {
+  const d = new Date(ts);
+  return { key: d.getFullYear(), label: String(d.getFullYear()) };
+}
+
+
+let _editTimeIdx = null;
+
+function tsToDateInput(ts) {
+  const d = new Date(ts);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function tsToTimeInput(ts) {
+  const d = new Date(ts);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
+}
+
+function combineDateTimeToTs(dateStr, timeStr) {
+  if (!dateStr || !/^\d{2}:\d{2}$/.test(timeStr)) return NaN;
+  const [h, m] = timeStr.split(':').map(Number);
+  const d = new Date(dateStr + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return NaN;
+  d.setHours(h, m, 0, 0);
+  return d.getTime();
+}
+
+
+function openAddSessionModal() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  document.getElementById('addSessionDate').value = `${yyyy}-${mm}-${dd}`;
+  document.getElementById('addSessionStart').value = '09:00';
+  document.getElementById('addSessionEnd').value = '17:00';
+  document.getElementById('addSessionPause').value = '0';
+  document.getElementById('addSessionNote').value = '';
+  const errEl = document.getElementById('addSessionError');
+  errEl.style.display = 'none';
+  errEl.textContent = '';
+  document.getElementById('addSessionModal').style.display = 'flex';
+}
+
+function closeAddSessionModal() {
+  document.getElementById('addSessionModal').style.display = 'none';
+}
+
+function sessionsOverlap(startA, endA, startB, endB) {
+  return startA < endB && startB < endA;
+}
+
+function saveAddSessionModal() {
+  const dateStr = document.getElementById('addSessionDate').value;
+  const startStr = document.getElementById('addSessionStart').value;
+  const endStr = document.getElementById('addSessionEnd').value;
+  const pauseMin = Number(document.getElementById('addSessionPause').value);
+  const note = document.getElementById('addSessionNote').value.trim();
+  const errEl = document.getElementById('addSessionError');
+
+  let newStart = combineDateTimeToTs(dateStr, startStr);
+  let newEnd = combineDateTimeToTs(dateStr, endStr);
+
+  if (Number.isNaN(newStart) || Number.isNaN(newEnd)) {
+    errEl.textContent = 'Date ou heure invalide.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  if (newEnd <= newStart) {
+    newEnd += 24 * 3600000;
+  }
+
+  if (arrondi.enabled) {
+    const rounded = applyArrondiToSession(newStart, newEnd);
+    newStart = rounded.start;
+    newEnd = rounded.end;
+  }
+
+  const duration = newEnd - newStart;
+  if (duration > 20 * 3600000) {
+    errEl.textContent = 'Durée trop longue (max 20h).';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  if (!Number.isFinite(pauseMin) || pauseMin < 0) {
+    errEl.textContent = 'Pause invalide.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const pauseMs = Math.min(pauseMin * 60000, duration);
+
+  const overlapping = state.sessions.some(s => sessionsOverlap(newStart, newEnd, s.start, s.end));
+  if (overlapping) {
+    errEl.textContent = 'Cette session chevauche une session existante.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const net = Math.max(0, duration - pauseMs);
+
+  state.sessions.push({
+    date: tsToKey(newStart),
+    start: newStart,
+    end: newEnd,
+    pauseMs,
+    net,
+    note: note || 'Session ajoutée manuellement'
+  });
+  state.sessions.sort((a, b) => a.start - b.start);
+
+  save();
+  closeAddSessionModal();
+  renderToday();
+  renderHistory();
+  showToast('Session ajoutée ✓');
+}
+
+function openEditTimeModal(idx) {
+  const s = state.sessions[idx];
+  if (!s) return;
+  _editTimeIdx = idx;
+  document.getElementById('editTimeDate').value = tsToDateInput(s.start);
+  document.getElementById('editTimeStart').value = tsToTimeInput(s.start);
+  document.getElementById('editTimeEnd').value = tsToTimeInput(s.end);
+  const errEl = document.getElementById('editTimeError');
+  errEl.style.display = 'none';
+  errEl.textContent = '';
+  document.getElementById('editTimeModal').style.display = 'flex';
+}
+
+function closeEditTimeModal() {
+  document.getElementById('editTimeModal').style.display = 'none';
+  _editTimeIdx = null;
+}
+
+function saveEditTimeModal() {
+  if (_editTimeIdx === null) return;
+  const s = state.sessions[_editTimeIdx];
+  if (!s) { closeEditTimeModal(); return; }
+
+  const dateStr = document.getElementById('editTimeDate').value;
+  const startStr = document.getElementById('editTimeStart').value;
+  const endStr = document.getElementById('editTimeEnd').value;
+  const errEl = document.getElementById('editTimeError');
+
+  let newStart = combineDateTimeToTs(dateStr, startStr);
+  let newEnd = combineDateTimeToTs(dateStr, endStr);
+
+  if (Number.isNaN(newStart) || Number.isNaN(newEnd)) {
+    errEl.textContent = 'Date ou heure invalide.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  if (newEnd <= newStart) {
+    newEnd += 24 * 3600000;
+  }
+
+  if (arrondi.enabled) {
+    const rounded = applyArrondiToSession(newStart, newEnd);
+    newStart = rounded.start;
+    newEnd = rounded.end;
+  }
+
+  const duration = newEnd - newStart;
+  if (duration > 20 * 3600000) {
+    errEl.textContent = 'Durée trop longue (max 20h). Vérifie les horaires.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const clampedPause = Math.min(s.pauseMs || 0, duration);
+  const newNet = Math.max(0, duration - clampedPause);
+
+  s.start = newStart;
+  s.end = newEnd;
+  s.pauseMs = clampedPause;
+  s.net = newNet;
+  s.date = tsToKey(newStart);
+
+  save();
+  closeEditTimeModal();
+  renderToday();
+  renderHistory();
+  showToast('Horaires mis à jour ✓');
+}
+
+function editNote(idx) {
+  const s = state.sessions[idx];
+  const el = document.getElementById('note-' + idx);
+  const newNote = prompt('Modifier le commentaire :', s.note);
+  if (newNote === null) return; // annulé
+  state.sessions[idx].note = newNote.trim();
+  save();
+  renderToday();
+  renderHistory();
+  showToast('Commentaire mis à jour ✓');
+}
+
+
+function detectSessionAnomalies(s) {
+  const issues = [];
+  if (!Number.isFinite(s.start) || !Number.isFinite(s.end)) {
+    issues.push('dates invalides');
+    return issues;
+  }
+  const duration = s.end - s.start;
+  if (duration <= 0) issues.push('fin avant ou égale au début');
+  if (s.pauseMs > duration) issues.push('pause plus longue que la durée totale');
+  if (s.net > duration) issues.push('net supérieur à la durée totale');
+  const expectedNet = duration - (s.pauseMs || 0);
+  if (Math.abs((s.net || 0) - expectedNet) > 60000) issues.push('net incohérent avec durée - pause');
+  if (duration > 16 * 3600000) issues.push('session anormalement longue (>16h)');
+  if (s.pauseMs < 0) issues.push('pause négative');
+  if (s.net < 0) issues.push('net négatif');
+  return issues;
+}
+
+function getAllAnomalies() {
+  return state.sessions
+    .map((s, idx) => ({ idx, session: s, issues: detectSessionAnomalies(s) }))
+    .filter(r => r.issues.length > 0);
+}
+
+function fixSessionAnomaly(idx) {
+  const s = state.sessions[idx];
+  if (!s) return;
+  const duration = Math.max(0, (s.end || 0) - (s.start || 0));
+  s.pauseMs = clampNumber(s.pauseMs, 0, duration, 0);
+  s.net = Math.max(0, duration - s.pauseMs);
+  save();
+  renderHistory();
+  renderToday();
+  showToast('Session corrigée ✓');
+}
+
+function sessionItemHtml(s) {
+  const globalIdx = state.sessions.indexOf(s);
+  const startGeoHtml = s.startGeo
+    ? `<div class="geo-badge">📍 <a href="${geoMapsUrl(s.startGeo)}" target="_blank">${escapeHtml(s.startGeo.label)}</a></div>`
+    : '';
+  const endGeoHtml = s.endGeo
+    ? `<div class="geo-badge geo-end">🏁 <a href="${geoMapsUrl(s.endGeo)}" target="_blank">${escapeHtml(s.endGeo.label)}</a></div>`
+    : '';
+  const anomalies = detectSessionAnomalies(s);
+  const anomalyHtml = anomalies.length
+    ? `<div style="background:rgba(245,158,11,.12);border:1px solid var(--orange);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--orange);display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <span>⚠️ ${anomalies.join(', ')}</span>
+        <button onclick="fixSessionAnomaly(${globalIdx})" style="background:var(--orange);color:#0b1f2a;border:none;border-radius:6px;padding:3px 8px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0">Corriger</button>
+      </div>`
+    : '';
+  return `
+  <div class="session-item" style="flex-direction:column;align-items:stretch;gap:8px${anomalies.length ? ';border-color:var(--orange)' : ''}">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="session-left">
+        <div class="session-time" onclick="openEditTimeModal(${globalIdx})" style="cursor:pointer" title="Toucher pour modifier les horaires">${fmtTime(s.start)} → ${fmtTime(s.end)} <span style="font-size:11px;color:var(--muted)">✏️</span></div>
+        <div class="session-note" id="note-${globalIdx}" onclick="editNote(${globalIdx})" style="cursor:pointer" title="Toucher pour modifier">
+          ${escapeHtml(s.note)} <span style="font-size:11px;color:var(--muted)">✏️</span>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px">
+        <div style="text-align:right">
+          <div class="session-duration">${fmtHM(s.net)}</div>
+          <div class="session-pause-badge">pause ${fmtHM(s.pauseMs)}</div>
+        </div>
+        <button class="session-delete" onclick="deleteSession(${globalIdx})">✕</button>
+      </div>
+    </div>
+    ${anomalyHtml}
+    ${startGeoHtml}${endGeoHtml}
+  </div>`;
+}
+
+
+function renderAnomalyBanner() {
+  let banner = document.getElementById('anomalyBanner');
+  const anomalies = getAllAnomalies();
+  if (!banner) return;
+  if (!anomalies.length) {
+    banner.style.display = 'none';
+    banner.innerHTML = '';
+    return;
+  }
+  banner.style.display = 'block';
+  banner.innerHTML = `
+    <div style="background:rgba(245,158,11,.12);border:1px solid var(--orange);border-radius:12px;padding:12px 14px;margin-bottom:16px;">
+      <div style="font-weight:700;color:var(--orange);font-size:13px;margin-bottom:4px;">⚠️ ${anomalies.length} session(s) avec incohérence détectée</div>
+      <div style="font-size:12px;color:var(--muted);">Vérifie les sessions signalées en orange ci-dessous et corrige-les si besoin.</div>
+    </div>`;
+}
+
+function renderHistory() {
+  // stats
+  const totalMs = state.sessions.reduce((a, s) => a + s.net, 0);
+  const days = [...new Set(state.sessions.map(s => s.date))].length;
+  const thisWeek = getWeekSessions();
+  const weekMs = thisWeek.reduce((a, s) => a + s.net, 0);
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-val">${fmtHM(weekMs)}</div>
+      <div class="stat-lbl">Cette semaine</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">${days}</div>
+      <div class="stat-lbl">Jours enregistrés</div>
+    </div>
+    <div class="stat-card full">
+      <div class="stat-val" style="color:var(--green)">${fmtHM(totalMs)}</div>
+      <div class="stat-lbl">Total cumulé</div>
+    </div>`;
+
+  renderAnomalyBanner();
+
+  const list = document.getElementById('historyList');
+  const empty = document.getElementById('emptyHistory');
+  if (!state.sessions.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+
+  if (currentView === 'day') {
+    // group by date
+    const byDate = {};
+    state.sessions.forEach(s => { if (!byDate[s.date]) byDate[s.date] = []; byDate[s.date].push(s); });
+    const sorted = Object.keys(byDate).sort((a, b) => byDate[b][0].start - byDate[a][0].start);
+    list.innerHTML = sorted.map(date => {
+      const sessions = byDate[date];
+      const dayNet = sessions.reduce((a, s) => a + s.net, 0);
+      return `<div class="day-group">
+        <div class="day-header">
+          <span class="day-label">${date}</span>
+          <span class="day-total">${fmtHM(dayNet)}</span>
+        </div>
+        ${sessions.map(sessionItemHtml).join('')}
+      </div>`;
+    }).join('');
+
+  } else if (currentView === 'week') {
+    // group by week then by day inside
+    const byWeek = {};
+    state.sessions.forEach(s => {
+      const {key, label} = getWeekKey(s.start);
+      if (!byWeek[key]) byWeek[key] = {label, sessions: []};
+      byWeek[key].sessions.push(s);
+    });
+    const sortedWeeks = Object.keys(byWeek).sort((a,b) => b - a);
+    list.innerHTML = sortedWeeks.map(wk => {
+      const {label, sessions} = byWeek[wk];
+      const weekNet = sessions.reduce((a,s) => a+s.net, 0);
+      // sub-group by day
+      const byDay = {};
+      sessions.forEach(s => { if (!byDay[s.date]) byDay[s.date] = []; byDay[s.date].push(s); });
+      const sortedDays = Object.keys(byDay).sort((a,b) => byDay[b][0].start - byDay[a][0].start);
+      return `<div class="day-group">
+        <div class="group-header">
+          <span class="group-label">📅 ${label}</span>
+          <span class="group-total">${fmtHM(weekNet)}</span>
+        </div>
+        ${sortedDays.map(date => {
+          const ds = byDay[date];
+          const dayNet = ds.reduce((a,s) => a+s.net, 0);
+          return `<div class="day-subheader">
+            <span class="day-sublabel">${date}</span>
+            <span class="day-subtotal">${fmtHM(dayNet)}</span>
+          </div>
+          ${ds.map(sessionItemHtml).join('')}`;
+        }).join('')}
+      </div>`;
+    }).join('');
+
+  } else if (currentView === 'year') {
+    // group by year then by month
+    const byYear = {};
+    state.sessions.forEach(s => {
+      const {key, label} = getYearKey(s.start);
+      if (!byYear[key]) byYear[key] = {label, sessions: []};
+      byYear[key].sessions.push(s);
+    });
+    const sortedYears = Object.keys(byYear).sort((a,b) => b - a);
+    list.innerHTML = sortedYears.map(yr => {
+      const {label, sessions} = byYear[yr];
+      const yearNet = sessions.reduce((a,s) => a+s.net, 0);
+      // sub-group by month
+      const byMonth = {};
+      sessions.forEach(s => {
+        const d = new Date(s.start);
+        const mk = d.getFullYear() * 100 + d.getMonth();
+        const ml = d.toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+        if (!byMonth[mk]) byMonth[mk] = {label: ml, sessions: []};
+        byMonth[mk].sessions.push(s);
+      });
+      const sortedMonths = Object.keys(byMonth).sort((a,b) => b - a);
+      return `<div class="day-group">
+        <div class="group-header">
+          <span class="group-label">🗓 ${label}</span>
+          <span class="group-total">${fmtHM(yearNet)}</span>
+        </div>
+        ${sortedMonths.map(mk => {
+          const {label: ml, sessions: ms} = byMonth[mk];
+          const monthNet = ms.reduce((a,s) => a+s.net, 0);
+          // sub-group by day
+          const byDay = {};
+          ms.forEach(s => { if (!byDay[s.date]) byDay[s.date] = []; byDay[s.date].push(s); });
+          const sortedDays = Object.keys(byDay).sort((a,b) => byDay[b][0].start - byDay[a][0].start);
+          return `<div class="day-subheader">
+            <span class="day-sublabel" style="text-transform:capitalize">${ml}</span>
+            <span class="day-subtotal">${fmtHM(monthNet)}</span>
+          </div>
+          ${sortedDays.map(date => {
+            const ds = byDay[date];
+            const dayNet = ds.reduce((a,s) => a+s.net, 0);
+            return `<div style="margin-left:8px">
+              <div class="day-subheader" style="margin-top:6px">
+                <span class="day-sublabel" style="font-size:12px;color:var(--border)">${date}</span>
+                <span class="day-subtotal" style="font-size:12px">${fmtHM(dayNet)}</span>
+              </div>
+              ${ds.map(sessionItemHtml).join('')}
+            </div>`;
+          }).join('')}`;
+        }).join('')}
+      </div>`;
+    }).join('');
+
+  } else if (currentView === 'month') {
+    const byMonth = {};
+    state.sessions.forEach(s => {
+      const d = new Date(s.start);
+      const mk = d.getFullYear() * 100 + d.getMonth();
+      const ml = d.toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+      if (!byMonth[mk]) byMonth[mk] = {label: ml, sessions: [], year: d.getFullYear(), month: d.getMonth()};
+      byMonth[mk].sessions.push(s);
+    });
+    const sortedMonths = Object.keys(byMonth).sort((a,b) => b - a);
+    list.innerHTML = sortedMonths.map(mk => {
+      const {label: ml, sessions, year, month} = byMonth[mk];
+      const monthNet = sessions.reduce((a,s) => a+s.net, 0);
+      const monthGoal = getMonthGoal(year, month);
+      const diff = monthNet - monthGoal;
+      const diffColor = diff >= 0 ? 'var(--green)' : 'var(--accent2)';
+      const diffSign = diff >= 0 ? '+' : '-';
+
+      const byWeek = {};
+      sessions.forEach(s => {
+        const {key, label} = getWeekKey(s.start);
+        if (!byWeek[key]) byWeek[key] = {label, sessions: []};
+        byWeek[key].sessions.push(s);
+      });
+      const sortedWeeks = Object.keys(byWeek).sort((a,b) => b - a);
+
+      return `<div class="day-group">
+        <div class="group-header">
+          <span class="group-label" style="text-transform:capitalize">🗓 ${ml}</span>
+          <span class="group-total">${fmtHM(monthNet)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin:-4px 0 4px 0;">
+          <span>Objectif: ${fmtHM(monthGoal)}</span>
+          <span style="color:${diffColor};font-weight:700">${diffSign}${fmtHM(Math.abs(diff))} h.sup</span>
+        </div>
+        ${remuneration.enabled && remuneration.tauxHoraire ? `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--accent);margin:0 0 10px 0;font-weight:700;">
+          <span>Gains du mois</span>
+          <span>${fmtEuros(calcGainsMois(year, month))}${remuneration.netEnabled ? ` (net: ${fmtEuros(calcNet(calcGainsMois(year, month)))})` : ''}</span>
+        </div>` : ''}
+        ${sortedWeeks.map(wk => {
+          const {label: wl, sessions: ws} = byWeek[wk];
+          const weekNet = ws.reduce((a,s) => a+s.net, 0);
+          const byDay = {};
+          ws.forEach(s => { if (!byDay[s.date]) byDay[s.date] = []; byDay[s.date].push(s); });
+          const sortedDays = Object.keys(byDay).sort((a,b) => byDay[b][0].start - byDay[a][0].start);
+          return `<div style="margin-left:8px">
+            <div class="day-subheader" style="margin-top:6px">
+              <span class="day-sublabel">📅 ${wl}</span>
+              <span class="day-subtotal">${fmtHM(weekNet)}</span>
+            </div>
+            ${sortedDays.map(date => {
+              const ds = byDay[date];
+              const dayNet = ds.reduce((a,s) => a+s.net, 0);
+              return `<div style="margin-left:8px">
+                <div class="day-subheader" style="margin-top:4px">
+                  <span class="day-sublabel" style="font-size:12px;color:var(--border)">${date}</span>
+                  <span class="day-subtotal" style="font-size:12px">${fmtHM(dayNet)}</span>
+                </div>
+                ${ds.map(sessionItemHtml).join('')}
+              </div>`;
+            }).join('')}
+          </div>`;
+        }).join('')}
+      </div>`;
+    }).join('');
+  }
+}
+
+// ── EXPORT ──
+function getWeekSessions() {
+  const now = new Date();
+  const day = now.getDay() || 7;
+  const monday = new Date(now); monday.setDate(now.getDate() - day + 1); monday.setHours(0,0,0,0);
+  return state.sessions.filter(s => new Date(s.start) >= monday);
+}
+
+function exportPDF() {
+    const sessions = state.sessions;
+    if (!sessions.length) { showToast('Aucune session à exporter'); return; }
+
+    // Week key helper (ISO week)
+    function weekKey(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00');
+      const day = d.getDay() || 7;
+      const mon = new Date(d); mon.setDate(d.getDate() - day + 1);
+      const thu = new Date(mon); thu.setDate(mon.getDate() + 3);
+      const year = thu.getFullYear();
+      const jan1 = new Date(year, 0, 1);
+      const w = Math.ceil(((thu - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+      return { key: `${year}-S${String(w).padStart(2,'0')}`, week: w, year };
+    }
+
+    const fmtMs = ms => {
+      if (ms < 0) ms = 0;
+      const h = Math.floor(ms / 3600000);
+      const m = Math.floor((ms % 3600000) / 60000);
+      return h + 'h' + String(m).padStart(2, '0');
+    };
+
+    // Group by day
+    const byDay = {};
+    sessions.forEach(s => {
+      if (!byDay[s.date]) byDay[s.date] = [];
+      byDay[s.date].push(s);
+    });
+
+    // Group by week
+    const byWeek = {};
+    sessions.forEach(s => {
+      const { key, week, year } = weekKey(s.date);
+      if (!byWeek[key]) byWeek[key] = { week, year, sessions: [] };
+      byWeek[key].sessions.push(s);
+    });
+
+    // Group by year
+    const byYear = {};
+    sessions.forEach(s => {
+      const y = s.date.slice(0, 4);
+      if (!byYear[y]) byYear[y] = [];
+      byYear[y].push(s);
+    });
+
+    let html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <title>Historique Orvia</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; color: #111; background: #fff; }
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    h2 { font-size: 18px; color: #1a73e8; margin-top: 36px; margin-bottom: 10px;
+         border-bottom: 2px solid #1a73e8; padding-bottom: 6px; }
+    h3 { font-size: 14px; color: #444; margin-top: 18px; margin-bottom: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 12px; }
+    th { background: #1a73e8; color: #fff; padding: 7px 10px; text-align: left; }
+    td { padding: 6px 10px; border-bottom: 1px solid #e0e0e0; }
+    tr:nth-child(even) td { background: #f5f8ff; }
+    .total td { font-weight: bold; background: #e8f0fe !important; }
+    .week-row td:first-child { font-weight: 700; color: #1a73e8; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  <h1>📋 Historique Orvia</h1>
+  <p style="color:#888;font-size:12px;">Exporté le ${new Date().toLocaleDateString('fr-FR', {day:'2-digit', month:'long', year:'numeric'})}</p>`;
+
+    // ══ PAR JOUR ══
+    html += '<h2>📅 Par jour</h2>';
+    Object.keys(byDay).sort().forEach(date => {
+      const ss = byDay[date];
+      const total = ss.reduce((a, s) => a + s.net, 0);
+      const d = new Date(date + 'T00:00:00');
+      const label = d.toLocaleDateString('fr-FR', { weekday:'long', day:'2-digit', month:'long', year:'numeric' });
+      html += `<h3>${label} — <span style="color:#1a73e8">${fmtMs(total)}</span></h3>
+      <table>
+        <tr><th>Début</th><th>Fin</th><th>Pause</th><th>Net</th><th>Note</th></tr>`;
+      ss.forEach(s => {
+        const dep = new Date(s.start).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+        const arr = new Date(s.end).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
+        html += `<tr><td>${dep}</td><td>${arr}</td><td>${fmtMs(s.pauseMs || 0)}</td><td>${fmtMs(s.net)}</td><td>${s.note || ''}</td></tr>`;
+      });
+      html += `<tr class="total"><td colspan="3">Total du jour</td><td>${fmtMs(total)}</td><td></td></tr>
+      </table>`;
+    });
+
+    // ══ PAR SEMAINE ══
+    html += '<h2>📆 Par semaine</h2>';
+    html += `<table>
+      <tr><th>Semaine</th><th>Période</th><th>Jours travaillés</th><th>Total</th></tr>`;
+    Object.keys(byWeek).sort().forEach(wk => {
+      const { week, year, sessions: ss } = byWeek[wk];
+      const total = ss.reduce((a, s) => a + s.net, 0);
+      const jours = [...new Set(ss.map(s => s.date))].length;
+      // Compute Mon-Fri of the week
+      const firstDay = ss.map(s => s.date).sort()[0];
+      const d = new Date(firstDay + 'T00:00:00');
+      const dow = d.getDay() || 7;
+      const mon = new Date(d); mon.setDate(d.getDate() - dow + 1);
+      const fri = new Date(mon); fri.setDate(mon.getDate() + 4);
+      const fmt = t => t.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit' });
+      html += `<tr class="week-row">
+        <td>S${week} ${year}</td>
+        <td>${fmt(mon)} → ${fmt(fri)}</td>
+        <td>${jours} jour${jours > 1 ? 's' : ''}</td>
+        <td>${fmtMs(total)}</td>
+      </tr>`;
+    });
+    html += '</table>';
+
+    // ══ PAR ANNÉE ══
+    html += '<h2>📊 Par année</h2>';
+    html += `<table>
+      <tr><th>Année</th><th>Jours travaillés</th><th>Semaines</th><th>Total</th></tr>`;
+    Object.keys(byYear).sort().forEach(yr => {
+      const ss = byYear[yr];
+      const total = ss.reduce((a, s) => a + s.net, 0);
+      const jours = [...new Set(ss.map(s => s.date))].length;
+      const semaines = [...new Set(ss.map(s => weekKey(s.date).key))].length;
+      html += `<tr><td>${yr}</td><td>${jours}</td><td>${semaines}</td><td>${fmtMs(total)}</td></tr>`;
+    });
+    html += '</table>';
+
+    html += '</body></html>';
+
+    const win = window.open('', '_blank');
+    if (!win) { showToast('Autorise les popups pour exporter'); return; }
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => { win.print(); }, 500);
+  }
+
+  
+  
+function _crc32Table() {
+  if (window._crc32TableCache) return window._crc32TableCache;
+  const table = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    table[n] = c;
+  }
+  window._crc32TableCache = table;
+  return table;
+}
+
+function _crc32(bytes) {
+  const table = _crc32Table();
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < bytes.length; i++) {
+    crc = table[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+function _strToBytes(str) {
+  return new TextEncoder().encode(str);
+}
+
+function _buildZip(files) {
+  const localParts = [];
+  const centralParts = [];
+  let offset = 0;
+  const dosTime = 0, dosDate = 0x21;
+
+  files.forEach(f => {
+    const nameBytes = _strToBytes(f.name);
+    const dataBytes = _strToBytes(f.content);
+    const crc = _crc32(dataBytes);
+    const size = dataBytes.length;
+
+    const localHeader = new Uint8Array(30 + nameBytes.length);
+    const lv = new DataView(localHeader.buffer);
+    lv.setUint32(0, 0x04034b50, true);
+    lv.setUint16(4, 20, true);
+    lv.setUint16(6, 0, true);
+    lv.setUint16(8, 0, true);
+    lv.setUint16(10, dosTime, true);
+    lv.setUint16(12, dosDate, true);
+    lv.setUint32(14, crc, true);
+    lv.setUint32(18, size, true);
+    lv.setUint32(22, size, true);
+    lv.setUint16(26, nameBytes.length, true);
+    lv.setUint16(28, 0, true);
+    localHeader.set(nameBytes, 30);
+
+    localParts.push(localHeader, dataBytes);
+
+    const centralHeader = new Uint8Array(46 + nameBytes.length);
+    const cv = new DataView(centralHeader.buffer);
+    cv.setUint32(0, 0x02014b50, true);
+    cv.setUint16(4, 20, true);
+    cv.setUint16(6, 20, true);
+    cv.setUint16(8, 0, true);
+    cv.setUint16(10, 0, true);
+    cv.setUint16(12, dosTime, true);
+    cv.setUint16(14, dosDate, true);
+    cv.setUint32(16, crc, true);
+    cv.setUint32(20, size, true);
+    cv.setUint32(24, size, true);
+    cv.setUint16(28, nameBytes.length, true);
+    cv.setUint16(30, 0, true);
+    cv.setUint16(32, 0, true);
+    cv.setUint16(34, 0, true);
+    cv.setUint16(36, 0, true);
+    cv.setUint32(38, 0, true);
+    cv.setUint32(42, offset, true);
+    centralHeader.set(nameBytes, 46);
+    centralParts.push(centralHeader);
+
+    offset += localHeader.length + dataBytes.length;
+  });
+
+  const centralSize = centralParts.reduce((a, p) => a + p.length, 0);
+  const centralOffset = offset;
+
+  const eocd = new Uint8Array(22);
+  const ev = new DataView(eocd.buffer);
+  ev.setUint32(0, 0x06054b50, true);
+  ev.setUint16(4, 0, true);
+  ev.setUint16(6, 0, true);
+  ev.setUint16(8, files.length, true);
+  ev.setUint16(10, files.length, true);
+  ev.setUint32(12, centralSize, true);
+  ev.setUint32(16, centralOffset, true);
+  ev.setUint16(20, 0, true);
+
+  const totalSize = offset + centralSize + eocd.length;
+  const result = new Uint8Array(totalSize);
+  let pos = 0;
+  [...localParts, ...centralParts, eocd].forEach(part => {
+    result.set(part, pos);
+    pos += part.length;
+  });
+  return result;
+}
+
+function _xlsxColLetter(n) {
+  let s = '';
+  n += 1;
+  while (n > 0) {
+    const r = (n - 1) % 26;
+    s = String.fromCharCode(65 + r) + s;
+    n = Math.floor((n - 1) / 26);
+  }
+  return s;
+}
+
+function _xmlEscape(v) {
+  return String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function _buildXlsxBytes(headers, rows, sheetName) {
+  const allRows = [headers, ...rows];
+  const colWidths = headers.map((_, ci) =>
+    Math.max(...allRows.map(r => _xmlEscape(r[ci] ?? '').length)) + 2
+  );
+
+  const sheetDataXml = allRows.map((row, ri) => {
+    const rowNum = ri + 1;
+    const styleAttr = ri === 0 ? ' s="1"' : '';
+    const cells = row.map((val, ci) => {
+      const ref = `${_xlsxColLetter(ci)}${rowNum}`;
+      return `<c r="${ref}"${styleAttr} t="inlineStr"><is><t xml:space="preserve">${_xmlEscape(val)}</t></is></c>`;
+    }).join('');
+    return `<row r="${rowNum}">${cells}</row>`;
+  }).join('');
+
+  const colsXml = colWidths.map((w, i) => `<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('');
+
+  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>
+<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>
+<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>
+</Types>`;
+
+  const rootRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>
+</Relationships>`;
+
+  const workbookXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+<sheets><sheet name="${_xmlEscape(sheetName)}" sheetId="1" r:id="rId1"/></sheets>
+</workbook>`;
+
+  const workbookRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/><color rgb="FFFFFFFF"/></font></fonts>
+<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF6C63FF"/><bgColor indexed="64"/></patternFill></fill></fills>
+<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="2">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/>
+</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+
+  const sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<cols>${colsXml}</cols>
+<sheetData>${sheetDataXml}</sheetData>
+</worksheet>`;
+
+  const files = [
+    { name: '[Content_Types].xml', content: contentTypes },
+    { name: '_rels/.rels', content: rootRels },
+    { name: 'xl/workbook.xml', content: workbookXml },
+    { name: 'xl/_rels/workbook.xml.rels', content: workbookRels },
+    { name: 'xl/styles.xml', content: stylesXml },
+    { name: 'xl/worksheets/sheet1.xml', content: sheetXml }
+  ];
+
+  return _buildZip(files);
+}
+
+function exportXLSX() {
+  const headers = ['Date', 'Arrivee', 'Depart', 'Pause min', 'Net h', 'Note', 'Localisation depart', 'Localisation fin'];
+  const rows = (state.sessions || []).map(s => [
+    s.date || '',
+    fmtTime(s.start),
+    fmtTime(s.end),
+    String(Math.round((s.pauseMs || 0) / 60000)),
+    ((s.net || 0) / 3600000).toFixed(2),
+    s.note || '',
+    s.startGeo ? s.startGeo.label : '',
+    s.endGeo ? s.endGeo.label : ''
+  ]);
+
+  const bytes = _buildXlsxBytes(headers, rows, 'Heures');
+  const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'heures_travail.xlsx';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('Excel téléchargé');
+}
+
+  function exportCSV() {
+    const rows = [['Date','Arrivee','Depart','Pause min','Net h','Note','Localisation depart','Localisation fin']];
+    (state.sessions || []).forEach(s => rows.push([
+      s.date || '', fmtTime(s.start), fmtTime(s.end), Math.round((s.pauseMs || 0)/60000), ((s.net || 0)/3600000).toFixed(2), s.note || '', s.startGeo ? s.startGeo.label : '', s.endGeo ? s.endGeo.label : ''
+    ]));
+    const csv = rows.map(r => r.map(c => '"' + String(c).replaceAll('"','""') + '"').join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'heures_travail.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('CSV téléchargé');
+  }
+
+  function copyWeekSummary() {
+  const ws = getWeekSessions();
+  if (!ws.length) { showToast('Aucune session cette semaine'); return; }
+  const byDate = {};
+  ws.forEach(s => { if (!byDate[s.date]) byDate[s.date] = []; byDate[s.date].push(s); });
+  let text = '📋 Heures de la semaine\n\n';
+  Object.keys(byDate).sort().forEach(date => {
+    const total = byDate[date].reduce((a,s) => a+s.net, 0);
+    text += `${date} : ${fmtHM(total)}\n`;
+    byDate[date].forEach(s => { text += `  • ${fmtTime(s.start)}→${fmtTime(s.end)} — ${s.note}\n`; });
+  });
+  const total = ws.reduce((a,s) => a+s.net, 0);
+  text += `\nTotal semaine : ${fmtHM(total)}`;
+  navigator.clipboard.writeText(text).then(() => showToast('Résumé copié ✓')).catch(() => showToast('Erreur de copie'));
+}
+
+function clearAll() {
+    const ok = window.confirm("Voulez-vous vraiment effacer tout l'historique ? Cette action est irréversible.");
+    if (!ok) return;
+    state.sessions = [];
+    save();
+    renderToday();
+    renderHistory();
+    switchTab('today');
+    showToast('Données effacées ✓');
+  }
+
+// ── CONGES ──
+const CONGE_COLORS = { cp:'cp', rtt:'rtt', css:'css', csp:'csp' };
+const CONGE_LABELS = { cp:'Congé payé', rtt:'RTT', css:'Congé sans solde', csp:'Congé enfant malade' };
+const SOLDE_DEFAULTS = { cp:25, rtt:10, css:0, csp:5 };
+
+let calYear, calMonth;
+
+function loadConges() {
+  try {
+    const c = localStorage.getItem('timetracker_conges');
+    if (c) state.conges = JSON.parse(c);
+    const q = localStorage.getItem('timetracker_quotas');
+    if (q) state.quotas = JSON.parse(q);
+    const l = localStorage.getItem('timetracker_labels');
+    if (l) { const parsed = JSON.parse(l); Object.assign(CONGE_LABELS, parsed); }
+  } catch(e) {}
+}
+
+function saveConges() {
+  localStorage.setItem('timetracker_conges', JSON.stringify(state.conges));
+  localStorage.setItem('timetracker_quotas', JSON.stringify(state.quotas));
+  localStorage.setItem('timetracker_labels', JSON.stringify(CONGE_LABELS));
+}
+
+function workdaysBetween(d1, d2) {
+  let count = 0, cur = new Date(d1);
+  cur.setHours(0,0,0,0);
+  const end = new Date(d2); end.setHours(0,0,0,0);
+  while (cur <= end) {
+    const dow = cur.getDay();
+    if (dow !== 0 && dow !== 6) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
+function addConge() {
+    const type = document.getElementById('congeType').value;
+    const startVal = document.getElementById('congeStart').value;
+    const endVal = document.getElementById('congeEnd').value;
+    const note = document.getElementById('congeNote').value.trim();
+    if (!startVal) return showToast('Choisis une date de début');
+    const endFinal = endVal || startVal;
+    if (endFinal < startVal) return showToast('La date de fin doit être après le début');
+    const days = workdaysBetween(startVal, endFinal);
+    // check quota
+    const taken = state.conges.filter(c => c.type === type).reduce((a, c) => a + (c.days || 0), 0);
+    const quota = Number(state.quotas[type] || 0);
+    if (taken + days > quota) {
+      return showToast(`Erreur : quota dépassé pour ${type.toUpperCase()} (${taken}/${quota} jours utilisés)`);
+    }
+    // check overlap with existing conges
+    let cur = new Date(startVal + 'T00:00:00');
+    const endDate = new Date(endFinal + 'T00:00:00');
+    while (cur <= endDate) {
+      const dow = cur.getDay();
+      if (dow !== 0 && dow !== 6) {
+        const dateStr = toLocalISO(cur);
+        const overlap = state.conges.find(c => {
+          let d = new Date(c.start + 'T00:00:00');
+          const e = new Date(c.end + 'T00:00:00');
+          while (d <= e) {
+            if (toLocalISO(d) === dateStr) return true;
+            d.setDate(d.getDate() + 1);
+          }
+          return false;
+        });
+        if (overlap) {
+          const labels = { cp: 'Congé payé', rtt: 'RTT', css: 'Congé sans solde', csp: 'Enfant malade' };
+          return showToast(`Erreur : le ${dateStr} est déjà pris (${labels[overlap.type] || overlap.type})`);
+        }
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+    state.conges.push({ type, start: startVal, end: endFinal, note, days, id: Date.now() });
+    saveConges();
+    document.getElementById('congeStart').value = '';
+    document.getElementById('congeEnd').value = '';
+    document.getElementById('congeNote').value = '';
+    renderConges();
+    showToast(`${days} jour(s) enregistrés`);
+  }
+
+function deleteConge(id) {
+  if (!confirm('Supprimer ce congé ?')) return;
+  state.conges = state.conges.filter(c => c.id !== id);
+  saveConges();
+  renderConges();
+}
+
+
+const LOW_QUOTA_THRESHOLD = 3;
+
+function getLowQuotaAlertState() {
+  const raw = localStorage.getItem('orvia_low_quota_alert');
+  if (!raw) return { lastDate: null, alerted: {} };
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      lastDate: typeof parsed.lastDate === 'string' ? parsed.lastDate : null,
+      alerted: (parsed.alerted && typeof parsed.alerted === 'object') ? parsed.alerted : {}
+    };
+  } catch(e) {
+    return { lastDate: null, alerted: {} };
+  }
+}
+
+function saveLowQuotaAlertState(st) {
+  localStorage.setItem('orvia_low_quota_alert', JSON.stringify(st));
+}
+
+function checkLowQuotaAlerts() {
+  const today = todayKey();
+  let st = getLowQuotaAlertState();
+  if (st.lastDate !== today) {
+    st = { lastDate: today, alerted: {} };
+  }
+
+  const typesToCheck = ['cp', 'rtt'];
+  const canNotify = ('Notification' in window) && Notification.permission === 'granted';
+
+  typesToCheck.forEach(t => {
+    const quota = state.quotas[t];
+    if (!quota || quota <= 0) return;
+    const taken = state.conges.filter(c => c.type === t).reduce((a, c) => a + c.days, 0);
+    const left = Math.max(0, quota - taken);
+
+    if (left > 0 && left < LOW_QUOTA_THRESHOLD) {
+      if (!st.alerted[t]) {
+        st.alerted[t] = true;
+        const label = CONGE_LABELS[t];
+        const msg = `Il ne te reste que ${left} jour${left > 1 ? 's' : ''} de ${label}.`;
+        if (canNotify) {
+          new Notification('Quota bas ⚠️', { body: msg });
+        }
+        showToast(`⚠️ ${msg}`);
+      }
+    } else {
+      st.alerted[t] = false;
+    }
+  });
+
+  saveLowQuotaAlertState(st);
+}
+
+function renderConges() {
+  const types = ['cp','rtt','css','csp'];
+  const colors = { cp:'#6c63ff', rtt:'#3ecf8e', css:'#f59e0b', csp:'#ff6584' };
+
+  // Solde cards
+  document.getElementById('soldeGrid').innerHTML = types.map(t => {
+    const quota = state.quotas[t];
+    const taken = state.conges.filter(c => c.type === t).reduce((a,c) => a + c.days, 0);
+    const left = Math.max(0, quota - taken);
+    const pct = quota > 0 ? Math.min(100, (taken / quota) * 100) : 0;
+    const isLow = (t === 'cp' || t === 'rtt') && quota > 0 && left > 0 && left < LOW_QUOTA_THRESHOLD;
+    const lowBadge = isLow ? `<span style="font-size:11px;color:var(--orange);font-weight:700;margin-left:6px;">⚠️ bas</span>` : '';
+    return `<div class="solde-card" style="background:${colors[t]}18${isLow ? ';border:1px solid var(--orange)' : ''}">
+      <div class="sc-type" style="color:${colors[t]}">${CONGE_LABELS[t]}${lowBadge}</div>
+      <div class="sc-nums">
+        <span class="sc-taken" style="color:${colors[t]}">${left}</span>
+        <span class="sc-total">/ ${quota} j restants</span>
+      </div>
+      <div class="sc-bar"><div class="sc-fill" style="width:${pct}%;background:${colors[t]}"></div></div>
+    </div>`;
+  }).join('');
+
+  // Calendrier
+  renderCal();
+
+  checkLowQuotaAlerts();
+
+  // Liste
+  const list = document.getElementById('congeList');
+  const empty = document.getElementById('emptyConges');
+  const sorted = [...state.conges].sort((a,b) => b.start.localeCompare(a.start));
+  if (!sorted.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  const col = { cp:'#6c63ff', rtt:'#3ecf8e', css:'#f59e0b', csp:'#ff6584' };
+  list.innerHTML = sorted.map(c => `
+    <div class="conge-list-item">
+      <div>
+        <div class="cl-type" style="color:${col[c.type]}">${CONGE_LABELS[c.type]}</div>
+        <div class="cl-dates">${c.start === c.end ? c.start : c.start + ' → ' + c.end}${c.note ? ' — ' + escapeHtml(c.note) : ''}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span class="cl-days" style="color:${col[c.type]}">${c.days}j</span>
+        <button class="conge-delete" onclick="deleteConge(${c.id})">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+function findCongeForDate(dateStr) {
+  return state.conges.find(c => c.start <= dateStr && dateStr <= c.end);
+}
+
+function renderCal() {
+  const now = new Date();
+  if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
+  document.getElementById('calMonth').textContent =
+    new Date(calYear, calMonth, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+
+  const dateSets = { cp: new Set(), rtt: new Set(), css: new Set(), csp: new Set() };
+  state.conges.forEach(c => {
+    let cur = new Date(c.start + 'T00:00:00');
+    const end = new Date(c.end + 'T00:00:00');
+    while (cur <= end) {
+      dateSets[c.type].add(toLocalISO(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
+  });
+  const workedDays = new Set(state.sessions.map(s => toLocalISO(new Date(s.start))));
+
+  const firstDay = new Date(calYear, calMonth, 1);
+  const lastDay = new Date(calYear, calMonth + 1, 0);
+  let startDow = firstDay.getDay(); if (startDow === 0) startDow = 7;
+
+  const grid = document.getElementById('calGrid');
+  const todayStr = toLocalISO(now);
+  const dows = ['L','M','M','J','V','S','D'];
+  let html = dows.map(d => `<div class="cal-dow">${d}</div>`).join('');
+
+  for (let i = 1; i < startDow; i++) html += `<div></div>`;
+
+  for (let d = 1; d <= lastDay.getDate(); d++) {
+    const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dowIdx = new Date(calYear, calMonth, d).getDay();
+    const isWeekend = dowIdx === 0 || dowIdx === 6;
+    const isHoliday = isDateHoliday(dateStr);
+    let cls = 'cal-day';
+    if (isWeekend) cls += ' weekend';
+    if (isHoliday) cls += ' holiday';
+    if (dateStr === todayStr) cls += ' today';
+    let hasConge = false;
+    if (dateSets.cp.has(dateStr))  { cls += ' cp'; hasConge = true; }
+    else if (dateSets.rtt.has(dateStr)) { cls += ' rtt'; hasConge = true; }
+    else if (dateSets.css.has(dateStr)) { cls += ' css'; hasConge = true; }
+    else if (dateSets.csp.has(dateStr)) { cls += ' csp'; hasConge = true; }
+    else if (workedDays.has(dateStr)) cls += ' work';
+    if (hasConge) cls += ' has-conge';
+    const holidayLabel = isHoliday ? getHolidayLabel(dateStr) : null;
+    const titleAttr = holidayLabel ? ` title="${holidayLabel}"` : '';
+    const clickAttr = hasConge ? ` onclick="openCalDayDetail('${dateStr}')"` : '';
+    html += `<div class="${cls}"${clickAttr}${titleAttr}>${d}</div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function openCalDayDetail(dateStr) {
+  const conge = findCongeForDate(dateStr);
+  if (!conge) return;
+  const col = { cp:'#6c63ff', rtt:'#3ecf8e', css:'#f59e0b', csp:'#ff6584' };
+  const d = new Date(dateStr + 'T00:00:00');
+  const dateLabel = d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  const box = document.getElementById('calDayDetailBox');
+  box.innerHTML = `
+    <div class="modal-title">${dateLabel}</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+      <div style="width:12px;height:12px;border-radius:3px;background:${col[conge.type]}"></div>
+      <span style="font-weight:700;color:${col[conge.type]}">${CONGE_LABELS[conge.type]}</span>
+    </div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      ${conge.start === conge.end ? conge.start : conge.start + ' → ' + conge.end} (${conge.days}j)${conge.note ? '<br>' + escapeHtml(conge.note) : ''}
+    </div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="closeCalDayDetail()">Fermer</button>
+      <button class="modal-btn-save" style="background:#ef4444;" onclick="deleteCongeFromCal(${conge.id})">Supprimer</button>
+    </div>
+  `;
+  document.getElementById('calDayDetailModal').style.display = 'flex';
+}
+
+function closeCalDayDetail() {
+  document.getElementById('calDayDetailModal').style.display = 'none';
+}
+
+function deleteCongeFromCal(id) {
+  closeCalDayDetail();
+  deleteConge(id);
+}
+
+function calPrev() {
+  calMonth--;
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  renderCal();
+}
+function calNext() {
+  calMonth++;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  renderCal();
+}
+
+// ── REGLAGES ──
+const CONGE_COLORS_HEX = { cp:'#6c63ff', rtt:'#3ecf8e', css:'#f59e0b', csp:'#ff6584' };
+
+function renderReglages() {
+  const types = ['cp','rtt','css','csp'];
+
+  // Quota cards
+  document.getElementById('quotaCards').innerHTML = `<div class="settings-card">${
+    types.map(t => `
+    <div class="settings-row">
+      <div class="settings-dot" style="background:${CONGE_COLORS_HEX[t]}"></div>
+      <label>${CONGE_LABELS[t]}</label>
+      <input type="number" min="0" max="365" value="${state.quotas[t]}"
+        onchange="updateQuota('${t}', this.value)">
+    </div>`).join('')
+  }</div>`;
+
+  // Label cards
+  document.getElementById('labelCards').innerHTML = `<div class="settings-card">${
+    types.map(t => `
+    <div class="settings-row">
+      <div class="settings-dot" style="background:${CONGE_COLORS_HEX[t]}"></div>
+      <input type="text" value="${CONGE_LABELS[t]}"
+        onchange="updateLabel('${t}', this.value)" style="flex:1;width:auto">
+    </div>`).join('')
+  }</div>`;
+
+  const resumeJourEl = document.getElementById('resumeJourEnabled');
+  if (resumeJourEl) resumeJourEl.checked = resumeJour.enabled;
+}
+
+function updateQuota(type, val) {
+  const n = parseInt(val);
+  if (isNaN(n) || n < 0) return;
+  state.quotas[type] = n;
+  saveConges();
+  showToast('Quota mis à jour ✓');
+}
+
+function updateLabel(type, val) {
+  const v = val.trim();
+  if (!v) return;
+  CONGE_LABELS[type] = v;
+  saveConges();
+  showToast('Nom mis à jour ✓');
+}
+
+
+
+  function openObjectifsSettings() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-objectifs-settings').classList.add('active');
+    renderObjectifsParJour();
+  }
+
+const JOURS_LABELS = { 1:'Lundi', 2:'Mardi', 3:'Mercredi', 4:'Jeudi', 5:'Vendredi', 6:'Samedi', 0:'Dimanche' };
+function renderObjectifsParJour() {
+  const card = document.getElementById('objectifsParJourCard');
+  if (!card) return;
+  const order = [1,2,3,4,5,6,0];
+  card.innerHTML = order.map(d => {
+    const val = ((objectifs.parJour && typeof objectifs.parJour[d] !== 'undefined') ? objectifs.parJour[d] : objectifs.jour) / 3600000;
+    return `<div class="settings-row">
+      <div class="settings-dot" style="background:var(--accent)"></div>
+      <label>${JOURS_LABELS[d]}</label>
+      <input type="number" min="0" max="24" step="0.5" value="${val}"
+        style="width:70px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;font-weight:700;padding:6px 10px;outline:none;"
+        onchange="updateObjectifJourSemaine(${d}, this.value)">
+      <span style="font-size:13px;color:var(--muted);margin-left:4px">h</span>
+    </div>`;
+  }).join('');
+  const semEl = document.getElementById('objectifSemAuto');
+  if (semEl) semEl.textContent = fmtHM(getWeekGoalBase());
+}
+function updateObjectifJourSemaine(dow, val) {
+  const h = parseFloat(val);
+  if (isNaN(h) || h < 0) return;
+  if (!objectifs.parJour) objectifs.parJour = {};
+  objectifs.parJour[dow] = h * 3600000;
+  saveObjectifs();
+  renderObjectifs();
+  renderObjectifsParJour();
+  showToast('Objectif mis à jour ✓');
+}
+
+function updateObjectif(type, val) {
+  const h = parseFloat(val);
+  if (isNaN(h) || h < 0) return;
+  objectifs[type] = h * 3600000;
+  saveObjectifs();
+  renderObjectifs();
+  showToast('Objectif mis à jour ✓');
+}
+
+  function openExportListSettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-export-list-settings').classList.add('active');
+}
+
+function openExportSettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-export-settings').classList.add('active');
+}
+
+function openClearSettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-clear-settings').classList.add('active');
+}
+
+
+const THEME_PALETTES = [
+  { id: 'violet', name: 'Violet', accent: '#6c63ff', accent2: '#ff6584' },
+  { id: 'bleu', name: 'Bleu océan', accent: '#3b82f6', accent2: '#06b6d4' },
+  { id: 'vert', name: 'Vert forêt', accent: '#22c55e', accent2: '#84cc16' },
+  { id: 'rose', name: 'Rose corail', accent: '#ec4899', accent2: '#f97316' },
+  { id: 'orange', name: 'Orange soleil', accent: '#f97316', accent2: '#eab308' },
+  { id: 'rouge', name: 'Rouge rubis', accent: '#ef4444', accent2: '#f43f5e' },
+  { id: 'turquoise', name: 'Turquoise', accent: '#14b8a6', accent2: '#06b6d4' },
+  { id: 'indigo', name: 'Indigo nuit', accent: '#6366f1', accent2: '#8b5cf6' }
+];
+
+function getCurrentThemeId() {
+  return localStorage.getItem('orvia_theme') || 'violet';
+}
+
+function getCurrentMode() {
+  return localStorage.getItem('orvia_mode') || 'dark';
+}
+
+function applyMode(mode) {
+  const m = mode === 'light' ? 'light' : 'dark';
+  if (m === 'light') {
+    document.documentElement.classList.add('light-mode');
+  } else {
+    document.documentElement.classList.remove('light-mode');
+  }
+  localStorage.setItem('orvia_mode', m);
+}
+
+function applyTheme(themeId) {
+  const theme = THEME_PALETTES.find(t => t.id === themeId) || THEME_PALETTES[0];
+  document.documentElement.style.setProperty('--accent', theme.accent);
+  document.documentElement.style.setProperty('--accent2', theme.accent2);
+  localStorage.setItem('orvia_theme', theme.id);
+}
+
+function renderModeSwitch() {
+  const container = document.getElementById('modeSwitch');
+  if (!container) return;
+  const current = getCurrentMode();
+  const modes = [
+    { id: 'dark', label: '🌙 Sombre' },
+    { id: 'light', label: '☀️ Clair' }
+  ];
+  container.innerHTML = modes.map(m => `
+    <button onclick="selectMode('${m.id}')" style="flex:1;padding:10px;border-radius:10px;border:2px solid ${current === m.id ? 'var(--accent)' : 'var(--border)'};background:${current === m.id ? 'var(--accent)' : 'transparent'};color:${current === m.id ? '#fff' : 'var(--text)'};font-weight:700;font-size:13px;cursor:pointer;">
+      ${m.label}
+    </button>
+  `).join('');
+}
+
+function selectMode(mode) {
+  applyMode(mode);
+  renderModeSwitch();
+  showToast(mode === 'light' ? 'Mode clair activé ☀️' : 'Mode sombre activé 🌙');
+  if (document.getElementById('page-history').classList.contains('active')) renderTrendChart();
+}
+
+function renderThemePicker() {
+  const container = document.getElementById('themeSwatches');
+  if (!container) return;
+  const current = getCurrentThemeId();
+  container.innerHTML = THEME_PALETTES.map(t => `
+    <div onclick="selectTheme('${t.id}')" style="cursor:pointer;text-align:center;">
+      <div style="width:100%;aspect-ratio:1;border-radius:14px;background:linear-gradient(135deg, ${t.accent}, ${t.accent2});border:3px solid ${current === t.id ? '#fff' : 'transparent'};box-shadow:${current === t.id ? '0 0 0 2px ' + t.accent : 'none'};display:flex;align-items:center;justify-content:center;font-size:18px;">
+        ${current === t.id ? '✓' : ''}
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">${t.name}</div>
+    </div>
+  `).join('');
+  renderModeSwitch();
+}
+
+function selectTheme(themeId) {
+  applyTheme(themeId);
+  renderThemePicker();
+  showToast('Thème appliqué ✓');
+  if (document.getElementById('page-history').classList.contains('active')) renderTrendChart();
+}
+
+function exportThemeBackup() {
+  const data = {
+    theme: getCurrentThemeId(),
+    mode: getCurrentMode()
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'orvia_theme.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('Thème exporté');
+}
+
+function importThemeBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      const themeId = THEME_PALETTES.some(t => t.id === data.theme) ? data.theme : 'violet';
+      const mode = data.mode === 'light' ? 'light' : 'dark';
+      applyTheme(themeId);
+      applyMode(mode);
+      renderThemePicker();
+      showToast('Thème importé ✓');
+    } catch(err) {
+      showToast('Fichier de thème invalide');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function openAboutSettings() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-about-settings').classList.add('active');
+    renderAboutVersion();
+  }
+
+  function openOvertimeSettings() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-overtime-settings').classList.add('active');
+    renderOvertimeCardInto('overtimeCardSettings');
+    renderRecuperationsList();
+  }
+
+  function openRemunerationSettings() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-remuneration-settings').classList.add('active');
+    const enabledEl = document.getElementById('remunerationEnabled');
+    const tauxEl = document.getElementById('tauxHoraireInput');
+    const seuil1El = document.getElementById('seuil1Input');
+    const seuil2El = document.getElementById('seuil2Input');
+    const maj1El = document.getElementById('majorationTranche1Input');
+    const maj2El = document.getElementById('majorationTranche2Input');
+    const netEnabledEl = document.getElementById('netEnabledInput');
+    const tauxImpEl = document.getElementById('tauxImpositionInput');
+    if (enabledEl) enabledEl.checked = remuneration.enabled;
+    if (tauxEl) tauxEl.value = remuneration.tauxHoraire || '';
+    if (seuil1El) seuil1El.value = remuneration.seuil1;
+    if (seuil2El) seuil2El.value = remuneration.seuil2;
+    if (maj1El) maj1El.value = remuneration.majorationTranche1;
+    if (maj2El) maj2El.value = remuneration.majorationTranche2;
+    if (netEnabledEl) netEnabledEl.checked = remuneration.netEnabled;
+    if (tauxImpEl) tauxImpEl.value = remuneration.tauxImposition;
+    updateRemunerationLabels();
+  }
+
+  function onNetEnabledToggle() {
+    const el = document.getElementById('netEnabledInput');
+    remuneration.netEnabled = el ? el.checked : false;
+    saveRemuneration();
+    renderToday();
+    showToast(remuneration.netEnabled ? 'Estimation du net activée' : 'Estimation du net désactivée');
+  }
+
+  function onTauxImpositionChange() {
+    const el = document.getElementById('tauxImpositionInput');
+    const val = clampNumber(Number(el ? el.value : 22), 0, 100, 22);
+    remuneration.tauxImposition = val;
+    saveRemuneration();
+    renderToday();
+    showToast('Taux d\'imposition mis à jour');
+  }
+
+  function updateRemunerationLabels() {
+    const l1 = document.getElementById('labelTranche1');
+    const l2 = document.getElementById('labelTranche2');
+    if (l1) l1.textContent = `Majoration tranche ${remuneration.seuil1}h–${remuneration.seuil2}h (%)`;
+    if (l2) l2.textContent = `Majoration au-delà de ${remuneration.seuil2}h (%)`;
+  }
+
+  function onRemunerationToggle() {
+    const enabledEl = document.getElementById('remunerationEnabled');
+    remuneration.enabled = enabledEl ? enabledEl.checked : false;
+    saveRemuneration();
+    renderToday();
+    showToast(remuneration.enabled ? 'Rémunération activée' : 'Rémunération désactivée');
+  }
+
+  function onTauxHoraireChange() {
+    const tauxEl = document.getElementById('tauxHoraireInput');
+    const val = clampNumber(Number(tauxEl ? tauxEl.value : 0), 0, 1000, 0);
+    remuneration.tauxHoraire = val;
+    saveRemuneration();
+    renderToday();
+    showToast('Taux horaire mis à jour');
+  }
+
+  function onSeuil1Change() {
+    const el = document.getElementById('seuil1Input');
+    const val = clampNumber(Number(el ? el.value : 35), 0, 80, 35);
+    remuneration.seuil1 = val;
+    if (remuneration.seuil2 <= remuneration.seuil1) {
+      remuneration.seuil2 = remuneration.seuil1 + 1;
+      const seuil2El = document.getElementById('seuil2Input');
+      if (seuil2El) seuil2El.value = remuneration.seuil2;
+    }
+    saveRemuneration();
+    updateRemunerationLabels();
+    renderToday();
+    showToast('Seuil mis à jour');
+  }
+
+  function onSeuil2Change() {
+    const el = document.getElementById('seuil2Input');
+    const val = clampNumber(Number(el ? el.value : 39), 0, 80, 39);
+    remuneration.seuil2 = Math.max(val, remuneration.seuil1 + 1);
+    if (el) el.value = remuneration.seuil2;
+    saveRemuneration();
+    updateRemunerationLabels();
+    renderToday();
+    showToast('Seuil mis à jour');
+  }
+
+  function onMajorationTranche1Change() {
+    const el = document.getElementById('majorationTranche1Input');
+    const val = clampNumber(Number(el ? el.value : 25), 0, 200, 25);
+    remuneration.majorationTranche1 = val;
+    saveRemuneration();
+    renderToday();
+    showToast('Majoration mise à jour');
+  }
+
+  function onMajorationTranche2Change() {
+    const el = document.getElementById('majorationTranche2Input');
+    const val = clampNumber(Number(el ? el.value : 50), 0, 200, 50);
+    remuneration.majorationTranche2 = val;
+    saveRemuneration();
+    renderToday();
+    showToast('Majoration mise à jour');
+  }
+  function openArrondiSettings() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-arrondi-settings').classList.add('active');
+    const enabledEl = document.getElementById('arrondiEnabled');
+    const minutesEl = document.getElementById('arrondiMinutesSelect');
+    const modeEl = document.getElementById('arrondiModeSelect');
+    if (enabledEl) enabledEl.checked = arrondi.enabled;
+    if (minutesEl) minutesEl.value = String(arrondi.minutes);
+    if (modeEl) modeEl.value = arrondi.mode;
+  }
+
+  function onArrondiEnabledToggle() {
+    const el = document.getElementById('arrondiEnabled');
+    arrondi.enabled = el ? el.checked : false;
+    saveArrondi();
+    showToast(arrondi.enabled ? 'Arrondi activé' : 'Arrondi désactivé');
+  }
+
+  function onArrondiMinutesChange() {
+    const el = document.getElementById('arrondiMinutesSelect');
+    const val = Number(el ? el.value : 15);
+    arrondi.minutes = [5, 10, 15, 30].includes(val) ? val : 15;
+    saveArrondi();
+    showToast('Précision mise à jour');
+  }
+
+  function onArrondiModeChange() {
+    const el = document.getElementById('arrondiModeSelect');
+    const val = el ? el.value : 'nearest';
+    arrondi.mode = ['nearest', 'favor_salarie', 'favor_entreprise'].includes(val) ? val : 'nearest';
+    saveArrondi();
+    showToast('Mode mis à jour');
+  }
+  function openInactiviteSettings() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-inactivite-settings').classList.add('active');
+    const enabledEl = document.getElementById('inactiviteEnabled');
+    const seuilEl = document.getElementById('inactiviteSeuilSelect');
+    if (enabledEl) enabledEl.checked = inactivite.enabled;
+    if (seuilEl) seuilEl.value = String(inactivite.seuilHeures);
+  }
+
+  function onInactiviteEnabledToggle() {
+    const el = document.getElementById('inactiviteEnabled');
+    inactivite.enabled = el ? el.checked : false;
+    saveInactivite();
+    showToast(inactivite.enabled ? 'Détection activée' : 'Détection désactivée');
+  }
+
+  function onInactiviteSeuilChange() {
+    const el = document.getElementById('inactiviteSeuilSelect');
+    const val = Number(el ? el.value : 12);
+    inactivite.seuilHeures = [6, 10, 12, 16, 20].includes(val) ? val : 12;
+    saveInactivite();
+    showToast('Seuil mis à jour');
+  }
+  function onResumeJourToggle() {
+    const el = document.getElementById('resumeJourEnabled');
+    resumeJour.enabled = el ? el.checked : false;
+    saveResumeJour();
+    showToast(resumeJour.enabled ? 'Résumé du jour activé' : 'Résumé du jour désactivé');
+  }
+
+
+
+
+  function renderAboutVersion() {
+    const el = document.getElementById('aboutVersionLabel');
+    if (el) el.textContent = 'v' + APP_VERSION;
+  }
+
+  const CHANGELOG = [
+    { version: '0.1.42', date: '2026-07-09', items: ['Ajout d\'une transition fluide (fondu + léger déplacement) lors du changement d\'onglet dans l\'historique (jour/semaine/mois/année).'] },
+    { version: '0.1.41', date: '2026-07-09', items: ['Ajout d\'un historique des versions de sauvegarde consultable dans Réglages > Sauvegarde. Possibilité de créer un point de restauration manuel et de revenir à un état antérieur en un clic.'] },
+    { version: '0.1.39', date: '2026-07-08', items: ['Interrupteurs des réglages encore réduits. Correction du Service Worker : les mises à jour de l\'app s\'appliquent désormais automatiquement au lieu de rester bloquées en cache.'] },
+    { version: '0.1.38', date: '2026-07-08', items: ['Réduction de la taille des interrupteurs (toggles) dans les réglages pour un rendu plus compact.'] },
+    { version: '0.1.37', date: '2026-07-08', items: ['Le résumé s\'affiche désormais une seule fois, à la toute première ouverture de l\'app, et présente le récapitulatif de la journée d\'hier (heures, objectif, gains).'] },
+    { version: '0.1.36', date: '2026-07-08', items: ['Ajout du résumé du jour à l\'ouverture de l\'app : aperçu de la progression du jour et de la semaine, avec gains estimés si la rémunération est activée. Une fois par jour, désactivable dans les réglages.'] },
+    { version: '0.1.35', date: '2026-07-08', items: ['Ajout de la détection de session oubliée : si le chrono tourne depuis trop longtemps (seuil configurable de 6 à 20h), Orvia propose de corriger l\'heure de fin.'] },
+    { version: '0.1.34', date: '2026-07-07', items: ['Ajout de l\'arrondi automatique des pointages (5, 10, 15 ou 30 min), avec choix du mode : neutre, en faveur du salarié, ou strict. S\'applique au chrono et à l\'ajout manuel de session.'] },
+    { version: '0.1.33', date: '2026-07-07', items: ['Ajout des gains du mois en cours sur la page Aujourd\'hui, et dans la vue Historique > Mois. Le calcul respecte les tranches horaires hebdomadaires même pour les semaines à cheval sur deux mois.'] },
+    { version: '0.1.32', date: '2026-07-07', items: ['Ajout de l\'estimation du salaire net après impôts : renseigne ton taux d\'imposition dans Réglages → Rémunération pour voir tes gains nets en plus du brut, sur la page Aujourd\'hui.'] },
+    { version: '0.1.31', date: '2026-07-07', items: ['Rémunération : la majoration des heures supplémentaires se règle désormais par tranche horaire hebdomadaire (ex: 35h-39h à +25%, au-delà de 39h à +50%), avec seuils personnalisables.'] },
+    { version: '0.1.30', date: '2026-07-07', items: ['Ajout du calcul de rémunération : renseigne ton taux horaire et une majoration pour les heures supplémentaires, et vois tes gains estimés du jour et de la semaine directement sur la page Aujourd\'hui.'] },
+    { version: '0.1.29', date: '2026-07-07', items: ['Le solde d\'heures supplémentaires est désormais remis à zéro chaque lundi : il ne reflète plus que la semaine en cours, plutôt qu\'un cumul depuis le début.'] },
+    { version: '0.1.28', date: '2026-07-07', items: ['Nouvelle vue "Mois" dans l\'historique : total travaillé, objectif du mois et heures supplémentaires calculées sur un mois complet, avec regroupement par semaine et par jour.'] },
+    { version: '0.1.27', date: '2026-07-05', items: ['Ajout du suivi des heures supplémentaires : solde cumulé automatique depuis ta première session, comparé à tes objectifs hebdomadaires (congés et jours fériés pris en compte).', 'Nouvelle section dans les Réglages pour enregistrer une récupération (heures posées pour compenser ton solde) avec historique complet.'] },
+    { version: '0.1.26', date: '2026-07-05', items: ['Le numéro de version affiché dans l\'app suit automatiquement le numéro du fichier'] },
+    { version: '0.1.25', date: '2026-07-05', items: ['Jours fériés français calculés automatiquement (fixes et mobiles)', 'Objectifs de temps ajustés pour exclure les jours fériés', 'Marquage visuel des jours fériés dans le calendrier'] },
+    { version: '0.1.24', date: '2026-07-05', items: ['Sauvegarde automatique hebdomadaire vers fichier téléchargé', 'Réglage du jour de sauvegarde dans les paramètres'] },
+    { version: '0.1.23', date: '2026-07-05', items: ['Alerte quota bas quand il reste moins de 3 jours de CP ou RTT', 'Badge visuel sur les cartes de solde concernées'] },
+    { version: '0.1.22', date: '2026-07-05', items: ['Correction du bug de décalage d\'un jour sur le calendrier des congés (fuseau horaire)'] },
+    { version: '0.1.21', date: '2026-07-05', items: ['Calendrier des congés rendu interactif : clic sur un jour pour voir le détail et supprimer'] },
+    { version: '0.1.20', date: '2026-07-05', items: ['Export Excel des heures travaillées'] },
+    { version: '0.1.10', date: '2026-07-05', items: ['Corrections de vues et stabilisation générale'] },
+    { version: '0.1.8', date: '2026-07-04', items: ['Version stabilisée renommée Orvia', 'Nettoyage général du code'] },
+    { version: '0.1.5', date: '2026-07-04', items: ['Passage en PWA avec mode hors-ligne sécurisé'] },
+    { version: '0.1.0', date: '2026-06-29', items: ['Première version stable du suivi de temps de travail'] },
+  ];
+
+  function renderChangelog() {
+    const el = document.getElementById('changelogList');
+    if (!el) return;
+    el.innerHTML = CHANGELOG.map(entry => `
+      <div class="settings-card" style="margin-bottom:10px;">
+        <div class="settings-row">
+          <label style="font-weight:800;color:var(--accent);">v${entry.version}</label>
+          <div class="settings-summary">${entry.date}</div>
+        </div>
+        <div style="padding:0 16px 12px;">
+          <ul style="margin:0;padding-left:18px;font-size:13px;color:var(--muted);line-height:1.6;">
+            ${entry.items.map(i => `<li>${i}</li>`).join('')}
+          </ul>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function openChangelogSettings() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-changelog-settings').classList.add('active');
+    renderChangelog();
+  }
+
+  function openThemeSettings() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-theme-settings').classList.add('active');
+    renderThemePicker();
+  }
+
+  function openReminderSettings() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-reminder-settings').classList.add('active');
+    renderReminderSettings();
+  }
+
+  function openCongesSettings() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-conges-settings').classList.add('active');
+  }
+
+let trendRange = 7;
+function setTrendRange(n) {
+  trendRange = n;
+  document.getElementById('trendBtn7').classList.toggle('active', n === 7);
+  document.getElementById('trendBtn30').classList.toggle('active', n === 30);
+  renderTrendChart();
+}
+
+function getGoalForDate(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const dow = d.getDay();
+  const base = (objectifs.parJour && typeof objectifs.parJour[dow] !== 'undefined') ? objectifs.parJour[dow] : objectifs.jour;
+  if (isDateOnConge(dateStr) || isDateHoliday(dateStr)) return 0;
+  return base;
+}
+
+let trendBarRects = [];
+
+function renderTrendChart() {
+  const canvas = document.getElementById('trendChart');
+  if (!canvas) return;
+  trendBarRects = [];
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const cssW = rect.width || canvas.parentElement.clientWidth;
+  const cssH = 160;
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+  canvas.style.height = cssH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  const n = trendRange;
+  const days = [];
+  const now = new Date();
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(now); d.setDate(now.getDate() - i);
+    days.push(toLocalISO(d));
+  }
+
+  const doneByDay = days.map(dateStr => {
+    const ss = state.sessions.filter(s => s.date === dateStr);
+    return ss.reduce((a,s) => a + (s.net||0), 0) / 3600000;
+  });
+  const goalByDay = days.map(dateStr => getGoalForDate(dateStr) / 3600000);
+
+  const maxVal = Math.max(1, ...doneByDay, ...goalByDay) * 1.15;
+  const padL = 30, padR = 8, padT = 10, padB = 20;
+  const plotW = cssW - padL - padR;
+  const plotH = cssH - padT - padB;
+  const barGap = n === 7 ? 8 : 2;
+  const barW = Math.max(1.5, (plotW / n) - barGap);
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted') || '#8b8fa8';
+  ctx.font = '9px -apple-system, sans-serif';
+  for (let g = 0; g <= 3; g++) {
+    const y = padT + plotH - (g/3) * plotH;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(cssW - padR, y); ctx.stroke();
+    ctx.fillText((maxVal * g / 3).toFixed(0) + 'h', 2, y + 3);
+  }
+
+  const accent = getComputedStyle(document.body).getPropertyValue('--accent') || '#6c63ff';
+  days.forEach((dateStr, i) => {
+    const x = padL + i * (plotW / n) + (plotW/n - barW)/2;
+    const h = (doneByDay[i] / maxVal) * plotH;
+    const goalH = (goalByDay[i] / maxVal) * plotH;
+    const done = doneByDay[i];
+    const goal = goalByDay[i];
+    ctx.fillStyle = goal > 0 && done >= goal ? (getComputedStyle(document.body).getPropertyValue('--green') || '#3ecf8e') : accent;
+    ctx.fillRect(x, padT + plotH - h, barW, h);
+    trendBarRects.push({ x, y: padT, w: barW, h: plotH, dateStr, done, goal });
+    if (goal > 0) {
+      ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--muted') || '#8b8fa8';
+      ctx.setLineDash([2,2]);
+      ctx.beginPath();
+      ctx.moveTo(x - 1, padT + plotH - goalH);
+      ctx.lineTo(x + barW + 1, padT + plotH - goalH);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+    if (n === 7 || i % 5 === 0 || i === n-1) {
+      const d = new Date(dateStr + 'T00:00:00');
+      const label = n === 7 ? d.toLocaleDateString('fr-FR', {weekday:'short'}).slice(0,2) : d.getDate().toString();
+      ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted') || '#8b8fa8';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, x + barW/2, cssH - 4);
+      ctx.textAlign = 'left';
+    }
+  });
+}
+
+window.addEventListener('resize', () => { if (document.getElementById('page-history').classList.contains('active')) renderTrendChart(); });
+
+function showTrendTooltip(clientX, clientY, rect) {
+  const dateObj = new Date(rect.dateStr + 'T00:00:00');
+  const dateLabel = dateObj.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  const doneMs = rect.done * 3600000;
+  const goalMs = rect.goal * 3600000;
+  const diffMs = doneMs - goalMs;
+  const diffLabel = rect.goal > 0
+    ? (diffMs >= 0 ? `+${fmtHM(diffMs)} vs objectif` : `-${fmtHM(Math.abs(diffMs))} vs objectif`)
+    : "Pas d'objectif ce jour";
+  const diffColor = rect.goal > 0 ? (diffMs >= 0 ? 'var(--green)' : 'var(--orange)') : 'var(--muted)';
+
+  const tooltip = document.getElementById('trendTooltip');
+  if (!tooltip) return;
+  tooltip.innerHTML = `
+    <div style="font-weight:700;margin-bottom:4px;">${dateLabel}</div>
+    <div>Réalisé : <strong>${fmtHM(doneMs)}</strong></div>
+    <div>Objectif : <strong>${rect.goal > 0 ? fmtHM(goalMs) : '—'}</strong></div>
+    <div style="color:${diffColor};font-weight:600;margin-top:2px;">${diffLabel}</div>
+  `;
+  tooltip.style.display = 'block';
+
+  const canvas = document.getElementById('trendChart');
+  const canvasRect = canvas.getBoundingClientRect();
+  const container = canvas.parentElement;
+  const containerRect = container.getBoundingClientRect();
+  let left = clientX - containerRect.left;
+  let top = (canvasRect.top - containerRect.top) - 10;
+
+  requestAnimationFrame(() => {
+    const tw = tooltip.offsetWidth;
+    let adjLeft = left - tw / 2;
+    if (adjLeft < 4) adjLeft = 4;
+    if (adjLeft + tw > containerRect.width - 4) adjLeft = containerRect.width - tw - 4;
+    tooltip.style.left = adjLeft + 'px';
+    tooltip.style.top = Math.max(4, top - tooltip.offsetHeight) + 'px';
+  });
+}
+
+function hideTrendTooltip() {
+  const tooltip = document.getElementById('trendTooltip');
+  if (tooltip) tooltip.style.display = 'none';
+}
+
+function handleTrendChartInteraction(evt) {
+  const canvas = document.getElementById('trendChart');
+  if (!canvas || !trendBarRects.length) return;
+  const canvasRect = canvas.getBoundingClientRect();
+  const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+  const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+  const x = clientX - canvasRect.left;
+  const y = clientY - canvasRect.top;
+
+  const hit = trendBarRects.find(r => x >= r.x - 2 && x <= r.x + r.w + 2 && y >= r.y && y <= r.y + r.h);
+  if (hit) {
+    showTrendTooltip(clientX, clientY, hit);
+  } else {
+    hideTrendTooltip();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('trendChart');
+  if (!canvas) return;
+  canvas.addEventListener('click', handleTrendChartInteraction);
+  canvas.addEventListener('touchstart', (e) => { handleTrendChartInteraction(e); }, { passive: true });
+  document.addEventListener('click', (e) => {
+    if (e.target.id !== 'trendChart') hideTrendTooltip();
+  });
+});
+
+
+// ── UI ──
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const tabs = ['today','history','conges','reglages'];
+  const tabEl = document.querySelectorAll('.tab')[tabs.indexOf(name)];
+  if (tabEl) tabEl.classList.add('active');
+  document.getElementById('page-' + name).classList.add('active');
+  if (name === 'today') renderObjectifs();
+  if (name === 'history') { renderHistory(); renderTrendChart(); }
+  if (name === 'conges') renderConges();
+  if (name === 'reglages') renderReglages();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function updateHeaderDate() {
+  const d = new Date();
+  document.getElementById('headerDate').textContent =
+    d.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+}
+function updateHeaderTime() {
+  const d = new Date();
+  document.getElementById('headerTime').textContent =
+    d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+}
+
+  function openBackupSettings() {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-backup-settings').classList.add('active');
+    renderBackupSettings();
+    renderVersionHistory();
+  }
+
+  
+  const VERSION_HISTORY_KEY = 'orvia_version_history';
+  const VERSION_HISTORY_MAX = 20;
+
+  function getVersionHistory() {
+    try {
+      const raw = localStorage.getItem(VERSION_HISTORY_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveVersionHistory(list) {
+    try {
+      localStorage.setItem(VERSION_HISTORY_KEY, JSON.stringify(list));
+    } catch (e) {}
+  }
+
+  function createVersionSnapshot(label) {
+    const history = getVersionHistory();
+    const data = buildBackupData();
+    const snapshot = {
+      ts: Date.now(),
+      label: label || 'Sauvegarde',
+      sessionsCount: (data.sessions || []).length,
+      congesCount: (data.conges || []).length,
+      data: data
+    };
+    history.unshift(snapshot);
+    while (history.length > VERSION_HISTORY_MAX) history.pop();
+    saveVersionHistory(history);
+    return snapshot;
+  }
+
+  function deleteVersionSnapshot(ts) {
+    const history = getVersionHistory().filter(s => s.ts !== ts);
+    saveVersionHistory(history);
+    renderVersionHistory();
+  }
+
+  function restoreVersionSnapshot(ts) {
+    const history = getVersionHistory();
+    const snapshot = history.find(s => s.ts === ts);
+    if (!snapshot) return;
+    const dateStr = new Date(snapshot.ts).toLocaleString('fr-FR');
+    const ok = confirm(`Restaurer l'état du ${dateStr} ?\n\nCela remplacera les données actuelles (${(state.sessions||[]).length} sessions) par celles de cette sauvegarde (${snapshot.sessionsCount} sessions).`);
+    if (!ok) return;
+    createVersionSnapshot('Avant restauration automatique');
+    const clean = sanitizeBackupData(snapshot.data);
+    state.sessions = clean.sessions;
+    state.conges = clean.conges;
+    state.quotas = clean.quotas;
+    objectifs = clean.objectifs;
+    save();
+    saveConges();
+    saveObjectifs();
+    renderToday();
+    renderHistory();
+    renderConges();
+    renderVersionHistory();
+    switchTab('today');
+    showToast('Version restaurée');
+  }
+
+  function manualVersionSnapshot() {
+    createVersionSnapshot('Point de restauration manuel');
+    renderVersionHistory();
+    showToast('Point de restauration créé');
+  }
+
+  function renderVersionHistory() {
+    const el = document.getElementById('versionHistoryList');
+    if (!el) return;
+    const history = getVersionHistory();
+    if (!history.length) {
+      el.innerHTML = '<div class="settings-summary" style="padding:8px 16px;">Aucun point de restauration pour le moment</div>';
+      return;
+    }
+    el.innerHTML = history.map(s => {
+      const dateStr = new Date(s.ts).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+      return `
+        <div class="settings-row">
+          <div>
+            <label style="display:block;">${dateStr}</label>
+            <div class="settings-summary">${s.label} · ${s.sessionsCount} session(s), ${s.congesCount} congé(s)</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="restoreVersionSnapshot(${s.ts})" style="background:var(--accent);color:#fff;border:none;padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer;">Restaurer</button>
+            <button onclick="deleteVersionSnapshot(${s.ts})" style="background:transparent;color:var(--accent2);border:1px solid var(--accent2);padding:6px 10px;border-radius:8px;font-size:11px;cursor:pointer;">Suppr.</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+function buildBackupData() {
+    return { version: APP_VERSION, sessions: state.sessions, conges: state.conges, quotas: state.quotas, objectifs: objectifs };
+  }
+
+  function performBackupDownload(filenameSuffix) {
+    const data = buildBackupData();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `timetracker_backup${filenameSuffix ? '_' + filenameSuffix : ''}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function exportBackup() {
+    performBackupDownload();
+    createVersionSnapshot('Export manuel');
+    showToast('Sauvegarde exportée');
+  }
+
+  const AUTO_BACKUP_WEEKDAYS = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+
+  function getAutoBackupSettings() {
+    try {
+      const raw = localStorage.getItem('orvia_autobackup_settings');
+      if (!raw) return { enabled: true, weekday: 0 };
+      const parsed = JSON.parse(raw);
+      const enabled = typeof parsed.enabled === 'boolean' ? parsed.enabled : true;
+      const weekday = Number.isInteger(parsed.weekday) && parsed.weekday >= 0 && parsed.weekday <= 6 ? parsed.weekday : 0;
+      return { enabled, weekday };
+    } catch (e) {
+      return { enabled: true, weekday: 0 };
+    }
+  }
+
+  function saveAutoBackupSettings(s) {
+    localStorage.setItem('orvia_autobackup_settings', JSON.stringify(s));
+  }
+
+  function getLastAutoBackupDate() {
+    return localStorage.getItem('orvia_last_auto_backup') || null;
+  }
+
+  function setLastAutoBackupDate(dateStr) {
+    localStorage.setItem('orvia_last_auto_backup', dateStr);
+  }
+
+  function checkAutoBackup() {
+    const settings = getAutoBackupSettings();
+    if (!settings.enabled) return;
+    const now = new Date();
+    if (now.getDay() !== settings.weekday) return;
+    const todayStr = toLocalISO(now);
+    if (getLastAutoBackupDate() === todayStr) return;
+    performBackupDownload(todayStr);
+    createVersionSnapshot('Sauvegarde automatique');
+    setLastAutoBackupDate(todayStr);
+    showToast('💾 Sauvegarde automatique effectuée');
+  }
+
+  function toggleAutoBackup(enabled) {
+    const settings = getAutoBackupSettings();
+    settings.enabled = !!enabled;
+    saveAutoBackupSettings(settings);
+    renderBackupSettings();
+  }
+
+  function setAutoBackupWeekday(weekday) {
+    const settings = getAutoBackupSettings();
+    settings.weekday = clampNumber(weekday, 0, 6, 0);
+    saveAutoBackupSettings(settings);
+    renderBackupSettings();
+  }
+
+  function renderBackupSettings() {
+    const settings = getAutoBackupSettings();
+    const el = document.getElementById('autoBackupSettingsCard');
+    if (!el) return;
+    const lastDate = getLastAutoBackupDate();
+    el.innerHTML = `
+      <div class="settings-row">
+        <label>Sauvegarde automatique</label>
+        <label class="switch">
+          <input type="checkbox" ${settings.enabled ? 'checked' : ''} onchange="toggleAutoBackup(this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="settings-row">
+        <label>Jour de sauvegarde</label>
+        <select onchange="setAutoBackupWeekday(Number(this.value))" ${settings.enabled ? '' : 'disabled'}>
+          ${AUTO_BACKUP_WEEKDAYS.map((d, i) => `<option value="${i}" ${i === settings.weekday ? 'selected' : ''}>${d}</option>`).join('')}
+        </select>
+      </div>
+      <div class="settings-summary" style="padding:8px 16px 12px;font-size:11px;">
+        ${lastDate ? 'Dernière sauvegarde auto : ' + lastDate : 'Aucune sauvegarde automatique effectuée encore'}
+      </div>
+    `;
+  }
+
+  
+function clampNumber(n, min, max, fallback) {
+  n = Number(n);
+  if (!Number.isFinite(n)) return fallback;
+  if (n < min) return min;
+  if (n > max) return max;
+  return n;
+}
+
+function normalizeGeo(g) {
+  if (!g || typeof g !== 'object') return null;
+  const lat = Number(g.lat), lng = Number(g.lng);
+  const label = typeof g.label === 'string' ? g.label.slice(0, 120) : '';
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng, label: label || `${lat}, ${lng}` };
+}
+
+function normalizeSession(s) {
+  if (!s || typeof s !== 'object') return null;
+  const start = Number(s.start), end = Number(s.end);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return null;
+  const pauseMs = clampNumber(s.pauseMs || 0, 0, end - start, 0);
+  const maxNet = end - start - pauseMs;
+  const netRaw = Number(s.net);
+  const net = Number.isFinite(netRaw) ? Math.max(0, Math.min(netRaw, maxNet)) : maxNet;
+  const date = typeof s.date === 'string' && s.date.trim() ? s.date : toLocalISO(new Date(start));
+  return {
+    date,
+    start,
+    end,
+    pauseMs,
+    net,
+    note: typeof s.note === 'string' ? s.note.slice(0, 120) : '',
+    startGeo: normalizeGeo(s.startGeo),
+    endGeo: normalizeGeo(s.endGeo)
+  };
+}
+
+function workdaysBetweenSafe(startVal, endVal) {
+  let cur = new Date(startVal + 'T00:00:00');
+  const end = new Date(endVal + 'T00:00:00');
+  if (Number.isNaN(cur.getTime()) || Number.isNaN(end.getTime()) || end < cur) return 0;
+  let days = 0;
+  while (cur <= end) {
+    const dow = cur.getDay();
+    if (dow !== 0 && dow !== 6) days++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+}
+
+function normalizeConge(c) {
+  if (!c || typeof c !== 'object') return null;
+  const allowed = ['cp','rtt','css','csp'];
+  const type = allowed.includes(c.type) ? c.type : null;
+  const start = typeof c.start === 'string' ? c.start : '';
+  const end = typeof c.end === 'string' && c.end ? c.end : start;
+  if (!type || !/^\d{4}-\d{2}-\d{2}$/.test(start) || !/^\d{4}-\d{2}-\d{2}$/.test(end) || end < start) return null;
+  return {
+    type,
+    start,
+    end,
+    note: typeof c.note === 'string' ? c.note.slice(0, 120) : '',
+    days: workdaysBetweenSafe(start, end),
+    id: Number.isFinite(Number(c.id)) ? Number(c.id) : Date.now() + Math.floor(Math.random()*100000)
+  };
+}
+
+function normalizeQuotas(q) {
+  const base = { cp:25, rtt:10, css:0, csp:5 };
+  if (!q || typeof q !== 'object') return base;
+  return {
+    cp: clampNumber(q.cp, 0, 365, base.cp),
+    rtt: clampNumber(q.rtt, 0, 365, base.rtt),
+    css: clampNumber(q.css, 0, 365, base.css),
+    csp: clampNumber(q.csp, 0, 365, base.csp)
+  };
+}
+
+function normalizeObjectifs(o) {
+  const defaults = { jour: 8*3600000, semaine: 35*3600000, parJour: {1:8*3600000,2:8*3600000,3:8*3600000,4:8*3600000,5:8*3600000,6:0,0:0} };
+  if (!o || typeof o !== 'object') return defaults;
+  const parJour = Object.assign({}, defaults.parJour);
+  if (o.parJour && typeof o.parJour === 'object') {
+    [0,1,2,3,4,5,6].forEach(d => { parJour[d] = clampNumber(o.parJour[d], 0, 24*3600000, defaults.parJour[d]); });
+  }
+  return {
+    jour: clampNumber(o.jour, 0, 24*3600000, defaults.jour),
+    semaine: clampNumber(o.semaine, 0, 7*24*3600000, defaults.semaine),
+    parJour
+  };
+}
+
+function sanitizeBackupData(data) {
+  if (!data || typeof data !== 'object') throw new Error('invalid_json');
+  if (!Array.isArray(data.sessions) || !Array.isArray(data.conges)) throw new Error('invalid_structure');
+  const sessions = data.sessions.map(normalizeSession).filter(Boolean).sort((a,b) => a.start - b.start);
+  const conges = data.conges.map(normalizeConge).filter(Boolean).sort((a,b) => a.start.localeCompare(b.start));
+  const quotas = normalizeQuotas(data.quotas);
+  const objectifsNorm = normalizeObjectifs(data.objectifs);
+  return {
+    sessions,
+    conges,
+    quotas,
+    objectifs: objectifsNorm,
+    droppedSessions: data.sessions.length - sessions.length,
+    droppedConges: data.conges.length - conges.length
+  };
+}
+
+function importBackup(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        const raw = JSON.parse(e.target.result);
+        const clean = sanitizeBackupData(raw);
+        if (!clean.sessions.length && !clean.conges.length) {
+          const proceedEmpty = confirm('La sauvegarde est valide mais ne contient aucune donnée exploitable. Continuer quand même ?');
+          if (!proceedEmpty) return;
+        }
+        let msg = 'Importer la sauvegarde ?';
+        if (clean.droppedSessions || clean.droppedConges) {
+          msg += `\n\nNettoyage détecté : ${clean.droppedSessions} session(s) et ${clean.droppedConges} congé(s) ignoré(s) car invalides.`;
+        }
+        const ok = confirm(msg);
+        if (!ok) return;
+        state.sessions = clean.sessions;
+        state.conges = clean.conges;
+        state.quotas = clean.quotas;
+        objectifs = clean.objectifs;
+        save();
+        saveConges();
+        saveObjectifs();
+        renderToday();
+        renderHistory();
+        renderConges();
+        switchTab('today');
+        if (clean.droppedSessions || clean.droppedConges) {
+          showToast(`Import partiel : ${clean.droppedSessions} session(s), ${clean.droppedConges} congé(s) ignoré(s)`);
+        } else {
+          showToast('Sauvegarde importée');
+        }
+      } catch(err) {
+        const map = {
+          invalid_json: 'Fichier invalide',
+          invalid_structure: 'Structure de sauvegarde invalide'
+        };
+        showToast(map[err.message] || 'Erreur de lecture');
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+  }
+
+  let swReady = false;
+  let swRefreshing = false;
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').then((reg) => {
+        swReady = true;
+        console.log('[SW] Enregistré avec succès', reg.scope);
+        reg.update();
+        setInterval(() => reg.update(), 3600000);
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              newWorker.postMessage({ action: 'skipWaiting' });
+            }
+          });
+        });
+      }).catch((err) => {
+        swReady = false;
+        console.warn('[SW] Échec de l\'enregistrement:', err.message);
+        showToast('Mode hors-ligne indisponible sur cet appareil');
+      });
+
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (swRefreshing) return;
+        swRefreshing = true;
+        window.location.reload();
+      });
+    });
+
+    window.addEventListener('online', () => showToast('Connexion rétablie ✓'));
+    window.addEventListener('offline', () => showToast('Mode hors-ligne actif'));
+  } else {
+    console.warn('[SW] Service worker non supporté par ce navigateur');
+  }
+
+// ── INIT ──
+applyTheme(getCurrentThemeId());
+applyMode(getCurrentMode());
+load();
+loadConges();
+loadObjectifs();
+loadRemuneration();
+loadArrondi();
+loadInactivite();
+loadResumeJour();
+requestNotifPermission();
+updateHeaderDate();
+updateHeaderTime();
+setInterval(updateHeaderTime, 1000);
+setInterval(checkReminderTrigger, 60000);
+checkReminderTrigger();
+setInterval(checkForgottenSession, 60000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForgottenSession(); });
+checkForgottenSession();
+checkAutoBackup();
+setInterval(checkAutoBackup, 3600000);
+updateButtons();
+renderToday();
+
+if (state.status !== 'idle') {
+  startTimer();
+  document.getElementById('startTimeDisplay').textContent = fmtTime(state.startTs);
+  document.getElementById('elapsedLabel').textContent = state.status === 'paused' ? 'En pause…' : 'En cours…';
+}
+
+setTimeout(() => { maybeShowYesterdaySummary(); }, 400);
+</script>
+</body>
+</html>
