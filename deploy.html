@@ -39,74 +39,78 @@ async function deploy(){
     log('Application des modifications...','info');
     let nc=decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
 
-    // 1. Ajouter champ note dans le modal edition horaires
-    const oldModal=`<div class="modal-row">
-        <label>Heure de fin</label>
-        <input type="time" id="editTimeEnd">
-      </div>`;
-    const newModal=`<div class="modal-row">
-        <label>Heure de fin</label>
-        <input type="time" id="editTimeEnd">
-      </div>
-      <div class="modal-row">
-        <label>Note</label>
-        <input type="text" id="editTimeNote" maxlength="60" placeholder="Note optionnelle...">
-      </div>`;
-    if(nc.includes('id="editTimeEnd"')){
-      nc=nc.replace(oldModal,newModal);
-      log('Champ note ajoute dans le modal edition');
-    } else {log('ATTENTION: modal editTimeEnd non trouve','err');}
+    // 1. Corriger le badge version en haut a droite (statique -> dynamique)
+    const oldBadge=`<div class="version-badge-topright">\n  —\n</div>`;
+    const newBadge=`<div class="version-badge-topright" id="versionBadgeTop">\n  —\n</div>`;
+    if(nc.includes('version-badge-topright')){
+      nc=nc.replace(oldBadge,newBadge);
+      log('Badge version: id ajoute');
+    }
 
-    // 2. Sauvegarder la note dans saveEditTimeModal
-    const oldSave=`s.start = newStart;\n  s.end = newEnd;\n  s.pauseMs = clampedPause;\n  s.net = newNet;\n  s.date = tsToKey(newStart);`;
-    const newSave=`const noteVal=document.getElementById('editTimeNote');\n  if(noteVal&&noteVal.value.trim()!=='')s.note=noteVal.value.trim();\n  s.start = newStart;\n  s.end = newEnd;\n  s.pauseMs = clampedPause;\n  s.net = newNet;\n  s.date = tsToKey(newStart);`;
-    if(nc.includes('s.start = newStart;')){
-      nc=nc.replace(oldSave,newSave);
-      log('Sauvegarde de la note dans saveEditTimeModal');
-    } else {log('ATTENTION: saveEditTimeModal non trouve','err');}
+    // 2. Mettre a jour le badge version au chargement
+    const oldInit=`renderAboutVersion();`;
+    const newInit=`renderAboutVersion();\n  const vbt=document.getElementById('versionBadgeTop');\n  if(vbt)vbt.textContent='v'+APP_VERSION;`;
+    if(nc.includes('renderAboutVersion();')){
+      nc=nc.replace(oldInit,newInit);
+      log('Badge version top-right mis a jour dynamiquement');
+    } else {log('ATTENTION: renderAboutVersion non trouve','err');}
 
-    // 3. Pré-remplir la note dans openEditTimeModal
-    const oldOpen=`document.getElementById('editTimeStart').value = tsToTimeInput(s.start);\n  document.getElementById('editTimeEnd').value = tsToTimeInput(s.end);`;
-    const newOpen=`document.getElementById('editTimeStart').value = tsToTimeInput(s.start);\n  document.getElementById('editTimeEnd').value = tsToTimeInput(s.end);\n  const editNoteEl=document.getElementById('editTimeNote');\n  if(editNoteEl)editNoteEl.value=s.note||'';`;
-    if(nc.includes("document.getElementById('editTimeStart').value = tsToTimeInput(s.start);")){
-      nc=nc.replace(oldOpen,newOpen);
-      log('Pre-remplissage note dans openEditTimeModal');
-    } else {log('ATTENTION: openEditTimeModal non trouve','err');}
+    // 3. Rapport hebdomadaire automatique chaque lundi matin
+    const rapportFn=`
+function maybeShowWeeklyReport() {
+  const now = new Date();
+  if (now.getDay() !== 1) return; // Seulement le lundi
+  const todayKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  const lastShown = localStorage.getItem('orvia_weekly_report_shown');
+  if (lastShown === todayKey) return; // Deja montre aujourd'hui
+  localStorage.setItem('orvia_weekly_report_shown', todayKey);
+  // Calculer la semaine precedente (lundi-dimanche)
+  const lastMonday = new Date(now);
+  lastMonday.setDate(now.getDate() - 7);
+  const lastSunday = new Date(now);
+  lastSunday.setDate(now.getDate() - 1);
+  const sessions = state.sessions.filter(s => {
+    const d = new Date(s.start);
+    return d >= lastMonday && d <= lastSunday;
+  });
+  if (sessions.length === 0) return;
+  const totalMs = sessions.reduce((a,s) => a+s.net, 0);
+  const totalH = Math.floor(totalMs/3600000);
+  const totalM = Math.floor((totalMs%3600000)/60000);
+  const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;
+  const goalMs = objectifs.semaine || 35*3600000;
+  const pct = Math.min(100, Math.round(totalMs/goalMs*100));
+  const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'weeklyReportModal';
+  modal.innerHTML = `<div class="modal-box"><div class="modal-title">` + emoji + ` Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ` + lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'}) + ` au ` + lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'}) + `</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--` + (pct>=100?'green':'accent') + `)">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ` + (pct>=100?'done':'progress') + `" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">` + joursActifs + ` jour` + (joursActifs>1?'s':'') + ` travaille` + (joursActifs>1?'s':'') + ` · ` + sessions.length + ` session` + (sessions.length>1?'s':'') + `</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
+  document.body.appendChild(modal);
+}
+`;
+    // Ajouter la fonction avant APP_VERSION
+    const appVerLine=`const APP_VERSION = '0.1.45'`;
+    if(nc.includes(appVerLine)){
+      nc=nc.replace(appVerLine, rapportFn + appVerLine.replace('0.1.45','0.1.46'));
+      log('Fonction rapport hebdomadaire ajoutee, version 0.1.46');
+    } else {
+      log('ATTENTION: APP_VERSION 0.1.45 non trouve - version peut etre differente','err');
+    }
 
-    // 4. Note rapide persistante en cours de session (sauvegarde en temps reel)
-    const oldNoteInput=`<input type="text" id="noteInput" placeholder="Note (ex: r\u00e9union client, dev\u2026)" maxlength="60">`;
-    const newNoteInput=`<input type="text" id="noteInput" placeholder="Note (ex: r\u00e9union client, dev\u2026)" maxlength="60" oninput="onNoteInputChange()">`;
-    if(nc.includes('id="noteInput"')){
-      nc=nc.replace(oldNoteInput,newNoteInput);
-      log('Note rapide: evenement oninput ajoute');
-    } else {log('ATTENTION: noteInput non trouve','err');}
-
-    // 5. Ajouter fonction onNoteInputChange
-    const oldVersion=`const APP_VERSION = '0.1.42'`;
-    const newVersion=`const APP_VERSION = '0.1.45'`;
-    const fnNoteChange=`function onNoteInputChange(){\n  const val=document.getElementById('noteInput').value;\n  localStorage.setItem('orvia_note_en_cours',val);\n}\n`;
-    if(nc.includes(oldVersion)){
-      nc=nc.replace(oldVersion,fnNoteChange+newVersion);
-      log('Fonction onNoteInputChange ajoutee, version 0.1.45');
-    } else if(nc.includes("const APP_VERSION = '0.1.44'")){
-      nc=nc.replace("const APP_VERSION = '0.1.44'",fnNoteChange+"const APP_VERSION = '0.1.45'");
-      log('Fonction onNoteInputChange ajoutee, version 0.1.45');
-    } else {log('ATTENTION: APP_VERSION non trouve','err');}
-
-    // 6. Restaurer la note en cours au chargement (dans la fonction load())
-    const oldLoad=`function load() {`;
-    const newLoad=`function load() {\n  try { const n=localStorage.getItem('orvia_note_en_cours'); if(n!==null){const ni=document.getElementById('noteInput');if(ni)ni.value=n;} } catch(e){}`;
-    if(nc.includes('function load() {')){
-      nc=nc.replace(oldLoad,newLoad);
-      log('Restauration note en cours au chargement');
-    } else {log('ATTENTION: function load() non trouve','err');}
+    // 4. Appeler maybeShowWeeklyReport au demarrage (apres maybeShowYesterdaySummary)
+    const oldMaybe=`maybeShowYesterdaySummary();`;
+    const newMaybe=`maybeShowYesterdaySummary();\n  maybeShowWeeklyReport();`;
+    if(nc.includes('maybeShowYesterdaySummary();')){
+      nc=nc.replace(oldMaybe,newMaybe);
+      log('Appel maybeShowWeeklyReport au demarrage ajoute');
+    } else {log('ATTENTION: maybeShowYesterdaySummary non trouve','err');}
 
     log('Envoi vers GitHub...','info');
     const encoded=btoa(unescape(encodeURIComponent(nc)));
     const pr=await fetch('https://api.github.com/repos/'+REPO+'/contents/'+FILE,{
       method:'PUT',
       headers:{...headers,'Content-Type':'application/json'},
-      body:JSON.stringify({message:'feat: edition note session + note rapide en cours v0.1.45',content:encoded,sha:d.sha})
+      body:JSON.stringify({message:'feat: badge version dynamique + rapport hebdomadaire lundi v0.1.46',content:encoded,sha:d.sha})
     });
     const pd=await pr.json();
     if(pr.ok){log('Deploye avec succes! Orvia se met a jour dans 30 secondes.');}
