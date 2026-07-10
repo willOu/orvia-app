@@ -3774,7 +3774,7 @@ function renderCal() {
     if (hasConge) cls += ' has-conge';
     const holidayLabel = isHoliday ? getHolidayLabel(dateStr) : null;
     const titleAttr = holidayLabel ? ` title="${holidayLabel}"` : '';
-    const clickAttr = hasConge ? ` onclick="openCalDayDetail('${dateStr}')"` : '';
+    const clickAttr = hasConge ? ` onclick="openCalDayDetail('${dateStr}')"` : ` onclick="openAddCongeForDate('${dateStr}')"` ;
     html += `<div class="${cls}"${clickAttr}${titleAttr}>${d}</div>`;
   }
   grid.innerHTML = html;
@@ -3804,7 +3804,7 @@ function openCalDayDetail(dateStr) {
   document.getElementById('calDayDetailModal').style.display = 'flex';
 }
 
-function closeCalDayDetail() {
+function openAddCongeForDate(dateStr){const s=document.getElementById('congeStart');const e=document.getElementById('congeEnd');if(s)s.value=dateStr;if(e)e.value=dateStr;document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));const tabBtn=document.querySelector('.tab-btn[data-tab="conges"]');const tabContent=document.getElementById('tab-conges');if(tabBtn)tabBtn.classList.add('active');if(tabContent)tabContent.classList.add('active');window.scrollTo({top:document.getElementById('tab-conges')?.offsetTop||0,behavior:'smooth'});showToast('Date sélectionnée: '+dateStr);}function closeCalDayDetail() {
   document.getElementById('calDayDetailModal').style.display = 'none';
 }
 
