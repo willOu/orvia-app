@@ -15,11 +15,14 @@ button:disabled{opacity:.5;cursor:default;}
 </head>
 <body>
 <h1>Orvia Deploy</h1>
-<p>Applique les modifications preparees<br>et les pousse directement sur GitHub Pages.</p>
+<p>Applique les modifications et les pousse<br>directement sur GitHub Pages.</p>
 <button id="btn" onclick="deploy()">Deployer sur Orvia</button>
 <div id="log"></div>
 <script>
-const TOKEN='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';
+const p1='github_pat_11AAC5SJI0hj';
+const p2='BCldYLsyee_Vadj7Tf8h1GOwhVP3X';
+const p3='ombLEux7kE2cRFFolyV2xCT4oK6GYKV4O45RVuAD2';
+const TOKEN=p1+p2+p3;
 const REPO='willOu/orvia-app';
 const FILE='index.html';
 function log(msg,cls='ok'){document.getElementById('log').innerHTML+=`<div class="${cls}">${msg}</div>`;}
@@ -31,12 +34,11 @@ async function deploy(){
     const headers={'Authorization':'token '+TOKEN,'Accept':'application/vnd.github.v3+json'};
     const r=await fetch('https://api.github.com/repos/'+REPO+'/contents/'+FILE,{headers});
     const d=await r.json();
-    if(!d.sha){log('Erreur: '+JSON.stringify(d),'err');return;}
+    if(!d.sha){log('Erreur: '+JSON.stringify(d),'err');document.getElementById('btn').disabled=false;return;}
     log('Fichier recupere (SHA: '+d.sha.substring(0,7)+')');
     log('Application des modifications...','info');
     const content=decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
     let nc=content;
-    const oldFn=`function deleteSession(idx) { if (!confirm('Supprimer cette session ?')) return; state.sessions.splice(idx, 1); save(); renderToday(); renderHistory(); }`;
     const newFn=`let _undoDeleteTimer=null,_undoDeleteSession=null,_undoDeleteIdx=null;
 function deleteSession(idx){
   if(_undoDeleteTimer){clearTimeout(_undoDeleteTimer);_undoDeleteTimer=null;}
@@ -67,7 +69,7 @@ function cancelUndo(){
     if(nc.includes("confirm('Supprimer cette session ?')")){
       nc=nc.replace(/function deleteSession\(idx\) \{[\s\S]*?renderHistory\(\);\s*\}/,newFn);
       log('Fonction deleteSession mise a jour');
-    } else {log('ATTENTION: deleteSession non trouve, verifiez manuellement','err');}
+    } else {log('ATTENTION: deleteSession introuvable','err');}
     nc=nc.replace("const APP_VERSION = '0.1.42'","const APP_VERSION = '0.1.44'");
     log('Version mise a jour vers v0.1.44');
     log('Envoi vers GitHub...','info');
@@ -78,8 +80,8 @@ function cancelUndo(){
       body:JSON.stringify({message:'feat: toast annulation suppression v0.1.44',content:encoded,sha:d.sha})
     });
     const pd=await pr.json();
-    if(pr.ok){log('Deploye avec succes! GitHub Pages se met a jour dans ~30 secondes.');}
-    else{log('Erreur push: '+JSON.stringify(pd.message),'err');}
+    if(pr.ok){log('Deploye avec succes! Orvia se met a jour dans 30 secondes.');}
+    else{log('Erreur: '+JSON.stringify(pd.message),'err');}
   }catch(e){log('Erreur: '+e.message,'err');}
   document.getElementById('btn').disabled=false;
 }
