@@ -1,4 +1,3 @@
-<!-- deploy v2 -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -37,81 +36,25 @@ async function deploy(){
     const d=await r.json();
     if(!d.sha){log('Erreur: '+JSON.stringify(d),'err');document.getElementById('btn').disabled=false;return;}
     log('Fichier recupere (SHA: '+d.sha.substring(0,7)+')');
-    log('Application des modifications...','info');
     let nc=decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
-
-    // 1. Corriger le badge version en haut a droite (statique -> dynamique)
-    const oldBadge=`<div class="version-badge-topright">\n  —\n</div>`;
-    const newBadge=`<div class="version-badge-topright" id="versionBadgeTop">\n  —\n</div>`;
-    if(nc.includes('version-badge-topright')){
-      nc=nc.replace(oldBadge,newBadge);
-      log('Badge version: id ajoute');
-    }
-
-    // 2. Mettre a jour le badge version au chargement
-    const oldInit=`renderAboutVersion();`;
-    const newInit=`renderAboutVersion();\n  const vbt=document.getElementById('versionBadgeTop');\n  if(vbt)vbt.textContent='v'+APP_VERSION;`;
-    if(nc.includes('renderAboutVersion();')){
-      nc=nc.replace(oldInit,newInit);
-      log('Badge version top-right mis a jour dynamiquement');
-    } else {log('ATTENTION: renderAboutVersion non trouve','err');}
-
-    // 3. Rapport hebdomadaire automatique chaque lundi matin
-    const rapportFn=`
-function maybeShowWeeklyReport() {
-  const now = new Date();
-  if (now.getDay() !== 1) return; // Seulement le lundi
-  const todayKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-  const lastShown = localStorage.getItem('orvia_weekly_report_shown');
-  if (lastShown === todayKey) return; // Deja montre aujourd'hui
-  localStorage.setItem('orvia_weekly_report_shown', todayKey);
-  // Calculer la semaine precedente (lundi-dimanche)
-  const lastMonday = new Date(now);
-  lastMonday.setDate(now.getDate() - 7);
-  const lastSunday = new Date(now);
-  lastSunday.setDate(now.getDate() - 1);
-  const sessions = state.sessions.filter(s => {
-    const d = new Date(s.start);
-    return d >= lastMonday && d <= lastSunday;
-  });
-  if (sessions.length === 0) return;
-  const totalMs = sessions.reduce((a,s) => a+s.net, 0);
-  const totalH = Math.floor(totalMs/3600000);
-  const totalM = Math.floor((totalMs%3600000)/60000);
-  const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;
-  const goalMs = objectifs.semaine || 35*3600000;
-  const pct = Math.min(100, Math.round(totalMs/goalMs*100));
-  const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';
-  const modal = document.createElement('div');
-  modal.className = 'modal-overlay';
-  modal.id = 'weeklyReportModal';
-  modal.innerHTML = `<div class="modal-box"><div class="modal-title">` + emoji + ` Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ` + lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'}) + ` au ` + lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'}) + `</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--` + (pct>=100?'green':'accent') + `)">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ` + (pct>=100?'done':'progress') + `" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">` + joursActifs + ` jour` + (joursActifs>1?'s':'') + ` travaille` + (joursActifs>1?'s':'') + ` · ` + sessions.length + ` session` + (sessions.length>1?'s':'') + `</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
-  document.body.appendChild(modal);
-}
-`;
-    // Ajouter la fonction avant APP_VERSION
-    const appVerLine=`const APP_VERSION = '0.1.45'`;
-    if(nc.includes(appVerLine)){
-      nc=nc.replace(appVerLine, rapportFn + appVerLine.replace('0.1.45','0.1.46'));
-      log('Fonction rapport hebdomadaire ajoutee, version 0.1.46');
-    } else {
-      log('ATTENTION: APP_VERSION 0.1.45 non trouve - version peut etre differente','err');
-    }
-
-    // 4. Appeler maybeShowWeeklyReport au demarrage (apres maybeShowYesterdaySummary)
-    const oldMaybe=`maybeShowYesterdaySummary();`;
-    const newMaybe=`maybeShowYesterdaySummary();\n  maybeShowWeeklyReport();`;
-    if(nc.includes('maybeShowYesterdaySummary();')){
-      nc=nc.replace(oldMaybe,newMaybe);
-      log('Appel maybeShowWeeklyReport au demarrage ajoute');
-    } else {log('ATTENTION: maybeShowYesterdaySummary non trouve','err');}
-
+    log('Application des modifications...','info');
+    const OLD1="const clickAttr = hasConge ? ` onclick=\\\"openCalDayDetail('${dateStr}')\\\"` : '';";
+    const NEW1="const clickAttr = hasConge ? ` onclick=\\\"openCalDayDetail('${dateStr}')\\\"` : ` onclick=\\\"openAddCongeForDate('${dateStr}')\\\"`;";    if(nc.includes(OLD1)){
+      nc=nc.replace(OLD1,NEW1);
+      log('clickAttr mis a jour: onclick sur tous les jours');
+    } else {log('ATTENTION: clickAttr non trouve','err');}
+    const OLD2='function findCongeForDate';
+    const NEW2='function openAddCongeForDate(dateStr){var s=document.getElementById("congeStart");var e=document.getElementById("congeEnd");if(s)s.value=dateStr;if(e)e.value=dateStr;var c=document.querySelector(".add-conge-card");if(c)c.scrollIntoView({behavior:"smooth",block:"center"});if(s)s.focus();}\nfunction findCongeForDate';
+    if(nc.includes(OLD2)){
+      nc=nc.replace(OLD2,NEW2);
+      log('Fonction openAddCongeForDate ajoutee');
+    } else {log('ATTENTION: findCongeForDate non trouve','err');}
     log('Envoi vers GitHub...','info');
     const encoded=btoa(unescape(encodeURIComponent(nc)));
     const pr=await fetch('https://api.github.com/repos/'+REPO+'/contents/'+FILE,{
       method:'PUT',
       headers:{...headers,'Content-Type':'application/json'},
-      body:JSON.stringify({message:'feat: badge version dynamique + rapport hebdomadaire lundi v0.1.46',content:encoded,sha:d.sha})
+      body:JSON.stringify({message:'feat: clic sur tous les jours du calendrier pour ajouter un conge v0.1.47',content:encoded,sha:d.sha})
     });
     const pd=await pr.json();
     if(pr.ok){log('Deploye avec succes! Orvia se met a jour dans 30 secondes.');}
