@@ -3749,7 +3749,7 @@ function renderCal() {
   const lastDay = new Date(calYear, calMonth + 1, 0);
   let startDow = firstDay.getDay(); if (startDow === 0) startDow = 7;
 
-  const grid = document.getElementById('calGrid');
+  const grid = document.getElementById('cal-grid');
   const todayStr = toLocalISO(now);
   const dows = ['L','M','M','J','V','S','D'];
   let html = dows.map(d => `<div class="cal-dow">${d}</div>`).join('');
@@ -4367,7 +4367,7 @@ function renderTrendChart() {
   }
 
   const doneByDay = days.map(dateStr => {
-    const ss = state.sessions.filter(s => s.date === dateStr);
+    const ss = state.sessions.filter(s => toLocalISO(new Date(s.start)) === dateStr);
     return ss.reduce((a,s) => a + (s.net||0), 0) / 3600000;
   });
   const goalByDay = days.map(dateStr => getGoalForDate(dateStr) / 3600000);
