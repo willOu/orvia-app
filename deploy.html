@@ -37,47 +37,76 @@ async function deploy(){
     if(!d.sha){log('Erreur: '+JSON.stringify(d),'err');document.getElementById('btn').disabled=false;return;}
     log('Fichier recupere (SHA: '+d.sha.substring(0,7)+')');
     log('Application des modifications...','info');
-    const content=decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
-    let nc=content;
-    const newFn=`let _undoDeleteTimer=null,_undoDeleteSession=null,_undoDeleteIdx=null;
-function deleteSession(idx){
-  if(_undoDeleteTimer){clearTimeout(_undoDeleteTimer);_undoDeleteTimer=null;}
-  _undoDeleteSession=state.sessions[idx];_undoDeleteIdx=idx;
-  state.sessions.splice(idx,1);renderToday();renderHistory();
-  showUndoToast('Session supprimee',()=>{
-    if(_undoDeleteSession!==null){state.sessions.splice(_undoDeleteIdx,0,_undoDeleteSession);_undoDeleteSession=null;save();renderToday();renderHistory();}
-  },()=>{_undoDeleteSession=null;save();});
-}
-function showUndoToast(msg,onUndo,onConfirm){
-  let t=document.getElementById('undoToast');
-  if(!t){t=document.createElement('div');t.id='undoToast';t.style.cssText='position:fixed;bottom:calc(80px + var(--safe-bottom));left:50%;transform:translateX(-50%) translateY(20px);background:#1e293b;color:#e8eaf6;padding:12px 18px;border-radius:100px;font-size:13px;font-weight:700;opacity:0;transition:all .3s;z-index:9999;white-space:nowrap;display:flex;align-items:center;gap:12px;border:1px solid #2e3248;overflow:hidden;';document.body.appendChild(t);}
-  t.innerHTML='<span>'+msg+'</span><button onclick="cancelUndo()" style="background:var(--orange);border:none;color:#0b1f2a;font-size:12px;font-weight:800;padding:5px 14px;border-radius:100px;cursor:pointer;">Annuler</button><div id="undoBar" style="position:absolute;bottom:0;left:0;height:3px;background:var(--orange);width:100%;transition:width 5s linear;"></div>';
-  t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{const b=document.getElementById('undoBar');if(b)b.style.width='0%';}));
-  window._undoCallback=onUndo;
-  if(_undoDeleteTimer)clearTimeout(_undoDeleteTimer);
-  _undoDeleteTimer=setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(-50%) translateY(20px)';if(onConfirm)onConfirm();window._undoCallback=null;},5000);
-}
-function cancelUndo(){
-  if(window._undoCallback)window._undoCallback();
-  window._undoCallback=null;
-  if(_undoDeleteTimer){clearTimeout(_undoDeleteTimer);_undoDeleteTimer=null;}
-  const t=document.getElementById('undoToast');
-  if(t){t.style.opacity='0';t.style.transform='translateX(-50%) translateY(20px)';}
-  showToast('Session restauree');
-}`;
-    if(nc.includes("confirm('Supprimer cette session ?')")){
-      nc=nc.replace(/function deleteSession\(idx\) \{[\s\S]*?renderHistory\(\);\s*\}/,newFn);
-      log('Fonction deleteSession mise a jour');
-    } else {log('ATTENTION: deleteSession introuvable','err');}
-    nc=nc.replace("const APP_VERSION = '0.1.42'","const APP_VERSION = '0.1.44'");
-    log('Version mise a jour vers v0.1.44');
+    let nc=decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
+
+    // 1. Ajouter champ note dans le modal edition horaires
+    const oldModal=`<div class="modal-row">
+        <label>Heure de fin</label>
+        <input type="time" id="editTimeEnd">
+      </div>`;
+    const newModal=`<div class="modal-row">
+        <label>Heure de fin</label>
+        <input type="time" id="editTimeEnd">
+      </div>
+      <div class="modal-row">
+        <label>Note</label>
+        <input type="text" id="editTimeNote" maxlength="60" placeholder="Note optionnelle...">
+      </div>`;
+    if(nc.includes('id="editTimeEnd"')){
+      nc=nc.replace(oldModal,newModal);
+      log('Champ note ajoute dans le modal edition');
+    } else {log('ATTENTION: modal editTimeEnd non trouve','err');}
+
+    // 2. Sauvegarder la note dans saveEditTimeModal
+    const oldSave=`s.start = newStart;\n  s.end = newEnd;\n  s.pauseMs = clampedPause;\n  s.net = newNet;\n  s.date = tsToKey(newStart);`;
+    const newSave=`const noteVal=document.getElementById('editTimeNote');\n  if(noteVal&&noteVal.value.trim()!=='')s.note=noteVal.value.trim();\n  s.start = newStart;\n  s.end = newEnd;\n  s.pauseMs = clampedPause;\n  s.net = newNet;\n  s.date = tsToKey(newStart);`;
+    if(nc.includes('s.start = newStart;')){
+      nc=nc.replace(oldSave,newSave);
+      log('Sauvegarde de la note dans saveEditTimeModal');
+    } else {log('ATTENTION: saveEditTimeModal non trouve','err');}
+
+    // 3. Pré-remplir la note dans openEditTimeModal
+    const oldOpen=`document.getElementById('editTimeStart').value = tsToTimeInput(s.start);\n  document.getElementById('editTimeEnd').value = tsToTimeInput(s.end);`;
+    const newOpen=`document.getElementById('editTimeStart').value = tsToTimeInput(s.start);\n  document.getElementById('editTimeEnd').value = tsToTimeInput(s.end);\n  const editNoteEl=document.getElementById('editTimeNote');\n  if(editNoteEl)editNoteEl.value=s.note||'';`;
+    if(nc.includes("document.getElementById('editTimeStart').value = tsToTimeInput(s.start);")){
+      nc=nc.replace(oldOpen,newOpen);
+      log('Pre-remplissage note dans openEditTimeModal');
+    } else {log('ATTENTION: openEditTimeModal non trouve','err');}
+
+    // 4. Note rapide persistante en cours de session (sauvegarde en temps reel)
+    const oldNoteInput=`<input type="text" id="noteInput" placeholder="Note (ex: r\u00e9union client, dev\u2026)" maxlength="60">`;
+    const newNoteInput=`<input type="text" id="noteInput" placeholder="Note (ex: r\u00e9union client, dev\u2026)" maxlength="60" oninput="onNoteInputChange()">`;
+    if(nc.includes('id="noteInput"')){
+      nc=nc.replace(oldNoteInput,newNoteInput);
+      log('Note rapide: evenement oninput ajoute');
+    } else {log('ATTENTION: noteInput non trouve','err');}
+
+    // 5. Ajouter fonction onNoteInputChange
+    const oldVersion=`const APP_VERSION = '0.1.42'`;
+    const newVersion=`const APP_VERSION = '0.1.45'`;
+    const fnNoteChange=`function onNoteInputChange(){\n  const val=document.getElementById('noteInput').value;\n  localStorage.setItem('orvia_note_en_cours',val);\n}\n`;
+    if(nc.includes(oldVersion)){
+      nc=nc.replace(oldVersion,fnNoteChange+newVersion);
+      log('Fonction onNoteInputChange ajoutee, version 0.1.45');
+    } else if(nc.includes("const APP_VERSION = '0.1.44'")){
+      nc=nc.replace("const APP_VERSION = '0.1.44'",fnNoteChange+"const APP_VERSION = '0.1.45'");
+      log('Fonction onNoteInputChange ajoutee, version 0.1.45');
+    } else {log('ATTENTION: APP_VERSION non trouve','err');}
+
+    // 6. Restaurer la note en cours au chargement (dans la fonction load())
+    const oldLoad=`function load() {`;
+    const newLoad=`function load() {\n  try { const n=localStorage.getItem('orvia_note_en_cours'); if(n!==null){const ni=document.getElementById('noteInput');if(ni)ni.value=n;} } catch(e){}`;
+    if(nc.includes('function load() {')){
+      nc=nc.replace(oldLoad,newLoad);
+      log('Restauration note en cours au chargement');
+    } else {log('ATTENTION: function load() non trouve','err');}
+
     log('Envoi vers GitHub...','info');
     const encoded=btoa(unescape(encodeURIComponent(nc)));
     const pr=await fetch('https://api.github.com/repos/'+REPO+'/contents/'+FILE,{
       method:'PUT',
       headers:{...headers,'Content-Type':'application/json'},
-      body:JSON.stringify({message:'feat: toast annulation suppression v0.1.44',content:encoded,sha:d.sha})
+      body:JSON.stringify({message:'feat: edition note session + note rapide en cours v0.1.45',content:encoded,sha:d.sha})
     });
     const pd=await pr.json();
     if(pr.ok){log('Deploye avec succes! Orvia se met a jour dans 30 secondes.');}
