@@ -1420,7 +1420,7 @@ let objectifs = {
 
 
 let timerInterval = null;
-const APP_VERSION = '0.1.42';
+const APP_VERSION = '0.1.44';
 
 
 // ── STORAGE ──
@@ -2427,12 +2427,32 @@ function getWeekGoalAjuste() {
   return getWeekGoalForMonday(monday);
 }
 
-function deleteSession(idx) {
-  if (!confirm('Supprimer cette session ?')) return;
-  state.sessions.splice(idx, 1);
-  save();
-  renderToday();
-  renderHistory();
+let _undoDeleteTimer=null,_undoDeleteSession=null,_undoDeleteIdx=null;
+function deleteSession(idx){
+  if(_undoDeleteTimer){clearTimeout(_undoDeleteTimer);_undoDeleteTimer=null;}
+  _undoDeleteSession=state.sessions[idx];_undoDeleteIdx=idx;
+  state.sessions.splice(idx,1);renderToday();renderHistory();
+  showUndoToast('Session supprimee',()=>{
+    if(_undoDeleteSession!==null){state.sessions.splice(_undoDeleteIdx,0,_undoDeleteSession);_undoDeleteSession=null;save();renderToday();renderHistory();}
+  },()=>{_undoDeleteSession=null;save();});
+}
+function showUndoToast(msg,onUndo,onConfirm){
+  let t=document.getElementById('undoToast');
+  if(!t){t=document.createElement('div');t.id='undoToast';t.style.cssText='position:fixed;bottom:calc(80px + var(--safe-bottom));left:50%;transform:translateX(-50%) translateY(20px);background:#1e293b;color:#e8eaf6;padding:12px 18px;border-radius:100px;font-size:13px;font-weight:700;opacity:0;transition:all .3s;z-index:9999;white-space:nowrap;display:flex;align-items:center;gap:12px;border:1px solid #2e3248;overflow:hidden;';document.body.appendChild(t);}
+  t.innerHTML='<span>'+msg+'</span><button onclick="cancelUndo()" style="background:var(--orange);border:none;color:#0b1f2a;font-size:12px;font-weight:800;padding:5px 14px;border-radius:100px;cursor:pointer;">Annuler</button><div id="undoBar" style="position:absolute;bottom:0;left:0;height:3px;background:var(--orange);width:100%;transition:width 5s linear;"></div>';
+  t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{const b=document.getElementById('undoBar');if(b)b.style.width='0%';}));
+  window._undoCallback=onUndo;
+  if(_undoDeleteTimer)clearTimeout(_undoDeleteTimer);
+  _undoDeleteTimer=setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(-50%) translateY(20px)';if(onConfirm)onConfirm();window._undoCallback=null;},5000);
+}
+function cancelUndo(){
+  if(window._undoCallback)window._undoCallback();
+  window._undoCallback=null;
+  if(_undoDeleteTimer){clearTimeout(_undoDeleteTimer);_undoDeleteTimer=null;}
+  const t=document.getElementById('undoToast');
+  if(t){t.style.opacity='0';t.style.transform='translateX(-50%) translateY(20px)';}
+  showToast('Session restauree');
 }
 
 function getMondayOf(date) {
