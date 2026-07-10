@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Orvia Deploy</title>
+<style>
+body{font-family:-apple-system,sans-serif;background:#0b1f2a;color:#e8eaf6;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;box-sizing:border-box;}
+h1{font-size:24px;margin-bottom:8px;}
+p{color:#8b8fa8;font-size:14px;margin-bottom:30px;text-align:center;line-height:1.6;}
+button{background:#6c63ff;color:#fff;border:none;padding:16px 40px;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;}
+button:disabled{opacity:.5;cursor:default;}
+#log{margin-top:24px;font-size:13px;max-width:420px;text-align:center;line-height:1.8;}
+.ok{color:#3ecf8e;}.err{color:#ff6584;}.info{color:#8b8fa8;}
+</style>
+</head>
+<body>
+<h1>Orvia Deploy</h1>
+<p>Applique les modifications preparees<br>et les pousse directement sur GitHub Pages.</p>
+<button id="btn" onclick="deploy()">Deployer sur Orvia</button>
+<div id="log"></div>
+<script>
+const TOKEN='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';
+const REPO='willOu/orvia-app';
+const FILE='index.html';
+function log(msg,cls='ok'){document.getElementById('log').innerHTML+=`<div class="${cls}">${msg}</div>`;}
+async function deploy(){
+  document.getElementById('btn').disabled=true;
+  document.getElementById('log').innerHTML='';
+  log('Recuperation du fichier...','info');
+  try{
+    const headers={'Authorization':'token '+TOKEN,'Accept':'application/vnd.github.v3+json'};
+    const r=await fetch('https://api.github.com/repos/'+REPO+'/contents/'+FILE,{headers});
+    const d=await r.json();
+    if(!d.sha){log('Erreur: '+JSON.stringify(d),'err');return;}
+    log('Fichier recupere (SHA: '+d.sha.substring(0,7)+')');
+    log('Application des modifications...','info');
+    const content=decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
+    let nc=content;
+    const oldFn=`function deleteSession(idx) { if (!confirm('Supprimer cette session ?')) return; state.sessions.splice(idx, 1); save(); renderToday(); renderHistory(); }`;
+    const newFn=`let _undoDeleteTimer=null,_undoDeleteSession=null,_undoDeleteIdx=null;
+function deleteSession(idx){
+  if(_undoDeleteTimer){clearTimeout(_undoDeleteTimer);_undoDeleteTimer=null;}
+  _undoDeleteSession=state.sessions[idx];_undoDeleteIdx=idx;
+  state.sessions.splice(idx,1);renderToday();renderHistory();
+  showUndoToast('Session supprimee',()=>{
+    if(_undoDeleteSession!==null){state.sessions.splice(_undoDeleteIdx,0,_undoDeleteSession);_undoDeleteSession=null;save();renderToday();renderHistory();}
+  },()=>{_undoDeleteSession=null;save();});
+}
+function showUndoToast(msg,onUndo,onConfirm){
+  let t=document.getElementById('undoToast');
+  if(!t){t=document.createElement('div');t.id='undoToast';t.style.cssText='position:fixed;bottom:calc(80px + var(--safe-bottom));left:50%;transform:translateX(-50%) translateY(20px);background:#1e293b;color:#e8eaf6;padding:12px 18px;border-radius:100px;font-size:13px;font-weight:700;opacity:0;transition:all .3s;z-index:9999;white-space:nowrap;display:flex;align-items:center;gap:12px;border:1px solid #2e3248;overflow:hidden;';document.body.appendChild(t);}
+  t.innerHTML='<span>'+msg+'</span><button onclick="cancelUndo()" style="background:var(--orange);border:none;color:#0b1f2a;font-size:12px;font-weight:800;padding:5px 14px;border-radius:100px;cursor:pointer;">Annuler</button><div id="undoBar" style="position:absolute;bottom:0;left:0;height:3px;background:var(--orange);width:100%;transition:width 5s linear;"></div>';
+  t.style.opacity='1';t.style.transform='translateX(-50%) translateY(0)';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{const b=document.getElementById('undoBar');if(b)b.style.width='0%';}));
+  window._undoCallback=onUndo;
+  if(_undoDeleteTimer)clearTimeout(_undoDeleteTimer);
+  _undoDeleteTimer=setTimeout(()=>{t.style.opacity='0';t.style.transform='translateX(-50%) translateY(20px)';if(onConfirm)onConfirm();window._undoCallback=null;},5000);
+}
+function cancelUndo(){
+  if(window._undoCallback)window._undoCallback();
+  window._undoCallback=null;
+  if(_undoDeleteTimer){clearTimeout(_undoDeleteTimer);_undoDeleteTimer=null;}
+  const t=document.getElementById('undoToast');
+  if(t){t.style.opacity='0';t.style.transform='translateX(-50%) translateY(20px)';}
+  showToast('Session restauree');
+}`;
+    if(nc.includes("confirm('Supprimer cette session ?')")){
+      nc=nc.replace(/function deleteSession\(idx\) \{[\s\S]*?renderHistory\(\);\s*\}/,newFn);
+      log('Fonction deleteSession mise a jour');
+    } else {log('ATTENTION: deleteSession non trouve, verifiez manuellement','err');}
+    nc=nc.replace("const APP_VERSION = '0.1.42'","const APP_VERSION = '0.1.44'");
+    log('Version mise a jour vers v0.1.44');
+    log('Envoi vers GitHub...','info');
+    const encoded=btoa(unescape(encodeURIComponent(nc)));
+    const pr=await fetch('https://api.github.com/repos/'+REPO+'/contents/'+FILE,{
+      method:'PUT',
+      headers:{...headers,'Content-Type':'application/json'},
+      body:JSON.stringify({message:'feat: toast annulation suppression v0.1.44',content:encoded,sha:d.sha})
+    });
+    const pd=await pr.json();
+    if(pr.ok){log('Deploye avec succes! GitHub Pages se met a jour dans ~30 secondes.');}
+    else{log('Erreur push: '+JSON.stringify(pd.message),'err');}
+  }catch(e){log('Erreur: '+e.message,'err');}
+  document.getElementById('btn').disabled=false;
+}
+</script>
+</body>
+</html>
