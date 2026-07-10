@@ -680,7 +680,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 
   <div class="note-row">
     <span class="note-icon">📝</span>
-    <input type="text" id="noteInput" placeholder="Note (ex: réunion client, dev…)" maxlength="60">
+    <input type="text" id="noteInput" placeholder="Note (ex: réunion client, dev…)" maxlength="60" oninput="onNoteInputChange()">
   </div>
 
   <div class="section-title">Objectifs</div>
@@ -1420,7 +1420,11 @@ let objectifs = {
 
 
 let timerInterval = null;
-const APP_VERSION = '0.1.44';
+function onNoteInputChange(){
+  const val=document.getElementById('noteInput').value;
+  localStorage.setItem('orvia_note_en_cours',val);
+}
+const APP_VERSION = '0.1.45';
 
 
 // ── STORAGE ──
@@ -1436,6 +1440,7 @@ function save() {
 }
 
 function load() {
+  try { const n=localStorage.getItem('orvia_note_en_cours'); if(n!==null){const ni=document.getElementById('noteInput');if(ni)ni.value=n;} } catch(e){}
   try {
     const s = localStorage.getItem('timetracker_sessions');
     if (s) state.sessions = JSON.parse(s);
@@ -2748,6 +2753,8 @@ function openEditTimeModal(idx) {
   document.getElementById('editTimeDate').value = tsToDateInput(s.start);
   document.getElementById('editTimeStart').value = tsToTimeInput(s.start);
   document.getElementById('editTimeEnd').value = tsToTimeInput(s.end);
+  const editNoteEl=document.getElementById('editTimeNote');
+  if(editNoteEl)editNoteEl.value=s.note||'';
   const errEl = document.getElementById('editTimeError');
   errEl.style.display = 'none';
   errEl.textContent = '';
@@ -2798,6 +2805,8 @@ function saveEditTimeModal() {
   const clampedPause = Math.min(s.pauseMs || 0, duration);
   const newNet = Math.max(0, duration - clampedPause);
 
+  const noteVal=document.getElementById('editTimeNote');
+  if(noteVal&&noteVal.value.trim()!=='')s.note=noteVal.value.trim();
   s.start = newStart;
   s.end = newEnd;
   s.pauseMs = clampedPause;
