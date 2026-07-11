@@ -4075,7 +4075,7 @@ function openAboutSettings() {
     renderRecuperationsList();
   }
 
-  function openRemunerationSettings() {
+  function openRemunerationSettings() {    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.getElementById('page-remuneration-settings').classList.add('active');
     const enabledEl = document.getElementById('remunerationEnabled');
