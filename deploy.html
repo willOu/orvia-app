@@ -4,143 +4,59 @@
 <meta charset="UTF-8">
 <title>Orvia Deploy</title>
 <style>
-body{font-family:-apple-system,sans-serif;background:#0b1f2a;color:#e8eaf6;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;box-sizing:border-box;}
+body{font-family:-apple-system,sans-serif;background:#0b1f2a;color:#e8eaf6;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;margin:0;}
 h1{font-size:24px;margin-bottom:8px;}
-p{color:#8b8fa8;font-size:14px;margin-bottom:30px;text-align:center;line-height:1.5;}
-button{background:#6c63ff;color:#fff;border:none;padding:16px 40px;border-radius:12px;font-size:16px;cursor:pointer;}
+p{color:#8b8fa8;font-size:14px;margin-bottom:20px;text-align:center;}
+input{background:#1a2f3f;border:1px solid #2a4f6f;color:#e8eaf6;padding:10px 16px;border-radius:8px;width:320px;font-size:13px;margin-bottom:12px;outline:none;}
+button{background:#6c63ff;color:#fff;border:none;padding:16px 40px;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;width:320px;}
 button:disabled{opacity:.5;cursor:default;}
 #log{margin-top:24px;font-size:13px;max-width:420px;text-align:center;line-height:1.6;}
 .ok{color:#3ecf8e;}.err{color:#ff6584;}.info{color:#8b8fa8;}
+label{color:#8b8fa8;font-size:12px;align-self:flex-start;margin-left:calc(50% - 160px);margin-bottom:4px;}
 </style>
 </head>
 <body>
 <h1>Orvia Deploy</h1>
-<p>Applique les modifications et les pousse<br>directement sur GitHub Pages.</p>
+<p>Declenche le workflow de deploiement<br>via GitHub Actions.</p>
+<label>GitHub Token (stocke localement)</label>
+<input id="tok" type="password" placeholder="ghp_... ou github_pat_..." />
 <button id="btn" onclick="deploy()">Deployer sur Orvia</button>
 <div id="log"></div>
 <script>
-const p1='github_pat_11AAC5SJI0MFgKBEfR0MiW_nRVAJHX';
-const p2='lpExuOnjwkOd96FXH4can8CnuP1p0vCQOPXUW5KKLQUAkkzzeCmk';
-const TOKEN=p1+p2;
 const REPO='willOu/orvia-app';
 const BASE='https://api.github.com/repos/'+REPO;
-function log(msg,cls='info'){document.getElementById('log').innerHTML+='<div class="'+cls+'">'+msg+'</div>';}
+const WORKFLOW='deploy-manual.yml';
+
+window.onload=function(){
+  const saved=localStorage.getItem('orvia_token');
+  if(saved) document.getElementById('tok').value=saved;
+};
+
 async function deploy(){
+  const tok=document.getElementById('tok').value.trim();
+  if(!tok){log('Veuillez saisir un token GitHub.','err');return;}
+  localStorage.setItem('orvia_token',tok);
   document.getElementById('btn').disabled=true;
-  document.getElementById('log').innerHTML='';
+  const logEl=document.getElementById('log');
+  logEl.innerHTML='';
+  function log(msg,cls='info'){logEl.innerHTML+='<div class="'+cls+'">'+msg+'</div>';}
+  log('Declenchement du workflow...');
   try{
-    log('Recuperation index.html...');
-    const r=await fetch(BASE+'/contents/index.html',{headers:{Authorization:'token '+TOKEN,Accept:'application/vnd.github.v3+json'}});
-    const d=await r.json();
-    if(!d.content){log('Erreur: '+JSON.stringify(d),'err');return;}
-    let content=atob(d.content.replace(/\n/g,''));
-    log('Fichier recupere ('+content.length+' chars)','ok');
-
-    // === MODIFICATION 1: select congeType vide ===
-    const selectOld=`<select id="congeType">\n              <option value="cp">🟣 Congé payé (CP)</option>\n              <option value="rtt">🟢 RTT</option>\n              <option value="css">🟡 Congé sans solde</option>\n              <option value="csp">🔴 Enfant malade</option>\n            </select>`;
-    const selectNew='<select id="congeType"></select>';
-    if(content.includes('<option value="cp">')){content=content.replace(/<select id="congeType">\s*<option[\s\S]*?<\/select>/,selectNew);log('Select congeType vide','ok');}else{log('Select deja vide ou introuvable','info');}
-
-    // === MODIFICATION 2: section Types personnalises dans page-conges-settings ===
-    const labelCardsOld='<div id="labelCards"></div>';
-    const labelCardsNew=`<div id="labelCards"></div>
-          <h3 class="section-title" style="margin-top:20px">🏷️ Types personnalisés</h3>
-          <div id="customTypeCards" style="margin-bottom:10px"></div>
-          <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
-            <input type="text" id="newTypeLabel" placeholder="Ex: Formation, Maladie..." style="flex:1;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;outline:none">
-            <button onclick="addCustomCongeType()" style="padding:8px 14px;border-radius:10px;background:var(--accent);color:#fff;border:none;font-size:14px;cursor:pointer">➕ Ajouter</button>
-          </div>`;
-    if(content.includes(labelCardsOld)){content=content.replace(labelCardsOld,labelCardsNew);log('Section types personnalises ajoutee','ok');}else{log('labelCards introuvable','err');}
-
-    // === MODIFICATION 3: fonctions JS apres openCongesSettings ===
-    const jsAnchor='document.getElementById(\'page-conges-settings\').classList.add(\'active\');\n    }';
-    const jsNew=jsAnchor+`
-
-  // --- Types de conges personnalisables ---
-  const DEFAULT_CONGE_TYPES=[
-    {id:'cp',label:'Congé payé (CP)',emoji:'🟣',builtIn:true},
-    {id:'rtt',label:'RTT',emoji:'🟢',builtIn:true},
-    {id:'css',label:'Congé sans solde',emoji:'🟡',builtIn:true},
-    {id:'csp',label:'Enfant malade',emoji:'🔴',builtIn:true}
-  ];
-  let customCongeTypes=[];
-  function loadCustomCongeTypes(){
-    const saved=localStorage.getItem('timetracker_custom_conge_types');
-    customCongeTypes=saved?JSON.parse(saved):[];
-    renderCongeTypeSelect();
-    if(document.getElementById('customTypeCards'))renderCustomTypeCards();
+    const r=await fetch(BASE+'/actions/workflows/'+WORKFLOW+'/dispatches',{
+      method:'POST',
+      headers:{'Authorization':'Bearer '+tok,'Content-Type':'application/json','Accept':'application/vnd.github+json'},
+      body:JSON.stringify({ref:'main'})
+    });
+    if(r.status===204){
+      log('Workflow lance avec succes !','ok');
+      log('Rendez-vous sur GitHub Actions pour suivre le deploiement.');
+    } else {
+      const e=await r.text();
+      log('Erreur '+r.status+': '+e,'err');
+    }
+  }catch(e){
+    log('Erreur reseau: '+e,'err');
   }
-  function saveCustomCongeTypes(){localStorage.setItem('timetracker_custom_conge_types',JSON.stringify(customCongeTypes));}
-  function getAllCongeTypes(){return[...DEFAULT_CONGE_TYPES,...customCongeTypes];}
-  function renderCongeTypeSelect(){
-    const sel=document.getElementById('congeType');
-    if(!sel)return;
-    const cur=sel.value;
-    sel.innerHTML=getAllCongeTypes().map(t=>\'<option value="\'+t.id+\'">\'+(t.emoji||\'🟤\')+\' \'+t.label+\'</option>\').join(\'\');
-    if(cur)sel.value=cur;
-  }
-  function renderCustomTypeCards(){
-    const el=document.getElementById(\'customTypeCards\');
-    if(!el)return;
-    if(customCongeTypes.length===0){el.innerHTML=\'<p style="color:var(--muted);font-size:13px">Aucun type personnalis\\u00e9.</p>\';return;}
-    el.innerHTML=customCongeTypes.map((t,i)=>{
-      const used=(state.conges||[]).some(c=>c.type===t.id);
-      return \'<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:8px 12px;background:var(--card);border-radius:10px">\'
-        +\'<span style="font-size:18px">\'+(t.emoji||\'🟤\')+\'</span>\'
-        +\'<span style="flex:1;font-weight:600">\'+t.label+\'</span>\'
-        +(used?\'<span style="font-size:11px;color:var(--muted)">utilis\\u00e9</span>\':\'<button onclick="deleteCustomCongeType(\'+i+\')\'+'\" style="padding:4px 10px;border-radius:8px;background:#ff4757;color:#fff;border:none;font-size:12px;cursor:pointer">\\u2715</button>\')
-        +\'</div>\';
-    }).join(\'\');
-  }
-  function addCustomCongeType(){
-    const input=document.getElementById(\'newTypeLabel\');
-    if(!input)return;
-    const label=input.value.trim();
-    if(!label){showToast(\'Entrez un nom de type\');return;}
-    const id=\'custom_\'+Date.now();
-    const emojis=[\'🟤\',\'🟠\',\'🟡\',\'🟢\',\'🟣\',\'🔵\',\'\u26aa\'];
-    const emoji=emojis[customCongeTypes.length%emojis.length];
-    customCongeTypes.push({id,label,emoji,builtIn:false});
-    saveCustomCongeTypes();
-    input.value=\'\'
-    renderCongeTypeSelect();
-    renderCustomTypeCards();
-    if(!state.quotas)state.quotas={};
-    state.quotas[id]=0;
-    saveConges();
-    renderCongesSettings();
-    showToast(\'Type ajout\\u00e9 : \'+label);
-  }
-  function deleteCustomCongeType(index){
-    const t=customCongeTypes[index];
-    if(!t)return;
-    if((state.conges||[]).some(c=>c.type===t.id)){showToast(\'Ce type est utilis\\u00e9\');return;}
-    customCongeTypes.splice(index,1);
-    saveCustomCongeTypes();
-    renderCongeTypeSelect();
-    renderCustomTypeCards();
-    showToast(\'Type supprim\\u00e9\');
-  }`;
-    if(content.includes(jsAnchor)){content=content.replace(jsAnchor,jsNew);log('Fonctions JS ajoutees','ok');}else{log('Ancre JS introuvable - tentative alt','err');}
-
-    // === MODIFICATION 4: appel loadCustomCongeTypes au demarrage ===
-    const initAnchor='loadConges();';
-    if(content.includes(initAnchor)&&!content.includes('loadCustomCongeTypes')){
-      content=content.replace(initAnchor,initAnchor+'\n    loadCustomCongeTypes();');
-      log('Init loadCustomCongeTypes ajoutee','ok');
-    }else{log('Init deja presente ou introuvable','info');}
-
-    // === MODIFICATION 5: version 0.1.49 ===
-    content=content.replace("APP_VERSION = '0.1.48'","APP_VERSION = '0.1.49'");
-    log('Version 0.1.49','ok');
-
-    // === PUSH ===
-    log('Push vers GitHub...');
-    const encoded=btoa(unescape(encodeURIComponent(content)));
-    const res=await fetch(BASE+'/contents/index.html',{method:'PUT',headers:{Authorization:'token '+TOKEN,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify({message:'feat: types de conges personnalisables v0.1.49',content:encoded,sha:d.sha})});
-    const result=await res.json();
-    if(result.content){log('✅ Deploy OK ! v0.1.49','ok');}else{log('❌ Erreur push: '+JSON.stringify(result),'err');}
-  }catch(e){log('❌ Exception: '+e,'err');}
   document.getElementById('btn').disabled=false;
 }
 </script>
