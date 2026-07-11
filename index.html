@@ -1428,7 +1428,16 @@ function onNoteInputChange(){
   const val=document.getElementById('noteInput').value;
   localStorage.setItem('orvia_note_en_cours',val);
 }
-function maybeShowWeeklyReport() {   const now = new Date();   if (now.getDay() !== 1) return;   const todayKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');   const lastShown = localStorage.getItem('orvia_weekly_report_shown');   if (lastShown === todayKey) return;   localStorage.setItem('orvia_weekly_report_shown', todayKey);   const lastMonday = new Date(now); lastMonday.setDate(now.getDate() - 7);   const lastSunday = new Date(now); lastSunday.setDate(now.getDate() - 1);   const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.1.48';
+function maybeShowWeeklyReport() {
+  const now = new Date();
+  if (now.getDay() !== 1) return;
+  const todayKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  const lastShown = localStorage.getItem('orvia_weekly_report_shown');
+  if (lastShown === todayKey) return;
+  localStorage.setItem('orvia_weekly_report_shown', todayKey);
+  const lastMonday = new Date(now); lastMonday.setDate(now.getDate() - 7); lastMonday.setHours(0, 0, 0, 0);
+  const lastSunday = new Date(now); lastSunday.setDate(now.getDate() - 1); lastSunday.setHours(23, 59, 59, 999);
+  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.1.48';
 
 
 // ── STORAGE ──
@@ -1444,7 +1453,17 @@ function save() {
 }
 
 function load() {
-  try { const n=localStorage.getItem('orvia_note_en_cours'); if(n!==null){const ni=document.getElementById('noteInput');if(ni)ni.value=n;} } catch(e){}
+  try {
+    const n = localStorage.getItem('orvia_note_en_cours');
+    const cur = localStorage.getItem('timetracker_current');
+    const curStatus = cur ? (JSON.parse(cur).status || 'idle') : 'idle';
+    if (n !== null && curStatus !== 'idle') {
+      const ni = document.getElementById('noteInput');
+      if (ni) ni.value = n;
+    } else if (n !== null) {
+      localStorage.removeItem('orvia_note_en_cours');
+    }
+  } catch(e) {}
   try {
     const s = localStorage.getItem('timetracker_sessions');
     if (s) state.sessions = JSON.parse(s);
@@ -1713,6 +1732,7 @@ function fixForgottenSessionEnd() {
   state.pauseStart = null;
   state.totalPauseMs = 0;
   state.startGeo = null;
+  localStorage.removeItem('orvia_note_en_cours');
   document.getElementById('bigTime').textContent = '00:00:00';
   document.getElementById('bigTime').className = 'big-time';
   document.getElementById('elapsedLabel').textContent = 'Prêt à démarrer';
@@ -2161,6 +2181,7 @@ async function stopSession() {
   state.pauseStart = null;
   state.totalPauseMs = 0;
   state.startGeo = null;
+  localStorage.removeItem('orvia_note_en_cours');
   document.getElementById('noteInput').value = '';
   document.getElementById('bigTime').textContent = '00:00:00';
   document.getElementById('bigTime').className = 'big-time';
@@ -2312,21 +2333,56 @@ function requestNotifPermission() {
   }
 }
 
-let _notifState = { dayHit:false, weekHit:false, day80:false, week80:false, lastDate: null };
+function loadNotifState() {
+  try {
+    const raw = localStorage.getItem('orvia_notif_state');
+    if (!raw) return { dayHit:false, day80:false, weekHit:false, week80:false, lastDate:null, lastWeekKey:null };
+    const p = JSON.parse(raw);
+    return {
+      dayHit: !!p.dayHit,
+      day80: !!p.day80,
+      weekHit: !!p.weekHit,
+      week80: !!p.week80,
+      lastDate: typeof p.lastDate === 'string' ? p.lastDate : null,
+      lastWeekKey: Number.isFinite(p.lastWeekKey) ? p.lastWeekKey : null,
+    };
+  } catch (e) {
+    return { dayHit:false, day80:false, weekHit:false, week80:false, lastDate:null, lastWeekKey:null };
+  }
+}
+
+function saveNotifState() {
+  localStorage.setItem('orvia_notif_state', JSON.stringify(_notifState));
+}
+
+let _notifState = loadNotifState();
 function checkGoalNotifications(dayTotal, dayGoal, weekTotal, weekGoal) {
   const today = todayKey();
+  const weekKey = getMondayOf(new Date()).getTime();
+  let changed = false;
   if (_notifState.lastDate !== today) {
-    _notifState = { dayHit:false, weekHit:false, day80:false, week80:false, lastDate: today };
+    _notifState.lastDate = today;
+    _notifState.dayHit = false;
+    _notifState.day80 = false;
+    changed = true;
+  }
+  if (_notifState.lastWeekKey !== weekKey) {
+    _notifState.lastWeekKey = weekKey;
+    _notifState.weekHit = false;
+    _notifState.week80 = false;
+    changed = true;
   }
   const canNotify = ('Notification' in window) && Notification.permission === 'granted';
   if (dayGoal > 0) {
     const pctDay = dayTotal / dayGoal;
     if (pctDay >= 1 && !_notifState.dayHit) {
       _notifState.dayHit = true;
+      changed = true;
       if (canNotify) new Notification('Objectif du jour atteint 🎉', { body: `${fmtHM(dayTotal)} / ${fmtHM(dayGoal)}` });
       showToast('Objectif du jour atteint 🎉');
     } else if (pctDay >= 0.8 && pctDay < 1 && !_notifState.day80) {
       _notifState.day80 = true;
+      changed = true;
       if (canNotify) new Notification('Objectif du jour presque atteint', { body: `${fmtHM(dayTotal)} / ${fmtHM(dayGoal)}` });
     }
   }
@@ -2334,13 +2390,16 @@ function checkGoalNotifications(dayTotal, dayGoal, weekTotal, weekGoal) {
     const pctWeek = weekTotal / weekGoal;
     if (pctWeek >= 1 && !_notifState.weekHit) {
       _notifState.weekHit = true;
+      changed = true;
       if (canNotify) new Notification('Objectif de la semaine atteint 🎉', { body: `${fmtHM(weekTotal)} / ${fmtHM(weekGoal)}` });
       showToast('Objectif de la semaine atteint 🎉');
     } else if (pctWeek >= 0.8 && pctWeek < 1 && !_notifState.week80) {
       _notifState.week80 = true;
+      changed = true;
       if (canNotify) new Notification('Objectif de la semaine presque atteint', { body: `${fmtHM(weekTotal)} / ${fmtHM(weekGoal)}` });
     }
   }
+  if (changed) saveNotifState();
 }
 
 function renderObjectifs() {
@@ -2490,7 +2549,7 @@ function saveRecuperations(list) {
 
 function addRecuperation(ms, note) {
   const list = getRecuperations();
-  list.push({ id: Date.now(), date: toLocalISO(new Date()), ms: clampNumber(ms, 0, 24 * 3600000, 0), note: (note || '').slice(0, 80) });
+  list.push({ id: Date.now() + Math.floor(Math.random()*100000), date: toLocalISO(new Date()), ms: clampNumber(ms, 0, 24 * 3600000, 0), note: (note || '').slice(0, 80) });
   saveRecuperations(list);
 }
 
@@ -2773,6 +2832,7 @@ function closeEditTimeModal() {
 function saveEditTimeModal() {
   if (_editTimeIdx === null) return;
   const s = state.sessions[_editTimeIdx];
+  const _editTimeIdxLocal = _editTimeIdx;
   if (!s) { closeEditTimeModal(); return; }
 
   const dateStr = document.getElementById('editTimeDate').value;
@@ -2806,11 +2866,18 @@ function saveEditTimeModal() {
     return;
   }
 
+  const overlapping = state.sessions.some((other, i) => i !== _editTimeIdxLocal && sessionsOverlap(newStart, newEnd, other.start, other.end));
+  if (overlapping) {
+    errEl.textContent = 'Ces horaires chevauchent une autre session.';
+    errEl.style.display = 'block';
+    return;
+  }
+
   const clampedPause = Math.min(s.pauseMs || 0, duration);
   const newNet = Math.max(0, duration - clampedPause);
 
   const noteVal=document.getElementById('editTimeNote');
-  if(noteVal&&noteVal.value.trim()!=='')s.note=noteVal.value.trim();
+  if(noteVal)s.note=noteVal.value.trim();
   s.start = newStart;
   s.end = newEnd;
   s.pauseMs = clampedPause;
@@ -3139,9 +3206,11 @@ function exportPDF() {
     const sessions = state.sessions;
     if (!sessions.length) { showToast('Aucune session à exporter'); return; }
 
-    // Week key helper (ISO week)
-    function weekKey(dateStr) {
-      const d = new Date(dateStr + 'T00:00:00');
+    // Week key helper (ISO week), basée sur l'horodatage réel (s.date est un texte
+    // affiché en français, pas une date ISO exploitable pour du calcul de date)
+    function weekKey(ts) {
+      const d = new Date(ts);
+      d.setHours(0, 0, 0, 0);
       const day = d.getDay() || 7;
       const mon = new Date(d); mon.setDate(d.getDate() - day + 1);
       const thu = new Date(mon); thu.setDate(mon.getDate() + 3);
@@ -3158,17 +3227,18 @@ function exportPDF() {
       return h + 'h' + String(m).padStart(2, '0');
     };
 
-    // Group by day
+    // Group by day (clé ISO dérivée de s.start, triable et parsable de façon fiable)
     const byDay = {};
     sessions.forEach(s => {
-      if (!byDay[s.date]) byDay[s.date] = [];
-      byDay[s.date].push(s);
+      const dayKey = toLocalISO(new Date(s.start));
+      if (!byDay[dayKey]) byDay[dayKey] = [];
+      byDay[dayKey].push(s);
     });
 
     // Group by week
     const byWeek = {};
     sessions.forEach(s => {
-      const { key, week, year } = weekKey(s.date);
+      const { key, week, year } = weekKey(s.start);
       if (!byWeek[key]) byWeek[key] = { week, year, sessions: [] };
       byWeek[key].sessions.push(s);
     });
@@ -3176,7 +3246,7 @@ function exportPDF() {
     // Group by year
     const byYear = {};
     sessions.forEach(s => {
-      const y = s.date.slice(0, 4);
+      const y = String(new Date(s.start).getFullYear());
       if (!byYear[y]) byYear[y] = [];
       byYear[y].push(s);
     });
@@ -3231,10 +3301,10 @@ function exportPDF() {
     Object.keys(byWeek).sort().forEach(wk => {
       const { week, year, sessions: ss } = byWeek[wk];
       const total = ss.reduce((a, s) => a + s.net, 0);
-      const jours = [...new Set(ss.map(s => s.date))].length;
-      // Compute Mon-Fri of the week
-      const firstDay = ss.map(s => s.date).sort()[0];
-      const d = new Date(firstDay + 'T00:00:00');
+      const jours = new Set(ss.map(s => toLocalISO(new Date(s.start)))).size;
+      // Compute Mon-Fri of the week à partir du premier horodatage réel de la semaine
+      const firstStart = Math.min(...ss.map(s => s.start));
+      const d = new Date(firstStart);
       const dow = d.getDay() || 7;
       const mon = new Date(d); mon.setDate(d.getDate() - dow + 1);
       const fri = new Date(mon); fri.setDate(mon.getDate() + 4);
@@ -3255,8 +3325,8 @@ function exportPDF() {
     Object.keys(byYear).sort().forEach(yr => {
       const ss = byYear[yr];
       const total = ss.reduce((a, s) => a + s.net, 0);
-      const jours = [...new Set(ss.map(s => s.date))].length;
-      const semaines = [...new Set(ss.map(s => weekKey(s.date).key))].length;
+      const jours = new Set(ss.map(s => toLocalISO(new Date(s.start)))).size;
+      const semaines = new Set(ss.map(s => weekKey(s.start).key)).size;
       html += `<tr><td>${yr}</td><td>${jours}</td><td>${semaines}</td><td>${fmtMs(total)}</td></tr>`;
     });
     html += '</table>';
@@ -3566,7 +3636,7 @@ function workdaysBetween(d1, d2) {
   const end = new Date(d2); end.setHours(0,0,0,0);
   while (cur <= end) {
     const dow = cur.getDay();
-    if (dow !== 0 && dow !== 6) count++;
+    if (dow !== 0 && dow !== 6 && !isDateHoliday(toLocalISO(cur))) count++;
     cur.setDate(cur.getDate() + 1);
   }
   return count;
@@ -3581,11 +3651,14 @@ function addConge() {
     const endFinal = endVal || startVal;
     if (endFinal < startVal) return showToast('La date de fin doit être après le début');
     const days = workdaysBetween(startVal, endFinal);
-    // check quota
-    const taken = state.conges.filter(c => c.type === type).reduce((a, c) => a + (c.days || 0), 0);
-    const quota = Number(state.quotas[type] || 0);
-    if (taken + days > quota) {
-      return showToast(`Erreur : quota dépassé pour ${type.toUpperCase()} (${taken}/${quota} jours utilisés)`);
+    // check quota (les types personnalisés n'ont pas de notion de quota : illimités)
+    const isCustomType = customCongeTypes.some(t => t.id === type);
+    if (!isCustomType) {
+      const taken = state.conges.filter(c => c.type === type).reduce((a, c) => a + (c.days || 0), 0);
+      const quota = Number(state.quotas[type] || 0);
+      if (taken + days > quota) {
+        return showToast(`Erreur : quota dépassé pour ${type.toUpperCase()} (${taken}/${quota} jours utilisés)`);
+      }
     }
     // check overlap with existing conges
     let cur = new Date(startVal + 'T00:00:00');
@@ -3610,7 +3683,7 @@ function addConge() {
       }
       cur.setDate(cur.getDate() + 1);
     }
-    state.conges.push({ type, start: startVal, end: endFinal, note, days, id: Date.now() });
+    state.conges.push({ type, start: startVal, end: endFinal, note, days, id: Date.now() + Math.floor(Math.random()*100000) });
     saveConges();
     document.getElementById('congeStart').value = '';
     document.getElementById('congeEnd').value = '';
@@ -3856,7 +3929,16 @@ function renderReglages() {
   }</div>`;
 
   const resumeJourEl = document.getElementById('resumeJourEnabled');
-  if (resumeJourEl) resumeJourEl.checked = resumeJour.enabled;   const cct = document.getElementById('customTypeCards');   if (cct) {     if (customCongeTypes.length === 0) {       cct.innerHTML = '<p style="color:#8b8fa8;font-size:13px;text-align:center;padding:8px">Aucun type personnalisé</p>';     } else {       cct.innerHTML = '<div class="settings-card">' + customCongeTypes.map((t,i) => '<div class="settings-row"><div class="settings-dot" style="background:'+t.color+'"></div><span style="flex:1">'+t.label+'</span><button onclick="removeCustomType('+i+')" style="background:#ff6584;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">Supprimer</button></div>').join('') + '</div>';     }   }   refreshCongeSelect();
+  if (resumeJourEl) resumeJourEl.checked = resumeJour.enabled;
+  const cct = document.getElementById('customTypeCards');
+  if (cct) {
+    if (customCongeTypes.length === 0) {
+      cct.innerHTML = '<p style="color:#8b8fa8;font-size:13px;text-align:center;padding:8px">Aucun type personnalisé</p>';
+    } else {
+      cct.innerHTML = '<div class="settings-card">' + customCongeTypes.map((t,i) => '<div class="settings-row"><div class="settings-dot" style="background:'+escapeHtml(t.color)+'"></div><span style="flex:1">'+escapeHtml(t.label)+'</span><button onclick="removeCustomType('+i+')" style="background:#ff6584;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">Supprimer</button></div>').join('') + '</div>';
+    }
+  }
+  refreshCongeSelect();
 }
 
 function updateQuota(type, val) {
@@ -3867,12 +3949,45 @@ function updateQuota(type, val) {
   showToast('Quota mis à jour ✓');
 }
 
-if (resumeJfunction updateLabel(type, val) {   const v = val.trim();   if (!v) return;   CONGE_LABELS[type] = v;   saveConges();   showToast('Nom mis à jour ✓'); } function refreshCongeSelect() {   const sel = document.getElementById('congeType');   if (!sel) return;   const prev = sel.value;   const emojis = {cp:'🟣',rtt:'🟢',css:'🟡',csp:'🔴'};   let opts = ['cp','rtt','css','csp'].map(t => '<option value="'+t+'">'+(emojis[t]||'⚪')+' '+(CONGE_LABELS[t]||t.toUpperCase())+'</option>').join('');   customCongeTypes.forEach(t => { opts += '<option value="'+t.id+'">🔵 '+t.label+'</option>'; });   sel.innerHTML = opts;   if ([...sel.options].some(o => o.value === prev)) sel.value = prev; } function openAddCustomType() {   const label = prompt('Nom du nouveau type de congé :');   if (!label || !label.trim()) return;   const colors = ['#a78bfa','#34d399','#fbbf24','#f87171','#60a5fa','#f472b6','#4ade80','#fb923c'];   const color = colors[customCongeTypes.length % colors.length];   const id = 'custom_' + Date.now();   customCongeTypes.push({id, label: label.trim(), color});   saveConges();   renderReglages();   showToast('Type ajouté ✓'); } function removeCustomType(index) {   const t = customCongeTypes[index];   if (!t) return;   if (!confirm('Supprimer le type "' + t.label + '" ?')) return;   customCongeTypes.splice(index, 1);   saveConges();   renderReglages();   showToast('Type supprimé'); }ourEl) resumeJourEl.checked = resumeJour.enabled;   const cct = document.getElementById('customTypeCards');   if (cct) {     if (customCongeTypes.length === 0) {       cct.innerHTML = '<p style="color:#8b8fa8;font-size:13px;text-align:center;padding:8px">Aucun type personnalisé</p>';     } else {       cct.innerHTML = '<div class="settings-card">' + customCongeTypes.map((t,i) => '<div class="settings-row"><div class="settings-dot" style="background:'+t.color+'"></div><span style="flex:1">'+t.label+'</span><button onclick="removeCustomType('+i+')" style="background:#ff6584;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">Supprimer</button></div>').join('') + '</div>';     }   }   refreshCongeSelect();
+function updateLabel(type, val) {
   const v = val.trim();
   if (!v) return;
   CONGE_LABELS[type] = v;
   saveConges();
   showToast('Nom mis à jour ✓');
+}
+
+function refreshCongeSelect() {
+  const sel = document.getElementById('congeType');
+  if (!sel) return;
+  const prev = sel.value;
+  const emojis = {cp:'🟣',rtt:'🟢',css:'🟡',csp:'🔴'};
+  let opts = ['cp','rtt','css','csp'].map(t => '<option value="'+t+'">'+(emojis[t]||'⚪')+' '+escapeHtml(CONGE_LABELS[t]||t.toUpperCase())+'</option>').join('');
+  customCongeTypes.forEach(t => { opts += '<option value="'+t.id+'">🔵 '+escapeHtml(t.label)+'</option>'; });
+  sel.innerHTML = opts;
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+}
+
+function openAddCustomType() {
+  const label = prompt('Nom du nouveau type de congé :');
+  if (!label || !label.trim()) return;
+  const colors = ['#a78bfa','#34d399','#fbbf24','#f87171','#60a5fa','#f472b6','#4ade80','#fb923c'];
+  const color = colors[customCongeTypes.length % colors.length];
+  const id = 'custom_' + Date.now() + '_' + Math.floor(Math.random()*100000);
+  customCongeTypes.push({id, label: label.trim().slice(0, 40), color});
+  saveConges();
+  renderReglages();
+  showToast('Type ajouté ✓');
+}
+
+function removeCustomType(index) {
+  const t = customCongeTypes[index];
+  if (!t) return;
+  if (!confirm('Supprimer le type "' + t.label + '" ?')) return;
+  customCongeTypes.splice(index, 1);
+  saveConges();
+  renderReglages();
+  showToast('Type supprimé');
 }
 
 
@@ -4692,6 +4807,21 @@ function buildBackupData() {
     localStorage.setItem('orvia_last_auto_backup', dateStr);
   }
 
+  function getPendingAutoBackupDate() {
+    return localStorage.getItem('orvia_autobackup_pending') || null;
+  }
+
+  function setPendingAutoBackupDate(dateStr) {
+    if (dateStr) localStorage.setItem('orvia_autobackup_pending', dateStr);
+    else localStorage.removeItem('orvia_autobackup_pending');
+  }
+
+  // iOS (et les navigateurs mobiles en général) bloquent silencieusement les
+  // téléchargements de fichiers déclenchés par du code sans geste utilisateur direct.
+  // On ne télécharge donc plus jamais automatiquement : on repère juste qu'une
+  // sauvegarde est due, et on demande à l'utilisateur de confirmer par un vrai tap
+  // (voir confirmAutoBackup / renderBackupSettings), seul moyen fiable de garantir
+  // que le fichier est réellement enregistré.
   function checkAutoBackup() {
     const settings = getAutoBackupSettings();
     if (!settings.enabled) return;
@@ -4699,9 +4829,18 @@ function buildBackupData() {
     if (now.getDay() !== settings.weekday) return;
     const todayStr = toLocalISO(now);
     if (getLastAutoBackupDate() === todayStr) return;
+    if (getPendingAutoBackupDate() === todayStr) return;
+    setPendingAutoBackupDate(todayStr);
+    showToast('💾 Sauvegarde automatique disponible dans Réglages > Sauvegarde');
+  }
+
+  function confirmAutoBackup() {
+    const todayStr = getPendingAutoBackupDate() || toLocalISO(new Date());
     performBackupDownload(todayStr);
     createVersionSnapshot('Sauvegarde automatique');
     setLastAutoBackupDate(todayStr);
+    setPendingAutoBackupDate(null);
+    renderBackupSettings();
     showToast('💾 Sauvegarde automatique effectuée');
   }
 
@@ -4724,7 +4863,15 @@ function buildBackupData() {
     const el = document.getElementById('autoBackupSettingsCard');
     if (!el) return;
     const lastDate = getLastAutoBackupDate();
+    const pendingDate = getPendingAutoBackupDate();
+    const pendingHtml = pendingDate ? `
+      <div class="settings-row" style="flex-direction:column;align-items:stretch;gap:8px;">
+        <div style="font-size:12px;color:var(--accent);font-weight:700;">💾 Sauvegarde automatique disponible</div>
+        <button onclick="confirmAutoBackup()" style="background:var(--accent);color:#fff;border:none;padding:10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Télécharger maintenant</button>
+      </div>
+    ` : '';
     el.innerHTML = `
+      ${pendingHtml}
       <div class="settings-row">
         <label>Sauvegarde automatique</label>
         <label class="switch">
@@ -4789,7 +4936,7 @@ function workdaysBetweenSafe(startVal, endVal) {
   let days = 0;
   while (cur <= end) {
     const dow = cur.getDay();
-    if (dow !== 0 && dow !== 6) days++;
+    if (dow !== 0 && dow !== 6 && !isDateHoliday(toLocalISO(cur))) days++;
     cur.setDate(cur.getDate() + 1);
   }
   return days;
@@ -4797,7 +4944,7 @@ function workdaysBetweenSafe(startVal, endVal) {
 
 function normalizeConge(c) {
   if (!c || typeof c !== 'object') return null;
-  const allowed = ['cp','rtt','css','csp'];
+  const allowed = ['cp','rtt','css','csp', ...customCongeTypes.map(t => t.id)];
   const type = allowed.includes(c.type) ? c.type : null;
   const start = typeof c.start === 'string' ? c.start : '';
   const end = typeof c.end === 'string' && c.end ? c.end : start;
