@@ -3779,7 +3779,7 @@ function renderCal() {
     const holidayLabel = isHoliday ? getHolidayLabel(dateStr) : null;
     const titleAttr = holidayLabel ? ` title="${holidayLabel}"` : '';
     const clickAttr = hasConge ? ` onclick="openCalDayDetail('${dateStr}')"` : ` onclick="openAddCongeForDate('${dateStr}')"` ;
-    html += `<div class="${cls}"${customColor?` style="background:${customColor}33;color:${customColor}"`:''}${clickAttr}${titleAttr}>${d}</div>`;
+    html += `<div class="${cls}"${customColor ? ' style="background:'+customColor+'33;color:'+customColor+'"' : '' style="background:${customColor}33;color:${customColor}"`:''}${clickAttr}${titleAttr}>${d}</div>`;
   }
   grid.innerHTML = html;
 }
