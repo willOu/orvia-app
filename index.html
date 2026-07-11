@@ -1030,7 +1030,11 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     </div>
 
     <div class="form-field">
-      <label id="labelTranche2">Majoration au-delà de 39h (%)</label>
+      <div class="settings-row" style="margin-bottom:14px">
+            <label style="font-weight:600">Calcul au-delà de 39h</label>
+            <label class="switch"><input type="checkbox" id="remuSupEnabledInput" onchange="onRemuSupToggle()" checked><span class="slider"></span></label>
+          </div>
+          <label id="labelTranche2">Majoration au-delà de 39h (%)</label>
       <input type="number" id="majorationTranche2Input" min="0" max="200" step="1" placeholder="50" onchange="onMajorationTranche2Change()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
     </div>
 
@@ -1424,7 +1428,7 @@ function onNoteInputChange(){
   const val=document.getElementById('noteInput').value;
   localStorage.setItem('orvia_note_en_cours',val);
 }
-function maybeShowWeeklyReport() {   const now = new Date();   if (now.getDay() !== 1) return;   const todayKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');   const lastShown = localStorage.getItem('orvia_weekly_report_shown');   if (lastShown === todayKey) return;   localStorage.setItem('orvia_weekly_report_shown', todayKey);   const lastMonday = new Date(now); lastMonday.setDate(now.getDate() - 7);   const lastSunday = new Date(now); lastSunday.setDate(now.getDate() - 1);   const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.1.47';
+function maybeShowWeeklyReport() {   const now = new Date();   if (now.getDay() !== 1) return;   const todayKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');   const lastShown = localStorage.getItem('orvia_weekly_report_shown');   if (lastShown === todayKey) return;   localStorage.setItem('orvia_weekly_report_shown', todayKey);   const lastMonday = new Date(now); lastMonday.setDate(now.getDate() - 7);   const lastSunday = new Date(now); lastSunday.setDate(now.getDate() - 1);   const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.1.48';
 
 
 // ── STORAGE ──
@@ -1478,7 +1482,7 @@ let remuneration = {
   seuil1: 35,
   seuil2: 39,
   majorationTranche1: 25,
-  majorationTranche2: 50,
+  majorationTranche2: 50,   remuSupEnabled: true,
   netEnabled: false,
   tauxImposition: 22
 };
@@ -1494,7 +1498,7 @@ function loadRemuneration() {
       const parsed = JSON.parse(r);
       remuneration = Object.assign({
         enabled: false, tauxHoraire: 0, seuil1: 35, seuil2: 39,
-        majorationTranche1: 25, majorationTranche2: 50,
+        majorationTranche1: 25, majorationTranche2: 50,   remuSupEnabled: true
         netEnabled: false, tauxImposition: 22
       }, parsed);
     }
@@ -1755,7 +1759,7 @@ function calcGainsSemaine(weekNetMs) {
 
   const heuresNormales = Math.min(heures, seuil1);
   const heuresTranche1 = Math.max(0, Math.min(heures, seuil2) - seuil1);
-  const heuresTranche2 = Math.max(0, heures - seuil2);
+  const heuresTranche2 = remuneration.remuSupEnabled ? Math.max(0, heures - seuil2) : 0;
 
   const tauxTranche1 = taux * (1 + (remuneration.majorationTranche1 || 0) / 100);
   const tauxTranche2 = taux * (1 + (remuneration.majorationTranche2 || 0) / 100);
@@ -3939,7 +3943,7 @@ function openClearSettings() {
 
 
 const THEME_PALETTES = [
-  { id: 'violet', name: 'Violet', accent: '#6c63ff', accent2: '#ff6584' },
+  { id: 'violet', name: 'Base', accent: '#6c63ff', accent2: '#ff6584' },
   { id: 'bleu', name: 'Bleu océan', accent: '#3b82f6', accent2: '#06b6d4' },
   { id: 'vert', name: 'Vert forêt', accent: '#22c55e', accent2: '#84cc16' },
   { id: 'rose', name: 'Rose corail', accent: '#ec4899', accent2: '#f97316' },
@@ -4073,8 +4077,7 @@ function openAboutSettings() {
 
   function openRemunerationSettings() {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById('page-remuneration-settings').classList.add('active');
+feat: theme Base + toggle calcul >39h + version v0.1.48    document.getElementById('page-remuneration-settings').classList.add('active');
     const enabledEl = document.getElementById('remunerationEnabled');
     const tauxEl = document.getElementById('tauxHoraireInput');
     const seuil1El = document.getElementById('seuil1Input');
@@ -4090,6 +4093,8 @@ function openAboutSettings() {
     if (maj1El) maj1El.value = remuneration.majorationTranche1;
     if (maj2El) maj2El.value = remuneration.majorationTranche2;
     if (netEnabledEl) netEnabledEl.checked = remuneration.netEnabled;
+       const remuSupEl = document.getElementById('remuSupEnabledInput');
+    if (remuSupEl) remuSupEl.checked = remuneration.remuSupEnabled !== false;
     if (tauxImpEl) tauxImpEl.value = remuneration.tauxImposition;
     updateRemunerationLabels();
   }
@@ -4154,11 +4159,19 @@ function openAboutSettings() {
     const el = document.getElementById('seuil2Input');
     const val = clampNumber(Number(el ? el.value : 39), 0, 80, 39);
     remuneration.seuil2 = Math.max(val, remuneration.seuil1 + 1);
-    if (el) el.value = remuneration.seuil2;
+     if (el) el.value = remuneration.seuil2;
     saveRemuneration();
     updateRemunerationLabels();
     renderToday();
     showToast('Seuil mis à jour');
+  }
+
+   function onRemuSupToggle() {
+    const el = document.getElementById('remuSupEnabledInput');
+    remuneration.remuSupEnabled = el ? el.checked : true;
+    saveRemuneration();
+    renderToday();
+    showToast(remuneration.remuSupEnabled ? 'Calcul >39h activé' : 'Calcul >39h désactivé');
   }
 
   function onMajorationTranche1Change() {
