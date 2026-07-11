@@ -924,7 +924,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 <div class="section-title">Quotas annuels de congés</div>
   <div style="margin-bottom:20px" id="quotaCards"></div>
   <div class="section-title">Noms des types de congés</div>
-  <div id="labelCards"></div>
+  <div id="labelCards"></div>   <div class="section-title" style="margin-top:20px">Types personnalisés</div>   <div id="customTypeCards"></div>   <div style="margin:12px 0"><button class="btn-primary" style="width:100%;font-size:14px" onclick="openAddCustomType()">+ Ajouter un type</button></div>
 </div>
 
 
@@ -3538,7 +3538,7 @@ function clearAll() {
 
 // ── CONGES ──
 const CONGE_COLORS = { cp:'cp', rtt:'rtt', css:'css', csp:'csp' };
-const CONGE_LABELS = { cp:'Congé payé', rtt:'RTT', css:'Congé sans solde', csp:'Congé enfant malade' };
+const CONGE_LABELS = { cp:'Congé payé', rtt:'RTT', css:'Congé sans solde', csp:'Congé enfant malade' }; let customCongeTypes = [];
 const SOLDE_DEFAULTS = { cp:25, rtt:10, css:0, csp:5 };
 
 let calYear, calMonth;
@@ -3550,14 +3550,14 @@ function loadConges() {
     const q = localStorage.getItem('timetracker_quotas');
     if (q) state.quotas = JSON.parse(q);
     const l = localStorage.getItem('timetracker_labels');
-    if (l) { const parsed = JSON.parse(l); Object.assign(CONGE_LABELS, parsed); }
+    if (l) { const parsed = JSON.parse(l); Object.assign(CONGE_LABELS, parsed); }     const ct = localStorage.getItem('timetracker_custom_types');     if (ct) customCongeTypes = JSON.parse(ct);
   } catch(e) {}
 }
 
 function saveConges() {
   localStorage.setItem('timetracker_conges', JSON.stringify(state.conges));
   localStorage.setItem('timetracker_quotas', JSON.stringify(state.quotas));
-  localStorage.setItem('timetracker_labels', JSON.stringify(CONGE_LABELS));
+  localStorage.setItem('timetracker_labels', JSON.stringify(CONGE_LABELS));   localStorage.setItem('timetracker_custom_types', JSON.stringify(customCongeTypes));
 }
 
 function workdaysBetween(d1, d2) {
@@ -3738,12 +3738,12 @@ function renderCal() {
   document.getElementById('calMonth').textContent =
     new Date(calYear, calMonth, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
 
-  const dateSets = { cp: new Set(), rtt: new Set(), css: new Set(), csp: new Set() };
+  const dateSets = { cp: new Set(), rtt: new Set(), css: new Set(), csp: new Set() };     customCongeTypes.forEach(t => { dateSets[t.id] = new Set(); });
   state.conges.forEach(c => {
     let cur = new Date(c.start + 'T00:00:00');
     const end = new Date(c.end + 'T00:00:00');
     while (cur <= end) {
-      dateSets[c.type].add(toLocalISO(cur));
+      if (dateSets[c.type]) dateSets[c.type].add(toLocalISO(cur));
       cur.setDate(cur.getDate() + 1);
     }
   });
@@ -3773,13 +3773,13 @@ function renderCal() {
     if (dateSets.cp.has(dateStr))  { cls += ' cp'; hasConge = true; }
     else if (dateSets.rtt.has(dateStr)) { cls += ' rtt'; hasConge = true; }
     else if (dateSets.css.has(dateStr)) { cls += ' css'; hasConge = true; }
-    else if (dateSets.csp.has(dateStr)) { cls += ' csp'; hasConge = true; }
+    else if (dateSets.csp.has(dateStr)) { cls += ' csp'; hasConge = true; }             let customColor = null;             if (!hasConge) { for (const ct of customCongeTypes) { if (dateSets[ct.id] && dateSets[ct.id].has(dateStr)) { cls += ' has-conge'; customColor = ct.color; hasConge = true; break; } } }
     else if (workedDays.has(dateStr)) cls += ' work';
     if (hasConge) cls += ' has-conge';
     const holidayLabel = isHoliday ? getHolidayLabel(dateStr) : null;
     const titleAttr = holidayLabel ? ` title="${holidayLabel}"` : '';
     const clickAttr = hasConge ? ` onclick="openCalDayDetail('${dateStr}')"` : ` onclick="openAddCongeForDate('${dateStr}')"` ;
-    html += `<div class="${cls}"${clickAttr}${titleAttr}>${d}</div>`;
+    html += `<div class="${cls}"${customColor?` style="background:${customColor}33;color:${customColor}"`:''}${clickAttr}${titleAttr}>${d}</div>`;
   }
   grid.innerHTML = html;
 }
@@ -3856,7 +3856,7 @@ function renderReglages() {
   }</div>`;
 
   const resumeJourEl = document.getElementById('resumeJourEnabled');
-  if (resumeJourEl) resumeJourEl.checked = resumeJour.enabled;
+  if (resumeJourEl) resumeJourEl.checked = resumeJour.enabled;   const cct = document.getElementById('customTypeCards');   if (cct) {     if (customCongeTypes.length === 0) {       cct.innerHTML = '<p style="color:#8b8fa8;font-size:13px;text-align:center;padding:8px">Aucun type personnalisé</p>';     } else {       cct.innerHTML = '<div class="settings-card">' + customCongeTypes.map((t,i) => '<div class="settings-row"><div class="settings-dot" style="background:'+t.color+'"></div><span style="flex:1">'+t.label+'</span><button onclick="removeCustomType('+i+')" style="background:#ff6584;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">Supprimer</button></div>').join('') + '</div>';     }   }   refreshCongeSelect();
 }
 
 function updateQuota(type, val) {
@@ -3867,7 +3867,7 @@ function updateQuota(type, val) {
   showToast('Quota mis à jour ✓');
 }
 
-function updateLabel(type, val) {
+if (resumeJfunction updateLabel(type, val) {   const v = val.trim();   if (!v) return;   CONGE_LABELS[type] = v;   saveConges();   showToast('Nom mis à jour ✓'); } function refreshCongeSelect() {   const sel = document.getElementById('congeType');   if (!sel) return;   const prev = sel.value;   const emojis = {cp:'🟣',rtt:'🟢',css:'🟡',csp:'🔴'};   let opts = ['cp','rtt','css','csp'].map(t => '<option value="'+t+'">'+(emojis[t]||'⚪')+' '+(CONGE_LABELS[t]||t.toUpperCase())+'</option>').join('');   customCongeTypes.forEach(t => { opts += '<option value="'+t.id+'">🔵 '+t.label+'</option>'; });   sel.innerHTML = opts;   if ([...sel.options].some(o => o.value === prev)) sel.value = prev; } function openAddCustomType() {   const label = prompt('Nom du nouveau type de congé :');   if (!label || !label.trim()) return;   const colors = ['#a78bfa','#34d399','#fbbf24','#f87171','#60a5fa','#f472b6','#4ade80','#fb923c'];   const color = colors[customCongeTypes.length % colors.length];   const id = 'custom_' + Date.now();   customCongeTypes.push({id, label: label.trim(), color});   saveConges();   renderReglages();   showToast('Type ajouté ✓'); } function removeCustomType(index) {   const t = customCongeTypes[index];   if (!t) return;   if (!confirm('Supprimer le type "' + t.label + '" ?')) return;   customCongeTypes.splice(index, 1);   saveConges();   renderReglages();   showToast('Type supprimé'); }ourEl) resumeJourEl.checked = resumeJour.enabled;   const cct = document.getElementById('customTypeCards');   if (cct) {     if (customCongeTypes.length === 0) {       cct.innerHTML = '<p style="color:#8b8fa8;font-size:13px;text-align:center;padding:8px">Aucun type personnalisé</p>';     } else {       cct.innerHTML = '<div class="settings-card">' + customCongeTypes.map((t,i) => '<div class="settings-row"><div class="settings-dot" style="background:'+t.color+'"></div><span style="flex:1">'+t.label+'</span><button onclick="removeCustomType('+i+')" style="background:#ff6584;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">Supprimer</button></div>').join('') + '</div>';     }   }   refreshCongeSelect();
   const v = val.trim();
   if (!v) return;
   CONGE_LABELS[type] = v;
