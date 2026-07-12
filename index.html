@@ -1200,6 +1200,27 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       <input type="time" id="reminderTime" value="09:30" onchange="onReminderTimeChange()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);">
     </div>
   </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div class="settings-row" style="margin-bottom:10px;">
+      <label style="font-weight:700;">Rappel de pause prolongée</label>
+      <label class="switch">
+        <input type="checkbox" id="pauseReminderEnabled" onchange="onPauseReminderToggle()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">Reçois une notification si ta pause dure depuis trop longtemps.</div>
+    <div class="settings-row">
+      <label>Durée avant rappel</label>
+      <select id="pauseReminderMinutes" onchange="onPauseReminderMinutesChange()" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);">
+        <option value="15">15 min</option>
+        <option value="30">30 min</option>
+        <option value="45">45 min</option>
+        <option value="60">1 h</option>
+        <option value="90">1 h 30</option>
+      </select>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -1599,7 +1620,12 @@ function computeYesterdaySummaryData() {
 
   let gainsInfo = null;
   if (remuneration.enabled && remuneration.tauxHoraire) {
-    const gainsDayBrut = calcGainsJour(dayTotal);
+    const yesterdayStart = new Date(Date.now() - 86400000); yesterdayStart.setHours(0, 0, 0, 0);
+    const monday = getMondayOf(yesterdayStart);
+    const weekBeforeMs = state.sessions
+      .filter(s => s.start >= monday.getTime() && s.start < yesterdayStart.getTime())
+      .reduce((a, s) => a + (s.net || 0), 0);
+    const gainsDayBrut = calcGainsJour(dayTotal, weekBeforeMs);
     gainsInfo = { day: gainsDayBrut };
   }
 
@@ -1712,7 +1738,7 @@ function fixForgottenSessionEnd() {
     return;
   }
   stopTimer();
-  const pauseMs = state.totalPauseMs + ((state.status === 'paused' && state.pauseStart) ? (Date.now() - state.pauseStart) : 0);
+  const pauseMs = state.totalPauseMs + ((state.status === 'paused' && state.pauseStart) ? (endTs - state.pauseStart) : 0);
   const { start: finalStart, end: finalEnd } = applyArrondiToSession(state.startTs, endTs);
   const net = Math.max(0, (finalEnd - finalStart) - pauseMs);
 
@@ -1881,7 +1907,7 @@ function renderRemunerationCardInto(elId, dayTotal, dayGoal, weekTotal, weekGoal
     return;
   }
 
-  const gainsDayBrut = calcGainsJour(dayTotal);
+  const gainsDayBrut = calcGainsJour(dayTotal, weekTotal - dayTotal);
   const gainsWeekBrut = calcGainsSemaine(weekTotal);
   const gainsDayNet = calcNet(gainsDayBrut);
   const gainsWeekNet = calcNet(gainsWeekBrut);
@@ -2095,8 +2121,10 @@ function tick() {
   const now = Date.now();
   let elapsed = now - state.startTs;
   let currentPause = state.totalPauseMs;
+  let currentPauseOnly = 0;
   if (state.status === 'paused' && state.pauseStart) {
-    currentPause += (now - state.pauseStart);
+    currentPauseOnly = now - state.pauseStart;
+    currentPause += currentPauseOnly;
   }
   const net = elapsed - currentPause;
 
@@ -2104,9 +2132,17 @@ function tick() {
   document.getElementById('netDisplay').textContent = fmtHM(net);
 
       const el = document.getElementById('bigTime');
+  if (state.status === 'paused') {
+    el.textContent = fmtHMS(currentPauseOnly);
+    document.getElementById('elapsedLabel').textContent = 'En pause depuis…';
+  } else {
      el.textContent = fmtHMS(net);
+    document.getElementById('elapsedLabel').textContent = 'En cours…';
+  }
   el.className = 'big-time ' + (state.status === 'paused' ? 'paused' : 'running');
-  
+  renderObjectifs();
+  checkPauseReminder();
+}
 
 function startTimer() { timerInterval = setInterval(tick, 1000); tick(); }
 function stopTimer() { clearInterval(timerInterval); timerInterval = null; }
@@ -2132,9 +2168,10 @@ function handleMainBtn() {
     // PAUSE
     state.pauseStart = Date.now();
     state.status = 'paused';
-    document.getElementById('elapsedLabel').textContent = 'En pause…';
+    document.getElementById('elapsedLabel').textContent = 'En pause depuis…';
     updateButtons();
     save();
+    tick();
     showToast('Pause déjeuner ☕');
   } else if (state.status === 'paused') {
     // RESUME
@@ -2330,6 +2367,80 @@ function requestNotifPermission() {
   if ('Notification' in window && Notification.permission === 'default') {
     Notification.requestPermission();
   }
+}
+
+// ── RAPPEL DE PAUSE PROLONGÉE ──
+function getPauseReminderConfig() {
+  const raw = localStorage.getItem('orvia_pause_reminder');
+  if (!raw) return { enabled: false, minutes: 30 };
+  try {
+    const parsed = JSON.parse(raw);
+    const allowedMinutes = [15, 30, 45, 60, 90];
+    return {
+      enabled: !!parsed.enabled,
+      minutes: allowedMinutes.includes(Number(parsed.minutes)) ? Number(parsed.minutes) : 30,
+    };
+  } catch (e) {
+    return { enabled: false, minutes: 30 };
+  }
+}
+
+function savePauseReminderConfig(cfg) {
+  localStorage.setItem('orvia_pause_reminder', JSON.stringify(cfg));
+}
+
+function renderPauseReminderSettings() {
+  const cfg = getPauseReminderConfig();
+  const enabledEl = document.getElementById('pauseReminderEnabled');
+  const minutesEl = document.getElementById('pauseReminderMinutes');
+  if (enabledEl) enabledEl.checked = cfg.enabled;
+  if (minutesEl) minutesEl.value = String(cfg.minutes);
+}
+
+function onPauseReminderToggle() {
+  const cfg = getPauseReminderConfig();
+  const enabledEl = document.getElementById('pauseReminderEnabled');
+  cfg.enabled = enabledEl ? enabledEl.checked : false;
+  savePauseReminderConfig(cfg);
+  _pauseReminderFiredFor = null;
+  if (cfg.enabled && ('Notification' in window) && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+  showToast(cfg.enabled ? 'Rappel de pause activé ✓' : 'Rappel de pause désactivé');
+}
+
+function onPauseReminderMinutesChange() {
+  const cfg = getPauseReminderConfig();
+  const minutesEl = document.getElementById('pauseReminderMinutes');
+  const allowedMinutes = [15, 30, 45, 60, 90];
+  cfg.minutes = minutesEl && allowedMinutes.includes(Number(minutesEl.value)) ? Number(minutesEl.value) : 30;
+  savePauseReminderConfig(cfg);
+  _pauseReminderFiredFor = null;
+  showToast(`Rappel de pause : ${cfg.minutes} min`);
+}
+
+// Mémorise le pauseStart pour lequel le rappel a déjà été envoyé, afin de
+// n'avertir qu'une seule fois par pause (pas à chaque tick tant qu'on reste en pause).
+let _pauseReminderFiredFor = null;
+
+function checkPauseReminder() {
+  if (state.status !== 'paused' || !state.pauseStart) {
+    _pauseReminderFiredFor = null;
+    return;
+  }
+  const cfg = getPauseReminderConfig();
+  if (!cfg.enabled) return;
+  if (_pauseReminderFiredFor === state.pauseStart) return;
+
+  const elapsedMs = Date.now() - state.pauseStart;
+  if (elapsedMs < cfg.minutes * 60000) return;
+
+  _pauseReminderFiredFor = state.pauseStart;
+  const canNotify = ('Notification' in window) && Notification.permission === 'granted';
+  if (canNotify) {
+    new Notification('Pause prolongée ⏸️', { body: `Ta pause dure depuis plus de ${cfg.minutes} min.` });
+  }
+  showToast(`⏸️ Pause depuis plus de ${cfg.minutes} min`);
 }
 
 function loadNotifState() {
@@ -3753,6 +3864,19 @@ function checkLowQuotaAlerts() {
   saveLowQuotaAlertState(st);
 }
 
+function getCongeTypeLabel(type) {
+  if (CONGE_LABELS[type]) return CONGE_LABELS[type];
+  const custom = customCongeTypes.find(t => t.id === type);
+  return custom ? custom.label : type;
+}
+
+function getCongeTypeColor(type) {
+  const base = { cp:'#6c63ff', rtt:'#3ecf8e', css:'#f59e0b', csp:'#ff6584' };
+  if (base[type]) return base[type];
+  const custom = customCongeTypes.find(t => t.id === type);
+  return custom ? custom.color : '#8b8fa8';
+}
+
 function renderConges() {
   const types = ['cp','rtt','css','csp'];
   const colors = { cp:'#6c63ff', rtt:'#3ecf8e', css:'#f59e0b', csp:'#ff6584' };
@@ -3786,15 +3910,14 @@ function renderConges() {
   const sorted = [...state.conges].sort((a,b) => b.start.localeCompare(a.start));
   if (!sorted.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
-  const col = { cp:'#6c63ff', rtt:'#3ecf8e', css:'#f59e0b', csp:'#ff6584' };
   list.innerHTML = sorted.map(c => `
     <div class="conge-list-item">
       <div>
-        <div class="cl-type" style="color:${col[c.type]}">${CONGE_LABELS[c.type]}</div>
+        <div class="cl-type" style="color:${getCongeTypeColor(c.type)}">${escapeHtml(getCongeTypeLabel(c.type))}</div>
         <div class="cl-dates">${c.start === c.end ? c.start : c.start + ' → ' + c.end}${c.note ? ' — ' + escapeHtml(c.note) : ''}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px">
-        <span class="cl-days" style="color:${col[c.type]}">${c.days}j</span>
+        <span class="cl-days" style="color:${getCongeTypeColor(c.type)}">${c.days}j</span>
         <button class="conge-delete" onclick="deleteConge(${c.id})">✕</button>
       </div>
     </div>`).join('');
@@ -3859,15 +3982,14 @@ function renderCal() {
 function openCalDayDetail(dateStr) {
   const conge = findCongeForDate(dateStr);
   if (!conge) return;
-  const col = { cp:'#6c63ff', rtt:'#3ecf8e', css:'#f59e0b', csp:'#ff6584' };
   const d = new Date(dateStr + 'T00:00:00');
   const dateLabel = d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
   const box = document.getElementById('calDayDetailBox');
   box.innerHTML = `
     <div class="modal-title">${dateLabel}</div>
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-      <div style="width:12px;height:12px;border-radius:3px;background:${col[conge.type]}"></div>
-      <span style="font-weight:700;color:${col[conge.type]}">${CONGE_LABELS[conge.type]}</span>
+      <div style="width:12px;height:12px;border-radius:3px;background:${getCongeTypeColor(conge.type)}"></div>
+      <span style="font-weight:700;color:${getCongeTypeColor(conge.type)}">${escapeHtml(getCongeTypeLabel(conge.type))}</span>
     </div>
     <div style="font-size:13px;color:var(--muted);margin-bottom:16px;">
       ${conge.start === conge.end ? conge.start : conge.start + ' → ' + conge.end} (${conge.days}j)${conge.note ? '<br>' + escapeHtml(conge.note) : ''}
@@ -3982,7 +4104,11 @@ function openAddCustomType() {
 function removeCustomType(index) {
   const t = customCongeTypes[index];
   if (!t) return;
-  if (!confirm('Supprimer le type "' + t.label + '" ?')) return;
+  const usedCount = state.conges.filter(c => c.type === t.id).length;
+  const warning = usedCount > 0
+    ? `Ce type est utilisé par ${usedCount} congé${usedCount > 1 ? 's' : ''} déjà posé${usedCount > 1 ? 's' : ''}, qui resteront mais afficheront un nom générique. `
+    : '';
+  if (!confirm(warning + 'Supprimer le type "' + t.label + '" ?')) return;
   customCongeTypes.splice(index, 1);
   saveConges();
   renderReglages();
@@ -4444,6 +4570,7 @@ function openAboutSettings() {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('page-reminder-settings').classList.add('active');
     renderReminderSettings();
+    renderPauseReminderSettings();
   }
 
   function openCongesSettings() {
