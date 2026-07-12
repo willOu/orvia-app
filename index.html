@@ -1437,7 +1437,7 @@ function maybeShowWeeklyReport() {
   localStorage.setItem('orvia_weekly_report_shown', todayKey);
   const lastMonday = new Date(now); lastMonday.setDate(now.getDate() - 7); lastMonday.setHours(0, 0, 0, 0);
   const lastSunday = new Date(now); lastSunday.setDate(now.getDate() - 1); lastSunday.setHours(23, 59, 59, 999);
-  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.1.51';
+  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.1.52';
 
 
 // ── STORAGE ──
@@ -1712,7 +1712,7 @@ function fixForgottenSessionEnd() {
     return;
   }
   stopTimer();
-  const pauseMs = state.totalPauseMs + ((state.status === 'paused' && state.pauseStart) ? (endTs - state.pauseStart) : 0);
+  const pauseMs = state.totalPauseMs + ((state.status === 'paused' && state.pauseStart) ? (Date.now() - state.pauseStart) : 0);
   const { start: finalStart, end: finalEnd } = applyArrondiToSession(state.startTs, endTs);
   const net = Math.max(0, (finalEnd - finalStart) - pauseMs);
 
@@ -1787,9 +1787,9 @@ function calcGainsSemaine(weekNetMs) {
   return heuresNormales * taux + heuresTranche1 * tauxTranche1 + heuresTranche2 * tauxTranche2;
 }
 
-function calcGainsJour(dayNetMs) {
+function calcGainsJour(dayNetMs, weekBeforeMs) {
   if (!remuneration.enabled || !remuneration.tauxHoraire) return 0;
-  return (dayNetMs / 3600000) * remuneration.tauxHoraire;
+  return calcGainsSemaine((weekBeforeMs || 0) + dayNetMs) - calcGainsSemaine(weekBeforeMs || 0);
 }
 
 function calcTrancheGainForRange(cumulBeforeH, hoursH, taux, seuil1, seuil2, maj1, maj2) {
@@ -2459,7 +2459,7 @@ function isDateOnConge(dateStr) {
 
 function getWeekGoalBase() {
   const order = [1,2,3,4,5,6,0];
-  return order.reduce((sum, d) => sum + ((objectifs.parJour && typeof objectifs.parJour[d] !== 'undefined') ? objectifs.parJour[d] : objectifs.jour), 0);
+  return order.reduce((sum, d) => sum + ((objectifs.parJour && typeof objectifs.parJour[d] !== 'undefined') ? objectifs.parJour[d] : (d === 0 || d === 6 ? 0 : objectifs.jour)), 0);
 }
 
 function getWeekGoalForMonday(monday) {
@@ -2500,7 +2500,7 @@ function deleteSession(idx){
   _undoDeleteSession=state.sessions[idx];_undoDeleteIdx=idx;
   state.sessions.splice(idx,1);renderToday();renderHistory();
   showUndoToast('Session supprimee',()=>{
-    if(_undoDeleteSession!==null){state.sessions.splice(_undoDeleteIdx,0,_undoDeleteSession);_undoDeleteSession=null;save();renderToday();renderHistory();}
+    if(_undoDeleteSession!==null){state.sessions.splice(_undoDeleteIdx,0,_undoDeleteSession); state.sessions.sort((a,b)=>a.start-b.start);_undoDeleteSession=null;save();renderToday();renderHistory();}
   },()=>{_undoDeleteSession=null;save();});
 }
 function showUndoToast(msg,onUndo,onConfirm){
@@ -5087,7 +5087,7 @@ function importBackup(event) {
 applyTheme(getCurrentThemeId());
 applyMode(getCurrentMode());
 load();
-loadConges();
+loadConges(); checkLowQuotaAlerts();
 loadObjectifs();
 loadRemuneration();
 loadArrondi();
