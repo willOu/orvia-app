@@ -2100,14 +2100,13 @@ function tick() {
   }
   const net = elapsed - currentPause;
 
-  document.getElementById('bigTime').textContent = fmtHMS(net);
   document.getElementById('pauseDisplay').textContent = fmtHM(currentPause);
   document.getElementById('netDisplay').textContent = fmtHM(net);
 
-  const el = document.getElementById('bigTime');
+      const el = document.getElementById('bigTime');
+     el.textContent = fmtHMS(net);
   el.className = 'big-time ' + (state.status === 'paused' ? 'paused' : 'running');
-  renderObjectifs();
-}
+  
 
 function startTimer() { timerInterval = setInterval(tick, 1000); tick(); }
 function stopTimer() { clearInterval(timerInterval); timerInterval = null; }
