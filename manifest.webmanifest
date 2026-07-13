@@ -8,6 +8,20 @@
   "background_color": "#0b1f2a",
   "theme_color": "#0b1f2a",
   "orientation": "portrait",
+  "shortcuts": [
+    {
+      "name": "Démarrer une session",
+      "short_name": "Démarrer",
+      "url": "./index.html?action=start",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Terminer la session",
+      "short_name": "Terminer",
+      "url": "./index.html?action=stop",
+      "icons": [{ "src": "icon-192.png", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "icon-192.png",
