@@ -873,6 +873,13 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
 
   <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openShortcutsSettings()">
+      <label style="font-weight:800;color:var(--accent);">Raccourcis iOS</label>
+    </div>
+    <div class="settings-desc-box">Démarrer/pauser/terminer sans ouvrir l'app</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
     <div class="settings-row" style="cursor:pointer;" onclick="openAboutSettings()">
       <label style="font-weight:800;color:var(--accent);">A propos</label>
     </div>
@@ -927,6 +934,59 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div id="labelCards"></div>   <div class="section-title" style="margin-top:20px">Types personnalisés</div>   <div id="customTypeCards"></div>   <div style="margin:12px 0"><button class="btn-primary" style="width:100%;font-size:14px" onclick="openAddCustomType()">+ Ajouter un type</button></div>
 </div>
 
+
+<div class="page" id="page-shortcuts-settings">
+  <div class="section-title">Raccourcis iOS</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:13px;color:var(--muted);line-height:1.5;">
+      iOS ne permet pas d'ajouter de raccourci en appui long sur l'icône d'Orvia. En revanche, l'app <strong style="color:var(--text)">Raccourcis</strong> (Shortcuts) d'Apple permet de créer une icône séparée sur l'écran d'accueil — ou une commande Siri — qui démarre, met en pause ou termine une session directement, sans ouvrir l'app.
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">📋 Marche à suivre (pour chaque raccourci)</div>
+    <ol style="font-size:13px;color:var(--muted);line-height:1.8;margin:0;padding-left:18px;">
+      <li>Ouvrez l'app <strong style="color:var(--text)">Raccourcis</strong> sur votre iPhone</li>
+      <li>Appuyez sur <strong style="color:var(--text)">+</strong> pour créer un nouveau raccourci</li>
+      <li>Ajoutez l'action <strong style="color:var(--text)">"Ouvrir les URLs"</strong></li>
+      <li>Collez l'URL correspondante (copiez-la ci-dessous)</li>
+      <li>Renommez le raccourci (ex: "Démarrer Orvia")</li>
+      <li>Dans les réglages du raccourci (icône ⓘ) : activez <strong style="color:var(--text)">"Ajouter à l'écran d'accueil"</strong></li>
+      <li>Vous pouvez aussi le déclencher directement à la voix via Siri, sans toucher l'écran</li>
+    </ol>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--green);margin-bottom:6px;">▶️ Démarrer la journée</div>
+    <input type="text" readonly id="shortcutUrlStart" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;margin-bottom:8px;">
+    <button onclick="copyShortcutUrl('start')" style="width:100%;background:var(--green);color:#06251b;border:none;padding:10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Copier l'URL</button>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--orange);margin-bottom:6px;">⏸️ Faire une pause</div>
+    <input type="text" readonly id="shortcutUrlPause" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;margin-bottom:8px;">
+    <button onclick="copyShortcutUrl('pause')" style="width:100%;background:var(--orange);color:#3a2400;border:none;padding:10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Copier l'URL</button>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent2);margin-bottom:6px;">⏹️ Terminer la journée</div>
+    <input type="text" readonly id="shortcutUrlStop" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;margin-bottom:8px;">
+    <button onclick="copyShortcutUrl('stop')" style="width:100%;background:var(--accent2);color:#fff;border:none;padding:10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Copier l'URL</button>
+  </div>
+
+  <div class="settings-card" style="padding:14px;">
+    <div style="font-size:12px;color:var(--muted);line-height:1.5;">
+      💡 Le raccourci "Pause" bascule pause/reprise selon l'état en cours. Si aucune session n'est en cours, "Terminer" et "Pause" n'auront aucun effet.
+    </div>
+  </div>
+</div>
 
 <div class="page" id="page-about-settings">
   <div class="section-title">A propos</div>
@@ -4317,6 +4377,38 @@ function importThemeBackup(event) {
   };
   reader.readAsText(file);
   event.target.value = '';
+}
+
+function baseAppUrl() {
+  return window.location.origin + window.location.pathname;
+}
+
+function openShortcutsSettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-shortcuts-settings').classList.add('active');
+  const base = baseAppUrl();
+  document.getElementById('shortcutUrlStart').value = base + '?action=start';
+  document.getElementById('shortcutUrlPause').value = base + '?action=pause';
+  document.getElementById('shortcutUrlStop').value = base + '?action=stop';
+}
+
+function copyShortcutUrl(action) {
+  const url = baseAppUrl() + '?action=' + action;
+  const done = () => showToast('URL copiée ✓');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done).catch(() => fallbackCopyShortcutUrl(action, done));
+  } else {
+    fallbackCopyShortcutUrl(action, done);
+  }
+}
+
+function fallbackCopyShortcutUrl(action, done) {
+  const input = document.getElementById('shortcutUrl' + action.charAt(0).toUpperCase() + action.slice(1));
+  if (!input) return;
+  input.select();
+  input.setSelectionRange(0, 99999);
+  try { document.execCommand('copy'); done(); } catch (e) { showToast("Impossible de copier, sélectionnez l'URL manuellement"); }
 }
 
 function openAboutSettings() {
