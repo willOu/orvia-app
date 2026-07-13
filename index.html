@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Heures">
@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
 
   :root {
     --bg: #0b1f2a;
@@ -5230,6 +5230,11 @@ setInterval(checkForgottenSession, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForgottenSession(); });
 checkForgottenSession();
 checkAutoBackup();
+
+// Bloque le pincement pour zoomer, certaines versions de Safari iOS
+// ignorent user-scalable=no dans la balise viewport.
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('gesturechange', e => e.preventDefault());
 setInterval(checkAutoBackup, 3600000);
 updateButtons();
 renderToday();
