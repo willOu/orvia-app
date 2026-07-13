@@ -2562,6 +2562,25 @@ function renderObjectifs() {
 
   renderOvertimeCard();
   renderRemunerationCardInto('remunerationCard', dayTotal, jourGoal, weekTotal, weekGoalAjuste);
+  updateAppBadge(dayTotal);
+}
+
+// ── BADGE SUR L'ICÔNE DE L'APP ──
+// Affiche les heures travaillées aujourd'hui (arrondies) directement sur l'icône,
+// via la Badging API (supportée par iOS 16.4+ pour les PWA installées).
+let _lastBadgeHours = null;
+function updateAppBadge(dayTotalMs) {
+  if (!('setAppBadge' in navigator)) return;
+  const hours = Math.round((dayTotalMs || 0) / 3600000);
+  if (hours === _lastBadgeHours) return;
+  _lastBadgeHours = hours;
+  try {
+    if (hours > 0) {
+      navigator.setAppBadge(hours).catch(() => {});
+    } else {
+      navigator.clearAppBadge().catch(() => {});
+    }
+  } catch (e) {}
 }
 
 function isDateOnConge(dateStr) {
@@ -4776,6 +4795,12 @@ function updateHeaderTime() {
   const d = new Date();
   document.getElementById('headerTime').textContent =
     d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  // Garde le badge de l'icône à jour même sans session active (ex: après minuit)
+  if (state.status === 'idle') {
+    const today = todayKey();
+    const dayTotal = state.sessions.filter(s => s.date === today).reduce((a, s) => a + s.net, 0);
+    updateAppBadge(dayTotal);
+  }
 }
 
   function openBackupSettings() {
@@ -5230,6 +5255,24 @@ setInterval(checkForgottenSession, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForgottenSession(); });
 checkForgottenSession();
 checkAutoBackup();
+
+// ── ACTION RAPIDE VIA URL (raccourci iOS "Raccourcis"/Siri) ──
+// Ouvrir l'app avec ?action=start ou ?action=stop déclenche l'action
+// immédiatement, sans avoir à naviguer dans l'interface.
+(function handleQuickAction() {
+  const params = new URLSearchParams(window.location.search);
+  const action = params.get('action');
+  if (!action) return;
+  // Nettoie l'URL pour ne pas redéclencher l'action à un futur rechargement.
+  history.replaceState(null, '', window.location.pathname);
+  if (action === 'start' && state.status === 'idle') {
+    handleMainBtn();
+  } else if (action === 'stop' && state.status !== 'idle') {
+    stopSession();
+  } else if (action === 'pause' && state.status === 'running') {
+    handleMainBtn();
+  }
+})();
 
 // Bloque le pincement pour zoomer, certaines versions de Safari iOS
 // ignorent user-scalable=no dans la balise viewport.
