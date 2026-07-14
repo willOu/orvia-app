@@ -883,6 +883,13 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <div class="settings-desc-box">Démarrer/pauser/terminer sans ouvrir l'app</div>
   </div>
 
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openWorkModeSettings()">
+      <label style="font-weight:800;color:var(--accent);">Mode de travail</label>
+    </div>
+    <div class="settings-desc-box" id="workModeSummary">Détection auto télétravail / présentiel</div>
+  </div>
+
   <div class="section-title" style="margin-top:20px;">💾 Données</div>
 
   <div class="settings-card" style="margin-bottom:10px;">
@@ -942,6 +949,55 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div id="labelCards"></div>   <div class="section-title" style="margin-top:20px">Types personnalisés</div>   <div id="customTypeCards"></div>   <div style="margin:12px 0"><button class="btn-primary" style="width:100%;font-size:14px" onclick="openAddCustomType()">+ Ajouter un type</button></div>
 </div>
 
+
+<div class="page" id="page-workmode-settings">
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="section-title">Mode de travail</div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:13px;color:var(--muted);line-height:1.5;">
+      Détecte automatiquement si vous travaillez sur site (présentiel) ou à distance (télétravail), en comparant votre position au démarrage d'une session avec le lieu de travail que vous définissez ci-dessous.
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:800;color:var(--accent);">Activer la détection</label>
+      <label class="switch">
+        <input type="checkbox" id="workModeEnabled" onchange="onWorkModeToggle()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">📍 Lieu de travail de référence</div>
+    <div id="workModeLocationLabel" style="font-size:13px;color:var(--muted);margin-bottom:10px;">Non défini</div>
+    <button onclick="captureWorkLocation()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Utiliser ma position actuelle</button>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Rayon de tolérance</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Distance en dessous de laquelle une session est considérée en présentiel.</div>
+    <select id="workModeRadius" onchange="onWorkModeRadiusChange()" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);">
+      <option value="100">100 m</option>
+      <option value="300">300 m</option>
+      <option value="500">500 m</option>
+      <option value="1000">1 km</option>
+    </select>
+  </div>
+
+  <div class="settings-card" style="padding:14px;">
+    <div style="font-size:12px;color:var(--muted);line-height:1.5;">
+      💡 La détection se fait uniquement au <strong style="color:var(--text)">démarrage</strong> de la session. Le badge (🏢 Présentiel / 🏠 Télétravail) apparaît ensuite sur la session dans l'Historique.
+    </div>
+  </div>
+</div>
 
 <div class="page" id="page-shortcuts-settings">
   <div class="section-title">Raccourcis iOS</div>
@@ -1500,6 +1556,7 @@ let state = {
   pauseStart: null,
   totalPauseMs: 0,
   startGeo: null,
+  workMode: null,
   sessions: [],
   conges: [],
   quotas: { cp:25, rtt:10, css:0, csp:5 },
@@ -1538,6 +1595,7 @@ function save() {
     pauseStart: state.pauseStart,
     totalPauseMs: state.totalPauseMs,
     startGeo: state.startGeo,
+    workMode: state.workMode,
   }));
 }
 
@@ -1564,6 +1622,7 @@ function load() {
       state.pauseStart = cur.pauseStart;
       state.totalPauseMs = cur.totalPauseMs;
       state.startGeo = cur.startGeo || null;
+      state.workMode = cur.workMode || null;
     }
   } catch(e) {}
 }
@@ -1819,6 +1878,7 @@ function fixForgottenSessionEnd() {
     note: 'Session corrigée (oubli détecté)',
     startGeo: state.startGeo || null,
     endGeo: null,
+    workMode: state.workMode || null,
   });
 
   state.status = 'idle';
@@ -1826,6 +1886,7 @@ function fixForgottenSessionEnd() {
   state.pauseStart = null;
   state.totalPauseMs = 0;
   state.startGeo = null;
+  state.workMode = null;
   localStorage.removeItem('orvia_note_en_cours');
   document.getElementById('bigTime').textContent = '00:00:00';
   document.getElementById('bigTime').className = 'big-time';
@@ -2146,6 +2207,44 @@ function getHolidayLabel(dateStr) {
 
 
 // ── GEO ──
+// ── MODE DE TRAVAIL (télétravail / présentiel) ──
+function getWorkModeConfig() {
+  const raw = localStorage.getItem('orvia_workmode_config');
+  const allowedRadius = [100, 300, 500, 1000];
+  if (!raw) return { enabled: false, lat: null, lng: null, radiusM: 300, label: '' };
+  try {
+    const p = JSON.parse(raw);
+    return {
+      enabled: !!p.enabled,
+      lat: (p.lat !== null && p.lat !== undefined && Number.isFinite(Number(p.lat))) ? Number(p.lat) : null,
+      lng: (p.lng !== null && p.lng !== undefined && Number.isFinite(Number(p.lng))) ? Number(p.lng) : null,
+      radiusM: allowedRadius.includes(Number(p.radiusM)) ? Number(p.radiusM) : 300,
+      label: typeof p.label === 'string' ? p.label.slice(0, 60) : '',
+    };
+  } catch (e) {
+    return { enabled: false, lat: null, lng: null, radiusM: 300, label: '' };
+  }
+}
+
+function saveWorkModeConfig(cfg) {
+  localStorage.setItem('orvia_workmode_config', JSON.stringify(cfg));
+}
+
+function distanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function detectWorkMode(geo) {
+  const cfg = getWorkModeConfig();
+  if (!cfg.enabled || cfg.lat === null || cfg.lng === null || !geo) return null;
+  const dist = distanceMeters(geo.lat, geo.lng, cfg.lat, cfg.lng);
+  return dist <= cfg.radiusM ? 'presentiel' : 'teletravail';
+}
+
 async function getGeo() {
   return new Promise((resolve) => {
     if (!navigator.geolocation) { resolve(null); return; }
@@ -2223,6 +2322,7 @@ function handleMainBtn() {
     state.totalPauseMs = 0;
     state.pauseStart = null;
     state.startGeo = null;
+    state.workMode = null;
     state.status = 'running';
     document.getElementById('startTimeDisplay').textContent = fmtTime(state.startTs);
     document.getElementById('elapsedLabel').textContent = 'En cours…';
@@ -2231,7 +2331,7 @@ function handleMainBtn() {
     save();
     showToast('Session démarrée ✓');
     // Fetch geo in background
-    getGeo().then(geo => { if (geo) { state.startGeo = geo; save(); } });
+    getGeo().then(geo => { if (geo) { state.startGeo = geo; state.workMode = detectWorkMode(geo); save(); } });
   } else if (state.status === 'running') {
     // PAUSE
     state.pauseStart = Date.now();
@@ -2276,6 +2376,7 @@ async function stopSession() {
     note: note || 'Session de travail',
     startGeo: state.startGeo || null,
     endGeo: null,
+    workMode: state.workMode || null,
   };
   state.sessions.push(newSession);
 
@@ -2284,6 +2385,7 @@ async function stopSession() {
   state.startTs = null;
   state.pauseStart = null;
   state.totalPauseMs = 0;
+  state.workMode = null;
   state.startGeo = null;
   localStorage.removeItem('orvia_note_en_cours');
   document.getElementById('noteInput').value = '';
@@ -3145,6 +3247,11 @@ function sessionItemHtml(s) {
   const endGeoHtml = s.endGeo
     ? `<div class="geo-badge geo-end">🏁 <a href="${geoMapsUrl(s.endGeo)}" target="_blank">${escapeHtml(s.endGeo.label)}</a></div>`
     : '';
+  const workModeHtml = s.workMode === 'presentiel'
+    ? `<div class="geo-badge" style="color:var(--accent)">🏢 Présentiel</div>`
+    : s.workMode === 'teletravail'
+    ? `<div class="geo-badge" style="color:var(--green)">🏠 Télétravail</div>`
+    : '';
   const anomalies = detectSessionAnomalies(s);
   const anomalyHtml = anomalies.length
     ? `<div style="background:rgba(245,158,11,.12);border:1px solid var(--orange);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--orange);display:flex;justify-content:space-between;align-items:center;gap:8px">
@@ -3170,6 +3277,7 @@ function sessionItemHtml(s) {
       </div>
     </div>
     ${anomalyHtml}
+    ${workModeHtml}
     ${startGeoHtml}${endGeoHtml}
   </div>`;
 }
@@ -3192,12 +3300,37 @@ function renderAnomalyBanner() {
     </div>`;
 }
 
+function getMonthComparison() {
+  const now = new Date();
+  const day = now.getDate();
+  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+  const prevMonthRef = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevMonthStart = prevMonthRef.getTime();
+  // Compare sur le même nombre de jours écoulés (comparaison équitable, pas mois entier vs mois partiel)
+  const daysInPrevMonth = new Date(prevMonthRef.getFullYear(), prevMonthRef.getMonth() + 1, 0).getDate();
+  const cutoffDay = Math.min(day, daysInPrevMonth);
+  const prevMonthCutoff = new Date(prevMonthRef.getFullYear(), prevMonthRef.getMonth(), cutoffDay, 23, 59, 59, 999).getTime();
+
+  const thisMonthMs = state.sessions.filter(s => s.start >= thisMonthStart && s.start <= now.getTime()).reduce((a, s) => a + s.net, 0);
+  const prevMonthMs = state.sessions.filter(s => s.start >= prevMonthStart && s.start <= prevMonthCutoff).reduce((a, s) => a + s.net, 0);
+
+  return { thisMonthMs, prevMonthMs, diffMs: thisMonthMs - prevMonthMs, cutoffDay };
+}
+
+function fmtSignedHM(ms) {
+  const sign = ms < 0 ? '-' : '+';
+  return sign + fmtHM(Math.abs(ms));
+}
+
 function renderHistory() {
   // stats
   const totalMs = state.sessions.reduce((a, s) => a + s.net, 0);
   const days = [...new Set(state.sessions.map(s => s.date))].length;
   const thisWeek = getWeekSessions();
   const weekMs = thisWeek.reduce((a, s) => a + s.net, 0);
+  const cmp = getMonthComparison();
+  const cmpColor = cmp.diffMs > 0 ? 'var(--green)' : (cmp.diffMs < 0 ? 'var(--accent2)' : 'var(--muted)');
+  const cmpIcon = cmp.diffMs > 0 ? '📈' : (cmp.diffMs < 0 ? '📉' : '➖');
 
   document.getElementById('statsGrid').innerHTML = `
     <div class="stat-card">
@@ -3211,6 +3344,10 @@ function renderHistory() {
     <div class="stat-card full">
       <div class="stat-val" style="color:var(--green)">${fmtHM(totalMs)}</div>
       <div class="stat-lbl">Total cumulé</div>
+    </div>
+    <div class="stat-card full">
+      <div class="stat-val" style="color:${cmpColor};font-size:20px;">${cmpIcon} ${fmtSignedHM(cmp.diffMs)}</div>
+      <div class="stat-lbl">vs mois dernier (sur les ${cmp.cutoffDay} 1ers jours)</div>
     </div>`;
 
   renderAnomalyBanner();
@@ -4113,6 +4250,7 @@ function calNext() {
 const CONGE_COLORS_HEX = { cp:'#6c63ff', rtt:'#3ecf8e', css:'#f59e0b', csp:'#ff6584' };
 
 function renderReglages() {
+  updateWorkModeSummary();
   const types = ['cp','rtt','css','csp'];
 
   // Quota cards
@@ -4389,6 +4527,72 @@ function importThemeBackup(event) {
 
 function baseAppUrl() {
   return window.location.origin + window.location.pathname;
+}
+
+function openWorkModeSettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-workmode-settings').classList.add('active');
+  renderWorkModeSettings();
+}
+
+function renderWorkModeSettings() {
+  const cfg = getWorkModeConfig();
+  const enabledEl = document.getElementById('workModeEnabled');
+  const radiusEl = document.getElementById('workModeRadius');
+  const labelEl = document.getElementById('workModeLocationLabel');
+  if (enabledEl) enabledEl.checked = cfg.enabled;
+  if (radiusEl) radiusEl.value = String(cfg.radiusM);
+  if (labelEl) {
+    labelEl.textContent = (cfg.lat !== null && cfg.lng !== null)
+      ? (cfg.label || `${cfg.lat.toFixed(5)}, ${cfg.lng.toFixed(5)}`)
+      : 'Non défini';
+  }
+  updateWorkModeSummary();
+}
+
+function updateWorkModeSummary() {
+  const el = document.getElementById('workModeSummary');
+  if (!el) return;
+  const cfg = getWorkModeConfig();
+  if (!cfg.enabled) { el.textContent = 'Désactivé'; return; }
+  if (cfg.lat === null) { el.textContent = 'Activé — lieu de référence à définir'; return; }
+  el.textContent = `Activé — rayon ${cfg.radiusM >= 1000 ? (cfg.radiusM/1000)+' km' : cfg.radiusM+' m'}`;
+}
+
+function onWorkModeToggle() {
+  const cfg = getWorkModeConfig();
+  const enabledEl = document.getElementById('workModeEnabled');
+  cfg.enabled = enabledEl ? enabledEl.checked : false;
+  saveWorkModeConfig(cfg);
+  updateWorkModeSummary();
+  showToast(cfg.enabled ? 'Détection activée ✓' : 'Détection désactivée');
+}
+
+function onWorkModeRadiusChange() {
+  const cfg = getWorkModeConfig();
+  const radiusEl = document.getElementById('workModeRadius');
+  const allowed = [100, 300, 500, 1000];
+  cfg.radiusM = radiusEl && allowed.includes(Number(radiusEl.value)) ? Number(radiusEl.value) : 300;
+  saveWorkModeConfig(cfg);
+  updateWorkModeSummary();
+  showToast('Rayon mis à jour ✓');
+}
+
+async function captureWorkLocation() {
+  showToast('Localisation en cours… 📍');
+  const geo = await getGeo();
+  if (!geo) {
+    showToast("Impossible d'obtenir votre position");
+    return;
+  }
+  const cfg = getWorkModeConfig();
+  cfg.lat = Number(geo.lat);
+  cfg.lng = Number(geo.lng);
+  cfg.label = geo.label || '';
+  saveWorkModeConfig(cfg);
+  renderWorkModeSettings();
+  showToast('Lieu de travail enregistré ✓');
 }
 
 function openShortcutsSettings() {
@@ -5176,7 +5380,8 @@ function normalizeSession(s) {
     net,
     note: typeof s.note === 'string' ? s.note.slice(0, 120) : '',
     startGeo: normalizeGeo(s.startGeo),
-    endGeo: normalizeGeo(s.endGeo)
+    endGeo: normalizeGeo(s.endGeo),
+    workMode: (s.workMode === 'presentiel' || s.workMode === 'teletravail') ? s.workMode : null
   };
 }
 
