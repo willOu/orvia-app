@@ -1187,6 +1187,31 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       Estimation simplifiée (prélèvement forfaitaire). Pour un calcul précis, réfère-toi à ton bulletin de paie ou à un simulateur officiel.
     </div>
   </div>
+
+  <div class="section-title">Historique des taux horaires</div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:11px;color:var(--muted);line-height:1.5;">
+      Chaque augmentation (ou baisse) de salaire ajoutée ici garde les calculs de gains rétroactifs corrects : une session ancienne est toujours calculée avec le taux en vigueur à sa date, même après une revalorisation.
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:16px;padding:14px;">
+    <div class="form-field" style="margin-bottom:12px;">
+      <label>Date d'entrée en vigueur</label>
+      <input type="date" id="tauxHistoDateInput" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+    </div>
+    <div class="form-field" style="margin-bottom:12px;">
+      <label>Nouveau taux horaire (€/h)</label>
+      <input type="number" id="tauxHistoTauxInput" min="0" step="0.01" placeholder="ex: 16.20" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+    </div>
+    <div class="form-field" style="margin-bottom:12px;">
+      <label>Note (optionnelle)</label>
+      <input type="text" id="tauxHistoNoteInput" placeholder="ex: augmentation annuelle" maxlength="60" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+    </div>
+    <button onclick="submitTauxHoraireHistoEntry()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Ajouter à l'historique</button>
+  </div>
+
+  <div id="tauxHoraireHistoList"></div>
 </div>
 
 <div class="page" id="page-arrondi-settings">
@@ -1363,10 +1388,6 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <div class="modal-row">
       <label>Heure de fin</label>
       <input type="time" id="editTimeEnd">
-    </div>
-    <div class="modal-row">
-      <label>Pause (minutes)</label>
-      <input type="number" id="editTimePause" min="0" step="1">
     </div>
     <div class="modal-error" id="editTimeError"></div>
     <div class="modal-actions">
@@ -1587,7 +1608,7 @@ function maybeShowWeeklyReport() {
   localStorage.setItem('orvia_weekly_report_shown', todayKey);
   const lastMonday = new Date(now); lastMonday.setDate(now.getDate() - 7); lastMonday.setHours(0, 0, 0, 0);
   const lastSunday = new Date(now); lastSunday.setDate(now.getDate() - 1); lastSunday.setHours(23, 59, 59, 999);
-  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.2.0';
+  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.7.0';
 
 
 // ── STORAGE ──
@@ -1676,6 +1697,128 @@ function loadRemuneration() {
   } catch(e) {}
 }
 
+// ── HISTORIQUE DES TAUX HORAIRES ──
+// Garde trace des augmentations (ou baisses) de salaire dans le temps, afin
+// que les calculs de gains rétroactifs sur d'anciennes sessions restent
+// corrects même après une revalorisation du taux horaire actuel.
+let tauxHoraireHistory = [];
+
+function saveTauxHoraireHistory() {
+  localStorage.setItem('orvia_taux_historique', JSON.stringify(tauxHoraireHistory));
+}
+
+function loadTauxHoraireHistory() {
+  try {
+    const raw = localStorage.getItem('orvia_taux_historique');
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      tauxHoraireHistory = parsed
+        .filter(e => e && typeof e.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && Number.isFinite(Number(e.taux)))
+        .map(e => ({
+          id: Number.isFinite(e.id) ? e.id : (Date.now() + Math.floor(Math.random() * 100000)),
+          date: e.date,
+          taux: clampNumber(Number(e.taux), 0, 1000, 0),
+          note: typeof e.note === 'string' ? e.note.slice(0, 60) : ''
+        }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+    }
+  } catch (e) {}
+}
+
+// Retourne le taux horaire applicable à une date (YYYY-MM-DD) : le dernier
+// changement enregistré à une date <= dateStr, sinon le taux actuel des
+// réglages (compatibilité avec les sessions antérieures au 1er changement
+// et avec les comptes qui n'utilisent pas encore l'historique).
+function getTauxHoraireForDate(dateStr) {
+  if (!tauxHoraireHistory.length) return remuneration.tauxHoraire;
+  let applicable = null;
+  for (const entry of tauxHoraireHistory) {
+    if (entry.date <= dateStr) applicable = entry;
+    else break;
+  }
+  return applicable ? applicable.taux : remuneration.tauxHoraire;
+}
+
+function addTauxHoraireEntry(dateStr, taux, note) {
+  const clean = clampNumber(Number(taux), 0, 1000, 0);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr) || !clean) return false;
+  tauxHoraireHistory = tauxHoraireHistory.filter(e => e.date !== dateStr);
+  tauxHoraireHistory.push({
+    id: Date.now() + Math.floor(Math.random() * 100000),
+    date: dateStr,
+    taux: clean,
+    note: (note || '').slice(0, 60)
+  });
+  tauxHoraireHistory.sort((a, b) => a.date.localeCompare(b.date));
+  saveTauxHoraireHistory();
+  return true;
+}
+
+function deleteTauxHoraireEntry(id) {
+  tauxHoraireHistory = tauxHoraireHistory.filter(e => e.id !== id);
+  saveTauxHoraireHistory();
+  renderTauxHoraireHistoList();
+  renderToday();
+  showToast('Entrée supprimée');
+}
+
+// Ajoute automatiquement une entrée d'historique datée d'aujourd'hui quand
+// l'utilisateur modifie le taux horaire courant dans les réglages, pour que
+// l'historique reste à jour sans action supplémentaire de sa part.
+function recordCurrentTauxIfChanged(newTaux) {
+  const today = toLocalISO(new Date());
+  const lastEntry = tauxHoraireHistory[tauxHoraireHistory.length - 1];
+  if (lastEntry && lastEntry.date === today) {
+    lastEntry.taux = newTaux;
+    saveTauxHoraireHistory();
+    return;
+  }
+  if (!lastEntry || lastEntry.taux !== newTaux) {
+    addTauxHoraireEntry(today, newTaux, 'Mise à jour depuis les réglages');
+  }
+  renderTauxHoraireHistoList();
+}
+
+function submitTauxHoraireHistoEntry() {
+  const dateEl = document.getElementById('tauxHistoDateInput');
+  const tauxEl = document.getElementById('tauxHistoTauxInput');
+  const noteEl = document.getElementById('tauxHistoNoteInput');
+  const dateStr = dateEl ? dateEl.value : '';
+  const taux = tauxEl ? Number(tauxEl.value) : NaN;
+  if (!dateStr || !Number.isFinite(taux) || taux <= 0) {
+    showToast('Date et taux valides requis');
+    return;
+  }
+  const ok = addTauxHoraireEntry(dateStr, taux, noteEl ? noteEl.value : '');
+  if (!ok) { showToast('Entrée invalide'); return; }
+  if (dateEl) dateEl.value = '';
+  if (tauxEl) tauxEl.value = '';
+  if (noteEl) noteEl.value = '';
+  renderTauxHoraireHistoList();
+  renderToday();
+  showToast('Taux ajouté à l\'historique ✓');
+}
+
+function renderTauxHoraireHistoList() {
+  const el = document.getElementById('tauxHoraireHistoList');
+  if (!el) return;
+  if (!tauxHoraireHistory.length) {
+    el.innerHTML = '<div class="settings-card" style="padding:14px;"><div style="font-size:13px;color:var(--muted);">Aucun changement de taux enregistré. Le taux horaire des réglages ci-dessus s\'applique à toutes les sessions.</div></div>';
+    return;
+  }
+  const sorted = tauxHoraireHistory.slice().sort((a, b) => b.date.localeCompare(a.date));
+  el.innerHTML = sorted.map(e => `
+    <div class="settings-card" style="margin-bottom:8px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:14px;">${fmtEuros(e.taux)} / h</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">Depuis le ${e.date}${e.note ? ' — ' + escapeHtml(e.note) : ''}</div>
+      </div>
+      <button onclick="deleteTauxHoraireEntry(${e.id})" style="background:none;border:none;color:var(--accent2);font-size:18px;cursor:pointer;padding:4px 8px;">🗑</button>
+    </div>
+  `).join('');
+}
+
 // ── ARRONDI ──
 let arrondi = { enabled: false, minutes: 15, mode: 'nearest' };
 
@@ -1756,7 +1899,7 @@ function computeYesterdaySummaryData() {
     const weekBeforeMs = state.sessions
       .filter(s => s.start >= monday.getTime() && s.start < yesterdayStart.getTime())
       .reduce((a, s) => a + (s.net || 0), 0);
-    const gainsDayBrut = calcGainsJour(dayTotal, weekBeforeMs);
+    const gainsDayBrut = calcGainsJour(dayTotal, weekBeforeMs, yesterday);
     gainsInfo = { day: gainsDayBrut };
   }
 
@@ -1929,12 +2072,14 @@ function calcNet(brutAmount) {
   return brutAmount * (1 - taux / 100);
 }
 
-function calcGainsSemaine(weekNetMs) {
+function calcGainsSemaine(weekNetMs, dateStr) {
   if (!remuneration.enabled || !remuneration.tauxHoraire) return 0;
   const heures = weekNetMs / 3600000;
   const seuil1 = remuneration.seuil1;
   const seuil2 = remuneration.seuil2;
-  const taux = remuneration.tauxHoraire;
+  // Utilise le taux en vigueur à la date fournie (historique des taux),
+  // avec le taux actuel des réglages comme valeur par défaut (vue "aujourd'hui").
+  const taux = dateStr ? getTauxHoraireForDate(dateStr) : remuneration.tauxHoraire;
 
   const heuresNormales = Math.min(heures, seuil1);
   const heuresTranche1 = Math.max(0, Math.min(heures, seuil2) - seuil1);
@@ -1946,9 +2091,9 @@ function calcGainsSemaine(weekNetMs) {
   return heuresNormales * taux + heuresTranche1 * tauxTranche1 + heuresTranche2 * tauxTranche2;
 }
 
-function calcGainsJour(dayNetMs, weekBeforeMs) {
+function calcGainsJour(dayNetMs, weekBeforeMs, dateStr) {
   if (!remuneration.enabled || !remuneration.tauxHoraire) return 0;
-  return calcGainsSemaine((weekBeforeMs || 0) + dayNetMs) - calcGainsSemaine(weekBeforeMs || 0);
+  return calcGainsSemaine((weekBeforeMs || 0) + dayNetMs, dateStr) - calcGainsSemaine(weekBeforeMs || 0, dateStr);
 }
 
 function calcTrancheGainForRange(cumulBeforeH, hoursH, taux, seuil1, seuil2, maj1, maj2) {
@@ -1985,7 +2130,6 @@ function calcGainsMois(year, month) {
     byWeek[key].push(s);
   });
 
-  const taux = remuneration.tauxHoraire;
   const seuil1 = remuneration.seuil1;
   const seuil2 = remuneration.seuil2;
   const maj1 = remuneration.majorationTranche1;
@@ -1993,12 +2137,16 @@ function calcGainsMois(year, month) {
 
   let totalMonthGains = 0;
 
+  // Le taux appliqué à chaque session est celui en vigueur à sa propre date
+  // (historique des taux horaires), pas le taux actuel des réglages — ce qui
+  // garde les calculs rétroactifs corrects après une augmentation de salaire.
   Object.keys(byWeek).forEach(key => {
     const weekSessions = byWeek[key].slice().sort((a, b) => a.start - b.start);
     let cumulH = 0;
     weekSessions.forEach(s => {
       const hoursH = (s.net || 0) / 3600000;
-      const gain = calcTrancheGainForRange(cumulH, hoursH, taux, seuil1, seuil2, maj1, maj2);
+      const tauxSession = getTauxHoraireForDate(s.date);
+      const gain = calcTrancheGainForRange(cumulH, hoursH, tauxSession, seuil1, seuil2, maj1, maj2);
       if (s.start >= monthStart && s.start < monthEnd) {
         totalMonthGains += gain;
       }
@@ -3119,7 +3267,6 @@ function openEditTimeModal(idx) {
   document.getElementById('editTimeDate').value = tsToDateInput(s.start);
   document.getElementById('editTimeStart').value = tsToTimeInput(s.start);
   document.getElementById('editTimeEnd').value = tsToTimeInput(s.end);
-  document.getElementById('editTimePause').value = Math.round((s.pauseMs || 0) / 60000);
   const editNoteEl=document.getElementById('editTimeNote');
   if(editNoteEl)editNoteEl.value=s.note||'';
   const errEl = document.getElementById('editTimeError');
@@ -3177,14 +3324,7 @@ function saveEditTimeModal() {
     return;
   }
 
-  const pauseMinInput = document.getElementById('editTimePause').value;
-  const pauseMin = Number(pauseMinInput);
-  if (!Number.isFinite(pauseMin) || pauseMin < 0) {
-    errEl.textContent = 'Pause invalide.';
-    errEl.style.display = 'block';
-    return;
-  }
-  const clampedPause = Math.min(pauseMin * 60000, duration);
+  const clampedPause = Math.min(s.pauseMs || 0, duration);
   const newNet = Math.max(0, duration - clampedPause);
 
   const noteVal=document.getElementById('editTimeNote');
@@ -4672,6 +4812,7 @@ function openAboutSettings() {
     if (remuSupEl) remuSupEl.checked = remuneration.remuSupEnabled !== false;
     if (tauxImpEl) tauxImpEl.value = remuneration.tauxImposition;
     updateRemunerationLabels();
+    renderTauxHoraireHistoList();
   }
 
   function onNetEnabledToggle() {
@@ -4711,6 +4852,7 @@ function openAboutSettings() {
     const val = clampNumber(Number(tauxEl ? tauxEl.value : 0), 0, 1000, 0);
     remuneration.tauxHoraire = val;
     saveRemuneration();
+    if (val > 0) recordCurrentTauxIfChanged(val);
     renderToday();
     showToast('Taux horaire mis à jour');
   }
@@ -4840,7 +4982,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
-    { version: '0.2.0', date: '2026-07-15', items: ['Possibilité de modifier la durée de pause d\u2019une session depuis la fenêtre de modification des horaires.'] },
+    { version: '0.7.0', date: '2026-07-15', items: ['Historique des taux horaires : garde trace des augmentations de salaire dans le temps pour que les calculs de gains rétroactifs sur d\u2019anciennes sessions restent corrects.'] },
     { version: '0.1.47', date: '2026-07-11', items: ['Clic sur un jour du calendrier sans congé pour pré-remplir le formulaire Ajouter un congé.'] },         { version: '0.1.46', date: '2026-07-11', items: ['Badge de version dynamique dans Réglages.', 'Rapport hebdomadaire automatique le lundi matin.', 'Correction du calendrier des congés (id calGrid).', 'Correction du graphique historique (format de date).'] },         { version: '0.1.45', date: '2026-07-10', items: ['Possibilité de modifier la note d\u2019une session enregistrée.', 'Note rapide en cours de journée.'] },         { version: '0.1.44', date: '2026-07-10', items: ['Toast d\u2019annulation après suppression d\u2019une session.'] },         { version: '0.1.43', date: '2026-07-10', items: ['Amélioration de la stabilité générale et du système de déploiement.'] },         { version: '0.1.42', date: '2026-07-09', items: ['Ajout d\'une transition fluide (fondu + léger déplacement) lors du changement d\'onglet dans l\'historique (jour/semaine/mois/année).'] },
     { version: '0.1.41', date: '2026-07-09', items: ['Ajout d\'un historique des versions de sauvegarde consultable dans Réglages > Sauvegarde. Possibilité de créer un point de restauration manuel et de revenir à un état antérieur en un clic.'] },
     { version: '0.1.39', date: '2026-07-08', items: ['Interrupteurs des réglages encore réduits. Correction du Service Worker : les mises à jour de l\'app s\'appliquent désormais automatiquement au lieu de rester bloquées en cache.'] },
@@ -5560,6 +5702,7 @@ load();
 loadConges(); checkLowQuotaAlerts();
 loadObjectifs();
 loadRemuneration();
+loadTauxHoraireHistory();
 loadArrondi();
 loadInactivite();
 loadResumeJour();
