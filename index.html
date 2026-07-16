@@ -664,8 +664,8 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       <div class="label">Arrivée</div>
       <div class="value" id="startTimeDisplay">--:--</div>
     </div>
-    <div class="status-pill">
-      <div class="label">Pause</div>
+    <div class="status-pill" onclick="openEditCurrentPauseModal()" style="cursor:pointer" title="Toucher pour ajuster la pause en cours">
+      <div class="label">Pause ✏️</div>
       <div class="value" id="pauseDisplay" style="color:var(--orange)">00:00</div>
     </div>
     <div class="status-pill">
@@ -1374,6 +1374,24 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 
 <div class="toast" id="toast"></div>
 
+<div class="modal-overlay" id="editCurrentPauseModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">Ajuster la pause en cours</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
+      Modifie le temps de pause déjà accumulé sur la session en cours. Si tu es actuellement en pause, la durée de la pause active en cours sera intégrée après validation.
+    </div>
+    <div class="modal-row">
+      <label>Pause totale (minutes)</label>
+      <input type="number" id="editCurrentPauseMinutes" min="0" step="1">
+    </div>
+    <div class="modal-error" id="editCurrentPauseError"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="closeEditCurrentPauseModal()">Annuler</button>
+      <button class="modal-btn-save" onclick="saveEditCurrentPauseModal()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="editTimeModal" style="display:none;">
   <div class="modal-box">
     <div class="modal-title">Modifier les horaires</div>
@@ -1388,6 +1406,10 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <div class="modal-row">
       <label>Heure de fin</label>
       <input type="time" id="editTimeEnd">
+    </div>
+    <div class="modal-row">
+      <label>Pause (minutes)</label>
+      <input type="number" id="editTimePause" min="0" step="1">
     </div>
     <div class="modal-error" id="editTimeError"></div>
     <div class="modal-actions">
@@ -1608,7 +1630,7 @@ function maybeShowWeeklyReport() {
   localStorage.setItem('orvia_weekly_report_shown', todayKey);
   const lastMonday = new Date(now); lastMonday.setDate(now.getDate() - 7); lastMonday.setHours(0, 0, 0, 0);
   const lastSunday = new Date(now); lastSunday.setDate(now.getDate() - 1); lastSunday.setHours(23, 59, 59, 999);
-  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.7.0';
+  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.2.1';
 
 
 // ── STORAGE ──
@@ -3267,6 +3289,8 @@ function openEditTimeModal(idx) {
   document.getElementById('editTimeDate').value = tsToDateInput(s.start);
   document.getElementById('editTimeStart').value = tsToTimeInput(s.start);
   document.getElementById('editTimeEnd').value = tsToTimeInput(s.end);
+  const pauseEl = document.getElementById('editTimePause');
+  if (pauseEl) pauseEl.value = Math.round((s.pauseMs || 0) / 60000);
   const editNoteEl=document.getElementById('editTimeNote');
   if(editNoteEl)editNoteEl.value=s.note||'';
   const errEl = document.getElementById('editTimeError');
@@ -3324,7 +3348,9 @@ function saveEditTimeModal() {
     return;
   }
 
-  const clampedPause = Math.min(s.pauseMs || 0, duration);
+  const pauseEl = document.getElementById('editTimePause');
+  const requestedPauseMs = pauseEl ? Math.max(0, Math.round(Number(pauseEl.value) || 0) * 60000) : (s.pauseMs || 0);
+  const clampedPause = Math.min(requestedPauseMs, duration);
   const newNet = Math.max(0, duration - clampedPause);
 
   const noteVal=document.getElementById('editTimeNote');
@@ -3340,6 +3366,62 @@ function saveEditTimeModal() {
   renderToday();
   renderHistory();
   showToast('Horaires mis à jour ✓');
+}
+
+
+// ── AJUSTEMENT DE LA PAUSE EN COURS (session active) ──
+// Permet de corriger le temps de pause d'une session en cours (running ou
+// paused), sans devoir attendre la fin pour passer par "Modifier les
+// horaires" (qui ne s'applique qu'aux sessions déjà terminées).
+function openEditCurrentPauseModal() {
+  if (state.status === 'idle') { showToast('Aucune session en cours'); return; }
+  let currentPause = state.totalPauseMs || 0;
+  if (state.status === 'paused' && state.pauseStart) {
+    currentPause += Date.now() - state.pauseStart;
+  }
+  const minutesEl = document.getElementById('editCurrentPauseMinutes');
+  if (minutesEl) minutesEl.value = Math.round(currentPause / 60000);
+  const errEl = document.getElementById('editCurrentPauseError');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  document.getElementById('editCurrentPauseModal').style.display = 'flex';
+}
+
+function closeEditCurrentPauseModal() {
+  document.getElementById('editCurrentPauseModal').style.display = 'none';
+}
+
+function saveEditCurrentPauseModal() {
+  if (state.status === 'idle') { closeEditCurrentPauseModal(); return; }
+  const minutesEl = document.getElementById('editCurrentPauseMinutes');
+  const errEl = document.getElementById('editCurrentPauseError');
+  const minutes = minutesEl ? Number(minutesEl.value) : NaN;
+
+  if (!Number.isFinite(minutes) || minutes < 0) {
+    if (errEl) { errEl.textContent = 'Valeur invalide.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  const elapsedSinceStart = Date.now() - state.startTs;
+  const requestedPauseMs = Math.round(minutes) * 60000;
+
+  if (requestedPauseMs > elapsedSinceStart) {
+    if (errEl) { errEl.textContent = 'La pause ne peut pas dépasser la durée écoulée depuis le départ.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  if (state.status === 'paused' && state.pauseStart) {
+    // La pause active en cours est incluse dans la nouvelle valeur totale :
+    // on repart d'un nouveau pauseStart pour que le calcul en direct reste cohérent.
+    state.totalPauseMs = requestedPauseMs - (Date.now() - state.pauseStart);
+    if (state.totalPauseMs < 0) state.totalPauseMs = 0;
+  } else {
+    state.totalPauseMs = requestedPauseMs;
+  }
+
+  save();
+  tick();
+  closeEditCurrentPauseModal();
+  showToast('Pause ajustée ✓');
 }
 
 function editNote(idx) {
@@ -4982,6 +5064,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '0.2.1', date: '2026-07-16', items: ['Possibilité de modifier le temps de pause d\u2019une session terminée (champ dédié) et d\u2019ajuster la pause d\u2019une session en cours directement depuis l\u2019écran principal.'] },
     { version: '0.7.0', date: '2026-07-15', items: ['Historique des taux horaires : garde trace des augmentations de salaire dans le temps pour que les calculs de gains rétroactifs sur d\u2019anciennes sessions restent corrects.'] },
     { version: '0.1.47', date: '2026-07-11', items: ['Clic sur un jour du calendrier sans congé pour pré-remplir le formulaire Ajouter un congé.'] },         { version: '0.1.46', date: '2026-07-11', items: ['Badge de version dynamique dans Réglages.', 'Rapport hebdomadaire automatique le lundi matin.', 'Correction du calendrier des congés (id calGrid).', 'Correction du graphique historique (format de date).'] },         { version: '0.1.45', date: '2026-07-10', items: ['Possibilité de modifier la note d\u2019une session enregistrée.', 'Note rapide en cours de journée.'] },         { version: '0.1.44', date: '2026-07-10', items: ['Toast d\u2019annulation après suppression d\u2019une session.'] },         { version: '0.1.43', date: '2026-07-10', items: ['Amélioration de la stabilité générale et du système de déploiement.'] },         { version: '0.1.42', date: '2026-07-09', items: ['Ajout d\'une transition fluide (fondu + léger déplacement) lors du changement d\'onglet dans l\'historique (jour/semaine/mois/année).'] },
     { version: '0.1.41', date: '2026-07-09', items: ['Ajout d\'un historique des versions de sauvegarde consultable dans Réglages > Sauvegarde. Possibilité de créer un point de restauration manuel et de revenir à un état antérieur en un clic.'] },
