@@ -28,6 +28,7 @@
     --muted: #8b8fa8;
     --radius: 16px;
     --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --seasonal-gradient: none;
   }
 
   :root.light-mode {
@@ -38,6 +39,23 @@
     --text: #1a1d29;
     --muted: #6b7280;
   }
+
+  /* ── THÈME SAISONNIER (dégradés) ── */
+  :root.has-seasonal .header,
+  :root.has-seasonal .clock-card,
+  :root.has-seasonal .tabs {
+    background-image: var(--seasonal-gradient);
+  }
+  :root.has-seasonal .header { background-color: transparent; }
+  :root.has-seasonal .clock-card { background-color: transparent; border-color: rgba(255,255,255,.25); }
+  :root.has-seasonal .tabs { background-color: transparent; border-bottom-color: rgba(255,255,255,.2); }
+  :root.has-seasonal .big-time.running,
+  :root.has-seasonal .big-time.paused,
+  :root.has-seasonal .elapsed-label,
+  :root.has-seasonal .header h1,
+  :root.has-seasonal .header .date { color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  :root.has-seasonal .tab { color: rgba(255,255,255,.75); }
+  :root.has-seasonal .tab.active { color: #fff; border-bottom-color: #fff; }
 
   body { transition: background .25s ease, color .25s ease; }
   .settings-card, .stat-card, .session-item { transition: background .25s ease, border-color .25s ease; }
@@ -975,6 +993,34 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     </div>
   </div>
 
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:800;color:var(--accent2);">🚦 Géofencing automatique</label>
+      <label class="switch">
+        <input type="checkbox" id="geofenceEnabled" onchange="onGeofenceToggle()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="settings-desc-box">
+      Démarre le chrono automatiquement en entrant dans la zone du lieu de travail, et le termine en la quittant. Fonctionne uniquement quand l'app est ouverte au premier plan (limitation des navigateurs, aucune app web ne peut détecter une zone en arrière-plan comme une app native).
+    </div>
+  </div>
+
+  <div class="settings-card" id="geofenceConfirmCard" style="margin-bottom:10px;display:none;">
+    <div class="settings-row">
+      <label>Confirmation avant action</label>
+      <label class="switch">
+        <input type="checkbox" id="geofenceConfirm" onchange="onGeofenceConfirmToggle()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="settings-desc-box">Affiche une notification avec quelques secondes pour annuler avant de démarrer/terminer automatiquement</div>
+  </div>
+
+  <div class="settings-card" id="geofenceStatusCard" style="margin-bottom:10px;padding:14px;display:none;">
+    <div style="font-size:12px;color:var(--muted);" id="geofenceStatusLabel">Surveillance inactive</div>
+  </div>
+
   <div class="settings-card" style="margin-bottom:10px;padding:14px;">
     <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">📍 Lieu de travail de référence</div>
     <div id="workModeLocationLabel" style="font-size:13px;color:var(--muted);margin-bottom:10px;">Non défini</div>
@@ -990,6 +1036,16 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       <option value="500">500 m</option>
       <option value="1000">1 km</option>
     </select>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent2);margin-bottom:8px;">📍 Zone secondaire (client, autre site)</div>
+    <div id="geofenceZone2Label" style="font-size:13px;color:var(--muted);margin-bottom:10px;">Non défini</div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="captureGeofenceZone2()" style="flex:1;background:var(--accent2);color:#fff;border:none;padding:10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Utiliser ma position</button>
+      <button onclick="clearGeofenceZone2()" style="background:var(--border);color:var(--text);border:none;padding:10px 14px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Effacer</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px;">Le même rayon de tolérance s'applique. Le géofencing surveille les deux zones simultanément.</div>
   </div>
 
   <div class="settings-card" style="padding:14px;">
@@ -1312,6 +1368,12 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">Choisis la couleur d'accent principale de l'application.</div>
     <div id="themeSwatches" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;"></div>
   </div>
+  <div class="section-title">Thèmes saisonniers</div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:13px;color:var(--muted);margin-bottom:12px;">Dégradés thématiques appliqués sur l'en-tête, l'horloge et la barre d'onglets.</div>
+    <div id="seasonalThemeSwatches" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;"></div>
+    <button onclick="resetSeasonalTheme()" style="width:100%;background:var(--border);color:var(--text);border:none;padding:9px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;">Revenir à une couleur unie</button>
+  </div>
   <div class="settings-card" style="margin-bottom:10px;">
     <div class="settings-row" style="cursor:pointer;" onclick="exportThemeBackup()">
       <label style="font-weight:800;color:var(--accent);">Exporter le thème</label>
@@ -1630,7 +1692,7 @@ function maybeShowWeeklyReport() {
   localStorage.setItem('orvia_weekly_report_shown', todayKey);
   const lastMonday = new Date(now); lastMonday.setDate(now.getDate() - 7); lastMonday.setHours(0, 0, 0, 0);
   const lastSunday = new Date(now); lastSunday.setDate(now.getDate() - 1); lastSunday.setHours(23, 59, 59, 999);
-  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.2.1';
+  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.2.3';
 
 
 // ── STORAGE ──
@@ -4652,8 +4714,26 @@ const THEME_PALETTES = [
   { id: 'indigo', name: 'Indigo nuit', accent: '#6366f1', accent2: '#8b5cf6' }
 ];
 
+// ── THÈMES SAISONNIERS (dégradés) ──
+// Palettes visuelles thématiques appliquant un dégradé de fond sur l'en-tête,
+// la carte horloge et la barre d'onglets, en plus de teinter accent/accent2.
+const SEASONAL_THEMES = [
+  { id: 'printemps', name: '🌸 Printemps', accent: '#22c55e', accent2: '#ec4899', gradient: 'linear-gradient(135deg, #34d399, #f472b6)' },
+  { id: 'ete', name: '☀️ Été', accent: '#f59e0b', accent2: '#3b82f6', gradient: 'linear-gradient(135deg, #fbbf24, #38bdf8)' },
+  { id: 'automne', name: '🍂 Automne', accent: '#ea580c', accent2: '#92400e', gradient: 'linear-gradient(135deg, #f97316, #78350f)' },
+  { id: 'hiver', name: '❄️ Hiver', accent: '#3b82f6', accent2: '#a5b4fc', gradient: 'linear-gradient(135deg, #1e3a8a, #93c5fd)' },
+  { id: 'noel', name: '🎄 Noël', accent: '#ef4444', accent2: '#16a34a', gradient: 'linear-gradient(135deg, #b91c1c, #14532d)' },
+  { id: 'coucherdesoleil', name: '🌇 Coucher de soleil', accent: '#f97316', accent2: '#db2777', gradient: 'linear-gradient(135deg, #f97316, #db2777, #7c3aed)' },
+  { id: 'aurore', name: '🌌 Aurore boréale', accent: '#06b6d4', accent2: '#8b5cf6', gradient: 'linear-gradient(135deg, #06b6d4, #22c55e, #8b5cf6)' },
+  { id: 'sakura', name: '🌷 Sakura', accent: '#f9a8d4', accent2: '#a78bfa', gradient: 'linear-gradient(135deg, #fbcfe8, #c4b5fd)' }
+];
+
 function getCurrentThemeId() {
   return localStorage.getItem('orvia_theme') || 'violet';
+}
+
+function getCurrentSeasonalId() {
+  return localStorage.getItem('orvia_seasonal_theme') || '';
 }
 
 function getCurrentMode() {
@@ -4675,6 +4755,39 @@ function applyTheme(themeId) {
   document.documentElement.style.setProperty('--accent', theme.accent);
   document.documentElement.style.setProperty('--accent2', theme.accent2);
   localStorage.setItem('orvia_theme', theme.id);
+  // Choisir une couleur solide désactive le dégradé saisonnier actif.
+  document.documentElement.classList.remove('has-seasonal');
+  localStorage.removeItem('orvia_seasonal_theme');
+}
+
+function applySeasonalTheme(seasonalId) {
+  const theme = SEASONAL_THEMES.find(t => t.id === seasonalId);
+  if (!theme) return;
+  document.documentElement.style.setProperty('--accent', theme.accent);
+  document.documentElement.style.setProperty('--accent2', theme.accent2);
+  document.documentElement.style.setProperty('--seasonal-gradient', theme.gradient);
+  document.documentElement.classList.add('has-seasonal');
+  localStorage.setItem('orvia_seasonal_theme', theme.id);
+}
+
+function clearSeasonalTheme() {
+  document.documentElement.classList.remove('has-seasonal');
+  localStorage.removeItem('orvia_seasonal_theme');
+  applyTheme(getCurrentThemeId());
+}
+
+// Applique au démarrage de l'app le dégradé saisonnier sauvegardé (s'il y en a un).
+function initSeasonalTheme() {
+  const seasonalId = getCurrentSeasonalId();
+  if (seasonalId) {
+    const theme = SEASONAL_THEMES.find(t => t.id === seasonalId);
+    if (theme) {
+      document.documentElement.style.setProperty('--accent', theme.accent);
+      document.documentElement.style.setProperty('--accent2', theme.accent2);
+      document.documentElement.style.setProperty('--seasonal-gradient', theme.gradient);
+      document.documentElement.classList.add('has-seasonal');
+    }
+  }
 }
 
 function renderModeSwitch() {
@@ -4703,15 +4816,17 @@ function renderThemePicker() {
   const container = document.getElementById('themeSwatches');
   if (!container) return;
   const current = getCurrentThemeId();
+  const seasonalActive = getCurrentSeasonalId();
   container.innerHTML = THEME_PALETTES.map(t => `
     <div onclick="selectTheme('${t.id}')" style="cursor:pointer;text-align:center;">
-      <div style="width:100%;aspect-ratio:1;border-radius:14px;background:linear-gradient(135deg, ${t.accent}, ${t.accent2});border:3px solid ${current === t.id ? '#fff' : 'transparent'};box-shadow:${current === t.id ? '0 0 0 2px ' + t.accent : 'none'};display:flex;align-items:center;justify-content:center;font-size:18px;">
-        ${current === t.id ? '✓' : ''}
+      <div style="width:100%;aspect-ratio:1;border-radius:14px;background:linear-gradient(135deg, ${t.accent}, ${t.accent2});border:3px solid ${(!seasonalActive && current === t.id) ? '#fff' : 'transparent'};box-shadow:${(!seasonalActive && current === t.id) ? '0 0 0 2px ' + t.accent : 'none'};display:flex;align-items:center;justify-content:center;font-size:18px;">
+        ${(!seasonalActive && current === t.id) ? '✓' : ''}
       </div>
       <div style="font-size:11px;color:var(--muted);margin-top:6px;">${t.name}</div>
     </div>
   `).join('');
   renderModeSwitch();
+  renderSeasonalThemePicker();
 }
 
 function selectTheme(themeId) {
@@ -4721,10 +4836,38 @@ function selectTheme(themeId) {
   if (document.getElementById('page-history').classList.contains('active')) renderTrendChart();
 }
 
+function renderSeasonalThemePicker() {
+  const container = document.getElementById('seasonalThemeSwatches');
+  if (!container) return;
+  const current = getCurrentSeasonalId();
+  container.innerHTML = SEASONAL_THEMES.map(t => `
+    <div onclick="selectSeasonalTheme('${t.id}')" style="cursor:pointer;text-align:center;">
+      <div style="width:100%;aspect-ratio:1;border-radius:14px;background:${t.gradient};border:3px solid ${current === t.id ? '#fff' : 'transparent'};box-shadow:${current === t.id ? '0 0 0 2px ' + t.accent : 'none'};display:flex;align-items:center;justify-content:center;font-size:18px;">
+        ${current === t.id ? '✓' : ''}
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;">${t.name}</div>
+    </div>
+  `).join('');
+}
+
+function selectSeasonalTheme(seasonalId) {
+  applySeasonalTheme(seasonalId);
+  renderThemePicker();
+  showToast('Thème saisonnier appliqué ✓');
+  if (document.getElementById('page-history').classList.contains('active')) renderTrendChart();
+}
+
+function resetSeasonalTheme() {
+  clearSeasonalTheme();
+  renderThemePicker();
+  showToast('Retour à la couleur unie');
+}
+
 function exportThemeBackup() {
   const data = {
     theme: getCurrentThemeId(),
-    mode: getCurrentMode()
+    mode: getCurrentMode(),
+    seasonal: getCurrentSeasonalId()
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -4749,6 +4892,9 @@ function importThemeBackup(event) {
       const mode = data.mode === 'light' ? 'light' : 'dark';
       applyTheme(themeId);
       applyMode(mode);
+      if (data.seasonal && SEASONAL_THEMES.some(t => t.id === data.seasonal)) {
+        applySeasonalTheme(data.seasonal);
+      }
       renderThemePicker();
       showToast('Thème importé ✓');
     } catch(err) {
@@ -4783,6 +4929,7 @@ function renderWorkModeSettings() {
       : 'Non défini';
   }
   updateWorkModeSummary();
+  renderGeofenceSettings();
 }
 
 function updateWorkModeSummary() {
@@ -4828,6 +4975,190 @@ async function captureWorkLocation() {
   renderWorkModeSettings();
   showToast('Lieu de travail enregistré ✓');
 }
+
+// ── GÉOFENCING AUTOMATIQUE ──
+// Démarre/termine le chrono en entrant/sortant des zones définies (lieu de
+// travail + zone secondaire optionnelle). Fonctionne uniquement app ouverte
+// au premier plan : aucune Geolocation API web ne permet de surveiller une
+// zone en arrière-plan comme le ferait une app native (limitation du
+// navigateur, pas d'Orvia).
+function getGeofenceConfig() {
+  try {
+    const raw = localStorage.getItem('orvia_geofence_config');
+    if (!raw) return { enabled: false, confirmBeforeAction: true, zone2Lat: null, zone2Lng: null, zone2Label: '' };
+    const p = JSON.parse(raw);
+    return {
+      enabled: !!p.enabled,
+      confirmBeforeAction: p.confirmBeforeAction !== false,
+      zone2Lat: (p.zone2Lat !== null && p.zone2Lat !== undefined && Number.isFinite(Number(p.zone2Lat))) ? Number(p.zone2Lat) : null,
+      zone2Lng: (p.zone2Lng !== null && p.zone2Lng !== undefined && Number.isFinite(Number(p.zone2Lng))) ? Number(p.zone2Lng) : null,
+      zone2Label: typeof p.zone2Label === 'string' ? p.zone2Label.slice(0, 60) : ''
+    };
+  } catch (e) {
+    return { enabled: false, confirmBeforeAction: true, zone2Lat: null, zone2Lng: null, zone2Label: '' };
+  }
+}
+
+function saveGeofenceConfig(cfg) {
+  localStorage.setItem('orvia_geofence_config', JSON.stringify(cfg));
+}
+
+let geofenceWatchId = null;
+let geofenceInsideZone = null;
+let geofencePendingAction = null;
+const GEOFENCE_ACTION_DELAY_MS = 15000;
+
+function renderGeofenceSettings() {
+  const cfg = getGeofenceConfig();
+  const enabledEl = document.getElementById('geofenceEnabled');
+  const confirmEl = document.getElementById('geofenceConfirm');
+  const confirmCard = document.getElementById('geofenceConfirmCard');
+  const statusCard = document.getElementById('geofenceStatusCard');
+  const zone2Label = document.getElementById('geofenceZone2Label');
+  if (enabledEl) enabledEl.checked = cfg.enabled;
+  if (confirmEl) confirmEl.checked = cfg.confirmBeforeAction;
+  if (confirmCard) confirmCard.style.display = cfg.enabled ? 'block' : 'none';
+  if (statusCard) statusCard.style.display = cfg.enabled ? 'block' : 'none';
+  if (zone2Label) {
+    zone2Label.textContent = (cfg.zone2Lat !== null && cfg.zone2Lng !== null)
+      ? (cfg.zone2Label || `${cfg.zone2Lat.toFixed(5)}, ${cfg.zone2Lng.toFixed(5)}`)
+      : 'Non défini';
+  }
+  updateGeofenceStatusLabel();
+}
+
+function updateGeofenceStatusLabel() {
+  const el = document.getElementById('geofenceStatusLabel');
+  if (!el) return;
+  const cfg = getGeofenceConfig();
+  if (!cfg.enabled) { el.textContent = 'Surveillance inactive'; return; }
+  if (!geofenceWatchId) { el.textContent = 'En attente d\'autorisation de localisation…'; return; }
+  if (geofenceInsideZone === null) { el.textContent = 'Localisation en cours…'; return; }
+  el.textContent = geofenceInsideZone
+    ? '🟢 Dans une zone surveillée'
+    : '⚪ Hors zone';
+}
+
+function onGeofenceToggle() {
+  const cfg = getGeofenceConfig();
+  const enabledEl = document.getElementById('geofenceEnabled');
+  cfg.enabled = enabledEl ? enabledEl.checked : false;
+  saveGeofenceConfig(cfg);
+  if (cfg.enabled) startGeofenceWatch(); else stopGeofenceWatch();
+  renderGeofenceSettings();
+  showToast(cfg.enabled ? 'Géofencing activé ✓' : 'Géofencing désactivé');
+}
+
+function onGeofenceConfirmToggle() {
+  const cfg = getGeofenceConfig();
+  const confirmEl = document.getElementById('geofenceConfirm');
+  cfg.confirmBeforeAction = confirmEl ? confirmEl.checked : true;
+  saveGeofenceConfig(cfg);
+}
+
+async function captureGeofenceZone2() {
+  showToast('Localisation en cours… 📍');
+  const geo = await getGeo();
+  if (!geo) { showToast("Impossible d'obtenir votre position"); return; }
+  const cfg = getGeofenceConfig();
+  cfg.zone2Lat = Number(geo.lat);
+  cfg.zone2Lng = Number(geo.lng);
+  cfg.zone2Label = geo.label || '';
+  saveGeofenceConfig(cfg);
+  renderGeofenceSettings();
+  showToast('Zone secondaire enregistrée ✓');
+}
+
+function clearGeofenceZone2() {
+  const cfg = getGeofenceConfig();
+  cfg.zone2Lat = null;
+  cfg.zone2Lng = null;
+  cfg.zone2Label = '';
+  saveGeofenceConfig(cfg);
+  renderGeofenceSettings();
+  showToast('Zone secondaire effacée');
+}
+
+function isInsideAnyGeofenceZone(lat, lng) {
+  const workCfg = getWorkModeConfig();
+  const geoCfg = getGeofenceConfig();
+  const zones = [];
+  if (workCfg.lat !== null && workCfg.lng !== null) zones.push({ lat: workCfg.lat, lng: workCfg.lng, radiusM: workCfg.radiusM });
+  if (geoCfg.zone2Lat !== null && geoCfg.zone2Lng !== null) zones.push({ lat: geoCfg.zone2Lat, lng: geoCfg.zone2Lng, radiusM: workCfg.radiusM });
+  return zones.some(z => distanceMeters(lat, lng, z.lat, z.lng) <= z.radiusM);
+}
+
+function startGeofenceWatch() {
+  if (geofenceWatchId !== null) return;
+  if (!navigator.geolocation) { showToast('Géolocalisation non disponible sur cet appareil'); return; }
+  geofenceWatchId = navigator.geolocation.watchPosition(
+    pos => handleGeofencePosition(pos.coords.latitude, pos.coords.longitude),
+    () => { updateGeofenceStatusLabel(); },
+    { enableHighAccuracy: false, maximumAge: 20000, timeout: 15000 }
+  );
+  updateGeofenceStatusLabel();
+}
+
+function stopGeofenceWatch() {
+  if (geofenceWatchId !== null) {
+    navigator.geolocation.clearWatch(geofenceWatchId);
+    geofenceWatchId = null;
+  }
+  geofenceInsideZone = null;
+  if (geofencePendingAction) {
+    clearTimeout(geofencePendingAction.timerId);
+    geofencePendingAction = null;
+  }
+  updateGeofenceStatusLabel();
+}
+
+function handleGeofencePosition(lat, lng) {
+  const inside = isInsideAnyGeofenceZone(lat, lng);
+  if (geofenceInsideZone === inside) { updateGeofenceStatusLabel(); return; }
+  geofenceInsideZone = inside;
+  updateGeofenceStatusLabel();
+
+  if (inside && state.status === 'idle') {
+    triggerGeofenceAction('start');
+  } else if (!inside && state.status !== 'idle') {
+    triggerGeofenceAction('stop');
+  }
+}
+
+function triggerGeofenceAction(type) {
+  if (geofencePendingAction) return;
+  const cfg = getGeofenceConfig();
+  const label = type === 'start' ? 'Démarrage automatique de la session (zone détectée)' : 'Fin automatique de la session (sortie de zone)';
+
+  if (!cfg.confirmBeforeAction) {
+    executeGeofenceAction(type);
+    return;
+  }
+
+  showUndoToast(
+    label,
+    () => { geofencePendingAction = null; showToast('Action annulée'); },
+    () => { executeGeofenceAction(type); }
+  );
+  geofencePendingAction = { type };
+}
+
+function executeGeofenceAction(type) {
+  geofencePendingAction = null;
+  if (type === 'start' && state.status === 'idle') {
+    handleMainBtn();
+    showToast('Session démarrée automatiquement (géofencing) 📍');
+  } else if (type === 'stop' && state.status !== 'idle') {
+    stopSession();
+    showToast('Session terminée automatiquement (géofencing) 📍');
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) return;
+  const cfg = getGeofenceConfig();
+  if (cfg.enabled && geofenceWatchId === null) startGeofenceWatch();
+});
 
 function openShortcutsSettings() {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -5064,6 +5395,8 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '0.2.3', date: '2026-07-16', items: ['Thèmes saisonniers avec dégradés (printemps, été, automne, hiver, Noël, coucher de soleil, aurore boréale, sakura) en plus des couleurs unies.'] },
+    { version: '0.2.2', date: '2026-07-16', items: ['Réintégration du géofencing automatique : démarrage/fin de session en entrant/sortant de la zone de travail (ou d\u2019une zone secondaire), avec confirmation optionnelle avant action.'] },
     { version: '0.2.1', date: '2026-07-16', items: ['Possibilité de modifier le temps de pause d\u2019une session terminée (champ dédié) et d\u2019ajuster la pause d\u2019une session en cours directement depuis l\u2019écran principal.'] },
     { version: '0.7.0', date: '2026-07-15', items: ['Historique des taux horaires : garde trace des augmentations de salaire dans le temps pour que les calculs de gains rétroactifs sur d\u2019anciennes sessions restent corrects.'] },
     { version: '0.1.47', date: '2026-07-11', items: ['Clic sur un jour du calendrier sans congé pour pré-remplir le formulaire Ajouter un congé.'] },         { version: '0.1.46', date: '2026-07-11', items: ['Badge de version dynamique dans Réglages.', 'Rapport hebdomadaire automatique le lundi matin.', 'Correction du calendrier des congés (id calGrid).', 'Correction du graphique historique (format de date).'] },         { version: '0.1.45', date: '2026-07-10', items: ['Possibilité de modifier la note d\u2019une session enregistrée.', 'Note rapide en cours de journée.'] },         { version: '0.1.44', date: '2026-07-10', items: ['Toast d\u2019annulation après suppression d\u2019une session.'] },         { version: '0.1.43', date: '2026-07-10', items: ['Amélioration de la stabilité générale et du système de déploiement.'] },         { version: '0.1.42', date: '2026-07-09', items: ['Ajout d\'une transition fluide (fondu + léger déplacement) lors du changement d\'onglet dans l\'historique (jour/semaine/mois/année).'] },
@@ -5781,12 +6114,14 @@ function importBackup(event) {
 // ── INIT ──
 applyTheme(getCurrentThemeId());
 applyMode(getCurrentMode());
+initSeasonalTheme();
 load();
 loadConges(); checkLowQuotaAlerts();
 loadObjectifs();
 loadRemuneration();
 loadTauxHoraireHistory();
 loadArrondi();
+if (getGeofenceConfig().enabled) startGeofenceWatch();
 loadInactivite();
 loadResumeJour();
 requestNotifPermission();
