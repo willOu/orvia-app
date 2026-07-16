@@ -15,6 +15,8 @@
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; touch-action: manipulation; }
 
+  @keyframes orviaSyncSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
   :root {
     --bg: #0b1f2a;
     --surface: #0b1f2a;
@@ -654,12 +656,13 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 
 
 <div class="header">
-  
+
   <h1 class="header-title"> </h1>
   <div class="header-meta">
     <div class="date" id="headerDate"></div>
     <div class="date" id="headerTime" style="font-variant-numeric:tabular-nums;letter-spacing:.5px"></div>
   </div>
+  <div id="syncStatusBadge" onclick="openSyncStatusModal()" style="position:absolute;top:12px;left:12px;font-size:10px;font-weight:800;padding:4px 9px;border-radius:999px;display:flex;align-items:center;gap:5px;cursor:pointer;"></div>
 </div>
 
 <div class="tabs">
@@ -671,6 +674,8 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 
 <!-- PAGE TODAY -->
 <div class="page active" id="page-today">
+
+  <div id="weeklyCapBanner" style="display:none;"></div>
 
   <div class="clock-card">
     <div class="big-time" id="bigTime">00:00:00</div>
@@ -845,6 +850,13 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
 
   <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openWeeklyCapSettings()">
+      <label style="font-weight:800;color:var(--accent2);">⚠️ Plafond horaire légal</label>
+    </div>
+    <div class="settings-desc-box">Alerte en cas de dépassement hebdomadaire</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
     <div class="settings-row" style="cursor:pointer;" onclick="openRemunerationSettings()">
       <label style="font-weight:800;color:var(--accent);">Rémunération</label>
     </div>
@@ -891,6 +903,13 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       <label style="font-weight:800;color:var(--accent2);">⏳ Alerte congés à risque</label>
     </div>
     <div class="settings-desc-box">Prévenir avant la perte d'un solde non pris</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openSchoolCalendarSettings()">
+      <label style="font-weight:800;color:var(--accent);">🏫 Calendrier scolaire</label>
+    </div>
+    <div class="settings-desc-box">Anticiper les congés familiaux (zones A/B/C)</div>
   </div>
 
   <div class="section-title" style="margin-top:20px;">🎨 Personnalisation</div>
@@ -958,6 +977,13 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div class="section-title" style="margin-top:20px;">ℹ️ Autres</div>
 
   <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openAuditLogSettings()">
+      <label style="font-weight:800;color:var(--accent);">Historique des modifications</label>
+    </div>
+    <div class="settings-desc-box">Audit trail : qui a modifié quoi et quand</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
     <div class="settings-row" style="cursor:pointer;" onclick="openAboutSettings()">
       <label style="font-weight:800;color:var(--accent);">A propos</label>
     </div>
@@ -991,6 +1017,67 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div style="margin-bottom:20px" id="quotaCards"></div>
   <div class="section-title">Noms des types de congés</div>
   <div id="labelCards"></div>   <div class="section-title" style="margin-top:20px">Types personnalisés</div>   <div id="customTypeCards"></div>   <div style="margin:12px 0"><button class="btn-primary" style="width:100%;font-size:14px" onclick="openAddCustomType()">+ Ajouter un type</button></div>
+
+  <div class="section-title" style="margin-top:20px">Report d'une année à l'autre</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openCarryoverSettings()">
+      <label style="font-weight:800;color:var(--accent);">Congés reportés</label>
+    </div>
+    <div class="settings-desc-box">Autoriser le report de jours non pris vers l'année suivante</div>
+  </div>
+</div>
+
+<div class="page" id="page-carryover-settings">
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="section-title">Congés reportés</div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:11px;color:var(--muted);line-height:1.5;">
+      Autorise le report de jours de congés non pris à la fin d'une année vers l'année suivante, avec un plafond configurable par type. Le solde de l'année précédente reste calculé sur son propre quota (les congés pris cette année-là ne sont jamais déduits de l'année en cours).
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:800;color:var(--accent);">Activer le report</label>
+      <label class="switch">
+        <input type="checkbox" id="carryoverEnabled" onchange="onCarryoverSettingsChange()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:10px;">Plafond de report par type (jours)</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <label style="font-size:13px;">Congé payé</label>
+        <input type="number" id="carryoverCap_cp" min="0" max="365" onchange="onCarryoverSettingsChange()" style="width:80px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 8px;color:var(--text);text-align:center;">
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <label style="font-size:13px;">RTT</label>
+        <input type="number" id="carryoverCap_rtt" min="0" max="365" onchange="onCarryoverSettingsChange()" style="width:80px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 8px;color:var(--text);text-align:center;">
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <label style="font-size:13px;">Congé sans solde</label>
+        <input type="number" id="carryoverCap_css" min="0" max="365" onchange="onCarryoverSettingsChange()" style="width:80px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 8px;color:var(--text);text-align:center;">
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <label style="font-size:13px;">Congé enfant malade</label>
+        <input type="number" id="carryoverCap_csp" min="0" max="365" onchange="onCarryoverSettingsChange()" style="width:80px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 8px;color:var(--text);text-align:center;">
+      </div>
+    </div>
+  </div>
+
+  <div class="settings-card" style="padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Aperçu pour cette année</div>
+    <div id="carryoverPreview"></div>
+  </div>
 </div>
 
 <div class="page" id="page-conge-expiry-settings">
@@ -1055,6 +1142,34 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
 </div>
 
+<div class="page" id="page-schoolcal-settings">
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="section-title">🏫 Calendrier scolaire</div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:11px;color:var(--muted);line-height:1.5;">
+      Sélectionne ta zone académique (A, B ou C) pour voir apparaître un point orange sous les jours de vacances scolaires dans le calendrier des congés, et anticiper les périodes où poser des congés familiaux.
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:10px;">Ta zone académique</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="radio" name="schoolZone" id="schoolZoneOpt_none" onchange="onSchoolZoneChange()"> Désactivé</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="radio" name="schoolZone" id="schoolZoneOpt_A" onchange="onSchoolZoneChange()"> Zone A — Besançon, Bordeaux, Clermont-Ferrand, Dijon, Grenoble, Limoges, Lyon, Poitiers</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="radio" name="schoolZone" id="schoolZoneOpt_B" onchange="onSchoolZoneChange()"> Zone B — Aix-Marseille, Amiens, Lille, Nancy-Metz, Nantes, Nice, Normandie, Orléans-Tours, Reims, Rennes, Strasbourg</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="radio" name="schoolZone" id="schoolZoneOpt_C" onchange="onSchoolZoneChange()"> Zone C — Créteil, Montpellier, Paris, Toulouse, Versailles</label>
+    </div>
+  </div>
+
+  <div class="section-title">Prochaines vacances scolaires</div>
+  <div id="schoolCalendarUpcoming"></div>
+</div>
 
 <div class="page" id="page-workmode-settings">
   <div class="settings-card" style="margin-bottom:10px;">
@@ -1217,6 +1332,28 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
 </div>
 
+<div class="page" id="page-auditlog-settings">
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="section-title">Historique des modifications</div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:11px;color:var(--muted);line-height:1.5;">
+      Trace chaque création, modification ou suppression manuelle sur tes sessions, congés, taux horaires et primes. Utile pour retrouver l'origine d'une correction (300 entrées max, les plus anciennes sont retirées automatiquement).
+    </div>
+  </div>
+
+  <div style="margin-bottom:12px;">
+    <button onclick="clearAuditLog()" style="width:100%;background:rgba(239,68,68,.12);color:var(--accent2);border:1px solid var(--accent2);padding:10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Effacer tout l'historique</button>
+  </div>
+
+  <div id="auditLogList"></div>
+</div>
+
 <div class="page" id="page-changelog-settings">
   <div class="section-title">Historique des versions</div>
   <div class="settings-card" style="margin-bottom:10px;">
@@ -1251,6 +1388,43 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 
   <div class="section-title">Historique des récupérations</div>
   <div id="recuperationsList"></div>
+</div>
+
+<div class="page" id="page-weeklycap-settings">
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="section-title">Plafond horaire légal</div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:11px;color:var(--muted);line-height:1.5;">
+      Alerte si le temps de travail hebdomadaire dépasse un seuil légal (48h par défaut en France, durée maximale absolue). Ajuste selon ta convention collective si elle prévoit un plafond différent.
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:800;color:var(--accent);">Activer l'alerte</label>
+      <label class="switch">
+        <input type="checkbox" id="weeklyCapEnabled" onchange="onWeeklyCapSettingsChange()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Plafond hebdomadaire (heures)</div>
+    <input type="number" id="weeklyCapHours" min="1" max="168" onchange="onWeeklyCapSettingsChange()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);">
+  </div>
+
+  <div class="settings-card" style="padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Seuil d'avertissement (%)</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Pourcentage du plafond à partir duquel une alerte préventive apparaît.</div>
+    <input type="number" id="weeklyCapWarnPct" min="50" max="100" onchange="onWeeklyCapSettingsChange()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);">
+  </div>
 </div>
 
 <div class="page" id="page-remuneration-settings">
@@ -1356,6 +1530,12 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
 
   <div id="tauxHoraireHistoList"></div>
+
+  <div class="section-title" style="margin-top:20px;">Zone de danger</div>
+  <div class="settings-card" style="padding:14px;">
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Supprime le taux horaire actuel ainsi que tout l'historique des taux et des primes.</div>
+    <button onclick="resetRemunerationData()" style="width:100%;background:rgba(239,68,68,.12);color:var(--accent2);border:1px solid var(--accent2);padding:10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">⚠️ Réinitialiser toute la rémunération</button>
+  </div>
 </div>
 
 <div class="page" id="page-primes-settings">
@@ -1729,6 +1909,22 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
 </div>
 
+<div class="modal-overlay" id="dangerConfirmModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title" id="dangerConfirmTitle" style="color:var(--accent2);">⚠️ Confirmation requise</div>
+    <div style="font-size:13px;color:var(--text);line-height:1.5;margin-bottom:14px;" id="dangerConfirmMessage"></div>
+    <div class="modal-row">
+      <label id="dangerConfirmInputLabel" style="font-size:12px;color:var(--muted);"></label>
+      <input type="text" id="dangerConfirmInput" placeholder="" autocomplete="off">
+    </div>
+    <div class="modal-error" id="dangerConfirmError"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="closeDangerConfirmModal()">Annuler</button>
+      <button class="modal-btn-save" id="dangerConfirmBtn" style="background:var(--accent2);" onclick="submitDangerConfirmModal()">Confirmer la suppression</button>
+    </div>
+  </div>
+</div>
+
 <div class="page" id="page-export-settings">
   <div class="section-title">Exporter en PDF</div>
   <div class="settings-card" style="margin-bottom:10px;">
@@ -1877,10 +2073,149 @@ function maybeShowWeeklyReport() {
   localStorage.setItem('orvia_weekly_report_shown', todayKey);
   const lastMonday = new Date(now); lastMonday.setDate(now.getDate() - 7); lastMonday.setHours(0, 0, 0, 0);
   const lastSunday = new Date(now); lastSunday.setDate(now.getDate() - 1); lastSunday.setHours(23, 59, 59, 999);
-  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.2.9';
+  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.4.0';
 
 
 // ── STORAGE ──
+// ── NOTIFICATIONS VISUELLES D'ÉTAT DE SYNCHRONISATION ──
+// Il n'y a pas encore de sauvegarde cloud réelle : ce système prépare le
+// terrain (détection de connexion, file d'attente des changements locaux,
+// badge visuel, historique) pour qu'une synchronisation future n'ait qu'à
+// se brancher sur `enqueueSyncChange()` et `processSyncQueue()`.
+const SYNC_QUEUE_KEY = 'orvia_sync_queue';
+const SYNC_STATE_KEY = 'orvia_sync_state';
+const SYNC_QUEUE_MAX = 200;
+
+function getSyncQueue() {
+  try {
+    const raw = localStorage.getItem(SYNC_QUEUE_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) { return []; }
+}
+
+function saveSyncQueue(q) {
+  localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(q.slice(-SYNC_QUEUE_MAX)));
+}
+
+function getSyncState() {
+  try {
+    const raw = localStorage.getItem(SYNC_STATE_KEY);
+    const p = raw ? JSON.parse(raw) : {};
+    return { lastSyncTs: p.lastSyncTs || null, cloudEnabled: p.cloudEnabled === true };
+  } catch (e) { return { lastSyncTs: null, cloudEnabled: false }; }
+}
+
+function saveSyncState(s) {
+  localStorage.setItem(SYNC_STATE_KEY, JSON.stringify(s));
+}
+
+function enqueueSyncChange(kind, summary) {
+  const q = getSyncQueue();
+  q.push({ id: Date.now() + Math.floor(Math.random() * 100000), ts: Date.now(), kind, summary: (summary || '').slice(0, 120) });
+  saveSyncQueue(q);
+  renderSyncStatusBadge();
+}
+
+function getSyncPhase() {
+  const online = navigator.onLine;
+  const cfg = getSyncState();
+  const queueLen = getSyncQueue().length;
+  if (!cfg.cloudEnabled) return online ? 'offline-nocloud' : 'offline';
+  if (!online) return queueLen > 0 ? 'offline-pending' : 'offline';
+  if (queueLen > 0) return 'syncing';
+  return 'synced';
+}
+
+const SYNC_PHASE_META = {
+  'synced':          { icon: '☁️', label: 'Synchronisé',       bg: 'rgba(62,207,142,.16)', color: '#3ecf8e' },
+  'syncing':         { icon: '🔄', label: 'Synchronisation…',  bg: 'rgba(108,99,255,.16)', color: 'var(--accent)' },
+  'offline-pending': { icon: '⏳', label: 'En attente',         bg: 'rgba(245,158,11,.16)', color: 'var(--orange)' },
+  'offline':         { icon: '📴', label: 'Hors ligne',         bg: 'rgba(139,143,168,.16)', color: 'var(--muted)' },
+  'offline-nocloud':{ icon: '💾', label: 'Stockage local',     bg: 'rgba(139,143,168,.16)', color: 'var(--muted)' }
+};
+
+let _lastSyncPhase = null;
+
+function renderSyncStatusBadge() {
+  const el = document.getElementById('syncStatusBadge');
+  if (!el) return;
+  const phase = getSyncPhase();
+  const meta = SYNC_PHASE_META[phase];
+  el.style.background = meta.bg;
+  el.style.color = meta.color;
+  const queueLen = getSyncQueue().length;
+  const countBadge = (phase === 'offline-pending' || phase === 'syncing') && queueLen > 0
+    ? `<span style="background:${meta.color};color:#fff;border-radius:999px;font-size:9px;padding:1px 5px;">${queueLen}</span>` : '';
+  el.innerHTML = `<span${phase === 'syncing' ? ' style="display:inline-block;animation:orviaSyncSpin 1.2s linear infinite;"' : ''}>${meta.icon}</span><span>${meta.label}</span>${countBadge}`;
+
+  if (_lastSyncPhase !== null && _lastSyncPhase !== phase) {
+    notifySyncPhaseChange(_lastSyncPhase, phase);
+  }
+  _lastSyncPhase = phase;
+}
+
+function notifySyncPhaseChange(fromPhase, toPhase) {
+  if (toPhase === 'offline' && fromPhase !== 'offline-pending') {
+    showToast('📴 Connexion perdue — mode hors ligne');
+  } else if (toPhase === 'offline-pending') {
+    showToast('⏳ Hors ligne — modifications mises en attente');
+  } else if (toPhase === 'syncing') {
+    showToast('🔄 Connexion rétablie — synchronisation…');
+  } else if (toPhase === 'synced' && (fromPhase === 'syncing' || fromPhase === 'offline-pending')) {
+    showToast('☁️ Toutes les modifications sont synchronisées ✓');
+  }
+}
+
+function processSyncQueue() {
+  const cfg = getSyncState();
+  if (!cfg.cloudEnabled || !navigator.onLine) return;
+  const q = getSyncQueue();
+  if (!q.length) return;
+  saveSyncQueue([]);
+  saveSyncState({ ...cfg, lastSyncTs: Date.now() });
+  renderSyncStatusBadge();
+}
+
+function onNetworkOnline() {
+  processSyncQueue();
+  renderSyncStatusBadge();
+}
+
+function onNetworkOffline() {
+  renderSyncStatusBadge();
+}
+
+function openSyncStatusModal() {
+  const phase = getSyncPhase();
+  const meta = SYNC_PHASE_META[phase];
+  const queue = getSyncQueue();
+  const cfg = getSyncState();
+  const lastSync = cfg.lastSyncTs ? new Date(cfg.lastSyncTs).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'jamais';
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'syncStatusModalTmp';
+  modal.style.display = 'flex';
+  const queueHtml = queue.length
+    ? queue.slice(-8).reverse().map(item => `<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text);padding:6px 0;border-bottom:1px solid var(--border);"><span>${escapeHtml(item.summary || item.kind)}</span><span style="color:var(--muted);">${new Date(item.ts).toLocaleTimeString('fr-FR', {hour:'2-digit',minute:'2-digit'})}</span></div>`).join('')
+    : '<div style="font-size:12px;color:var(--muted);padding:8px 0;">File d\'attente vide.</div>';
+  modal.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-title">${meta.icon} ${meta.label}</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px;">
+        ${cfg.cloudEnabled
+          ? `Dernière synchronisation cloud : ${lastSync}.`
+          : `Aucune sauvegarde cloud n'est configurée pour le moment : tes données restent stockées uniquement sur cet appareil. La file d'attente ci-dessous se videra automatiquement dès qu'une synchronisation sera disponible.`}
+      </div>
+      <div style="font-weight:800;color:var(--accent);font-size:13px;margin-bottom:6px;">Modifications en attente (${queue.length})</div>
+      <div style="max-height:220px;overflow-y:auto;margin-bottom:14px;">${queueHtml}</div>
+      <div class="modal-actions">
+        <button class="modal-btn-cancel" onclick="document.getElementById('syncStatusModalTmp').remove()">Fermer</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
 function save() {
   localStorage.setItem('timetracker_sessions', JSON.stringify(state.sessions));
   localStorage.setItem('timetracker_current', JSON.stringify({
@@ -1891,6 +2226,86 @@ function save() {
     startGeo: state.startGeo,
     workMode: state.workMode,
   }));
+  if (typeof enqueueSyncChange === 'function') enqueueSyncChange('sessions', 'Sessions mises à jour');
+}
+
+// ── AUDIT TRAIL (HISTORIQUE DES MODIFICATIONS MANUELLES) ──
+// Trace chaque modification manuelle effectuée sur les données sensibles
+// (sessions, congés, taux horaires, primes) : quoi, quand, et un résumé
+// avant/après. Utile pour retrouver l'origine d'une correction ultérieure.
+const AUDIT_LOG_MAX_ENTRIES = 300;
+let auditLog = [];
+
+function loadAuditLog() {
+  try {
+    const raw = localStorage.getItem('orvia_audit_log');
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) auditLog = parsed.slice(0, AUDIT_LOG_MAX_ENTRIES);
+  } catch (e) {}
+}
+
+function saveAuditLog() {
+  localStorage.setItem('orvia_audit_log', JSON.stringify(auditLog.slice(0, AUDIT_LOG_MAX_ENTRIES)));
+}
+
+// category: 'session' | 'conge' | 'taux' | 'prime'
+// action: 'création' | 'modification' | 'suppression'
+function logAuditEntry(category, action, summary) {
+  auditLog.unshift({
+    id: Date.now() + Math.floor(Math.random() * 100000),
+    ts: Date.now(),
+    category,
+    action,
+    summary: (summary || '').slice(0, 160)
+  });
+  if (auditLog.length > AUDIT_LOG_MAX_ENTRIES) auditLog.length = AUDIT_LOG_MAX_ENTRIES;
+  saveAuditLog();
+}
+
+function clearAuditLog() {
+  if (!confirm('Effacer tout l\'historique des modifications ? Cette action est irréversible.')) return;
+  auditLog = [];
+  saveAuditLog();
+  renderAuditLogList();
+  showToast('Historique des modifications effacé');
+}
+
+const AUDIT_CATEGORY_ICONS = { session: '⏱️', conge: '📅', taux: '💶', prime: '🎁' };
+const AUDIT_CATEGORY_LABELS = { session: 'Session', conge: 'Congé', taux: 'Taux horaire', prime: 'Prime' };
+const AUDIT_ACTION_COLORS = { 'création': 'var(--green)', 'modification': 'var(--orange)', 'suppression': 'var(--accent2)' };
+
+function openAuditLogSettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-auditlog-settings').classList.add('active');
+  renderAuditLogList();
+}
+
+function renderAuditLogList() {
+  const el = document.getElementById('auditLogList');
+  if (!el) return;
+  if (!auditLog.length) {
+    el.innerHTML = '<div class="settings-card" style="padding:14px;"><div style="font-size:13px;color:var(--muted);">Aucune modification enregistrée pour le moment.</div></div>';
+    return;
+  }
+  el.innerHTML = auditLog.map(e => {
+    const icon = AUDIT_CATEGORY_ICONS[e.category] || '📝';
+    const catLabel = AUDIT_CATEGORY_LABELS[e.category] || e.category;
+    const actionColor = AUDIT_ACTION_COLORS[e.action] || 'var(--muted)';
+    const d = new Date(e.ts);
+    const dateStr = d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+    const timeStr = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+    return `
+    <div class="settings-card" style="margin-bottom:8px;padding:12px 14px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;">
+        <span style="font-weight:700;font-size:13px;color:var(--text);">${icon} ${catLabel} — <span style="color:${actionColor};">${e.action}</span></span>
+        <span style="font-size:11px;color:var(--muted);white-space:nowrap;">${dateStr} ${timeStr}</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted);">${escapeHtml(e.summary)}</div>
+    </div>
+  `;
+  }).join('');
 }
 
 function load() {
@@ -2021,12 +2436,15 @@ function addTauxHoraireEntry(dateStr, taux, note) {
   });
   tauxHoraireHistory.sort((a, b) => a.date.localeCompare(b.date));
   saveTauxHoraireHistory();
+  logAuditEntry('taux', 'création', `${clean} €/h à partir du ${dateStr}${note ? ' (' + note + ')' : ''}`);
   return true;
 }
 
 function deleteTauxHoraireEntry(id) {
+  const deleted = tauxHoraireHistory.find(e => e.id === id);
   tauxHoraireHistory = tauxHoraireHistory.filter(e => e.id !== id);
   saveTauxHoraireHistory();
+  if (deleted) logAuditEntry('taux', 'suppression', `${deleted.taux} €/h à partir du ${deleted.date}`);
   renderTauxHoraireHistoList();
   renderToday();
   showToast('Entrée supprimée');
@@ -2090,21 +2508,25 @@ function loadPrimesHistory() {
 function addPrimeEntry(dateStr, montant, type, note) {
   const clean = clampNumber(Number(montant), 0, 1000000, 0);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr) || !clean) return false;
+  const finalType = PRIME_TYPES.some(t => t.id === type) ? type : 'autre';
   primesHistory.push({
     id: Date.now() + Math.floor(Math.random() * 100000),
     date: dateStr,
     montant: clean,
-    type: PRIME_TYPES.some(t => t.id === type) ? type : 'autre',
+    type: finalType,
     note: (note || '').slice(0, 60)
   });
   primesHistory.sort((a, b) => b.date.localeCompare(a.date));
   savePrimesHistory();
+  logAuditEntry('prime', 'création', `${clean} € (${finalType}) le ${dateStr}${note ? ' — ' + note : ''}`);
   return true;
 }
 
 function deletePrimeEntry(id) {
+  const deleted = primesHistory.find(e => e.id === id);
   primesHistory = primesHistory.filter(e => e.id !== id);
   savePrimesHistory();
+  if (deleted) logAuditEntry('prime', 'suppression', `${deleted.montant} € (${deleted.type}) du ${deleted.date}`);
   renderPrimesHistoList();
   renderToday();
   showToast('Prime supprimée');
@@ -3348,6 +3770,116 @@ function checkGoalNotifications(dayTotal, dayGoal, weekTotal, weekGoal) {
   if (changed) saveNotifState();
 }
 
+// ── ALERTE PLAFOND HORAIRE LÉGAL HEBDOMADAIRE ──
+// Prévient si le temps de travail hebdomadaire dépasse un seuil légal
+// configurable (48h par défaut en France, durée maximale absolue sauf
+// dérogations), pour éviter les dépassements involontaires.
+function getWeeklyLegalCapConfig() {
+  try {
+    const raw = localStorage.getItem('orvia_weekly_cap_config');
+    if (!raw) return { enabled: true, capHours: 48, warnAtPct: 90 };
+    const p = JSON.parse(raw);
+    return {
+      enabled: p.enabled !== false,
+      capHours: Number.isFinite(Number(p.capHours)) ? clampNumber(Number(p.capHours), 1, 168, 48) : 48,
+      warnAtPct: Number.isFinite(Number(p.warnAtPct)) ? clampNumber(Number(p.warnAtPct), 50, 100, 90) : 90
+    };
+  } catch (e) {
+    return { enabled: true, capHours: 48, warnAtPct: 90 };
+  }
+}
+
+function saveWeeklyLegalCapConfig(cfg) {
+  localStorage.setItem('orvia_weekly_cap_config', JSON.stringify(cfg));
+}
+
+function checkWeeklyLegalCap(weekTotalMs) {
+  const cfg = getWeeklyLegalCapConfig();
+  if (!cfg.enabled) return;
+  const weekKey = getMondayOf(new Date()).getTime();
+  const weekHeures = weekTotalMs / 3600000;
+  const capMs = cfg.capHours * 3600000;
+  const warnMs = capMs * (cfg.warnAtPct / 100);
+
+  if (!_notifState.weeklyCapKey || _notifState.weeklyCapKey !== weekKey) {
+    _notifState.weeklyCapKey = weekKey;
+    _notifState.weeklyCapWarned = false;
+    _notifState.weeklyCapExceeded = false;
+  }
+
+  const canNotify = ('Notification' in window) && Notification.permission === 'granted';
+
+  if (weekTotalMs >= capMs && !_notifState.weeklyCapExceeded) {
+    _notifState.weeklyCapExceeded = true;
+    saveNotifState();
+    const msg = `Tu as dépassé le plafond légal de ${cfg.capHours}h cette semaine (${weekHeures.toFixed(1)}h travaillées).`;
+    if (canNotify) new Notification('⚠️ Plafond horaire dépassé', { body: msg });
+    showToast('⚠️ ' + msg);
+  } else if (weekTotalMs >= warnMs && weekTotalMs < capMs && !_notifState.weeklyCapWarned) {
+    _notifState.weeklyCapWarned = true;
+    saveNotifState();
+    const msg = `Tu approches du plafond légal de ${cfg.capHours}h/semaine (${weekHeures.toFixed(1)}h travaillées).`;
+    if (canNotify) new Notification('Plafond horaire proche', { body: msg });
+    showToast('⏰ ' + msg);
+  }
+}
+
+function renderWeeklyCapBanner(weekTotalMs) {
+  const el = document.getElementById('weeklyCapBanner');
+  if (!el) return;
+  const cfg = getWeeklyLegalCapConfig();
+  if (!cfg.enabled) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const weekHeures = weekTotalMs / 3600000;
+  const capMs = cfg.capHours * 3600000;
+  const warnMs = capMs * (cfg.warnAtPct / 100);
+
+  if (weekTotalMs >= capMs) {
+    el.style.display = 'block';
+    el.innerHTML = `<div style="background:rgba(239,68,68,.12);border:1px solid var(--accent2);border-radius:12px;padding:12px 14px;margin-bottom:16px;">
+      <div style="font-weight:700;color:var(--accent2);font-size:13px;">⚠️ Plafond horaire légal dépassé (${weekHeures.toFixed(1)}h / ${cfg.capHours}h)</div>
+    </div>`;
+  } else if (weekTotalMs >= warnMs) {
+    el.style.display = 'block';
+    el.innerHTML = `<div style="background:rgba(245,158,11,.12);border:1px solid var(--orange);border-radius:12px;padding:12px 14px;margin-bottom:16px;">
+      <div style="font-weight:700;color:var(--orange);font-size:13px;">⏰ Plafond horaire proche (${weekHeures.toFixed(1)}h / ${cfg.capHours}h)</div>
+    </div>`;
+  } else {
+    el.style.display = 'none';
+    el.innerHTML = '';
+  }
+}
+
+function openWeeklyCapSettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-weeklycap-settings').classList.add('active');
+  renderWeeklyCapSettingsForm();
+}
+
+function renderWeeklyCapSettingsForm() {
+  const cfg = getWeeklyLegalCapConfig();
+  const enabledEl = document.getElementById('weeklyCapEnabled');
+  const capEl = document.getElementById('weeklyCapHours');
+  const warnEl = document.getElementById('weeklyCapWarnPct');
+  if (enabledEl) enabledEl.checked = cfg.enabled;
+  if (capEl) capEl.value = cfg.capHours;
+  if (warnEl) warnEl.value = cfg.warnAtPct;
+}
+
+function onWeeklyCapSettingsChange() {
+  const enabledEl = document.getElementById('weeklyCapEnabled');
+  const capEl = document.getElementById('weeklyCapHours');
+  const warnEl = document.getElementById('weeklyCapWarnPct');
+  const cfg = {
+    enabled: enabledEl ? enabledEl.checked : true,
+    capHours: capEl ? clampNumber(Number(capEl.value), 1, 168, 48) : 48,
+    warnAtPct: warnEl ? clampNumber(Number(warnEl.value), 50, 100, 90) : 90
+  };
+  saveWeeklyLegalCapConfig(cfg);
+  showToast('Réglages mis à jour ✓');
+  renderObjectifs();
+}
+
 function renderObjectifs() {
   const today = todayKey();
   // Heures du jour (sessions terminées)
@@ -3399,6 +3931,8 @@ function renderObjectifs() {
   renderOvertimeCard();
   renderRemunerationCardInto('remunerationCard', dayTotal, jourGoal, weekTotal, weekGoalAjuste);
   updateAppBadge(dayTotal);
+  checkWeeklyLegalCap(weekTotal);
+  renderWeeklyCapBanner(weekTotal);
 }
 
 // ── BADGE SUR L'ICÔNE DE L'APP ──
@@ -3464,10 +3998,11 @@ let _undoDeleteTimer=null,_undoDeleteSession=null,_undoDeleteIdx=null;
 function deleteSession(idx){
   if(_undoDeleteTimer){clearTimeout(_undoDeleteTimer);_undoDeleteTimer=null;}
   _undoDeleteSession=state.sessions[idx];_undoDeleteIdx=idx;
+  const _deletedSummary = _undoDeleteSession ? `${fmtTime(_undoDeleteSession.start)}-${fmtTime(_undoDeleteSession.end)} le ${new Date(_undoDeleteSession.start).toLocaleDateString('fr-FR')}` : '';
   state.sessions.splice(idx,1);renderToday();renderHistory();
   showUndoToast('Session supprimee',()=>{
     if(_undoDeleteSession!==null){state.sessions.splice(_undoDeleteIdx,0,_undoDeleteSession); state.sessions.sort((a,b)=>a.start-b.start);_undoDeleteSession=null;save();renderToday();renderHistory();}
-  },()=>{_undoDeleteSession=null;save();});
+  },()=>{_undoDeleteSession=null;save();logAuditEntry('session', 'suppression', _deletedSummary);});
 }
 function showUndoToast(msg,onUndo,onConfirm){
   let t=document.getElementById('undoToast');
@@ -3847,6 +4382,7 @@ function saveEditTimeModal() {
 
   const noteVal=document.getElementById('editTimeNote');
   if(noteVal)s.note=noteVal.value.trim();
+  const oldStart = s.start, oldEnd = s.end, oldPauseMs = s.pauseMs;
   s.start = newStart;
   s.end = newEnd;
   s.pauseMs = clampedPause;
@@ -3854,6 +4390,7 @@ function saveEditTimeModal() {
   s.date = tsToKey(newStart);
 
   save();
+  logAuditEntry('session', 'modification', `${fmtTime(oldStart)}-${fmtTime(oldEnd)} (pause ${Math.round((oldPauseMs||0)/60000)}min) → ${fmtTime(newStart)}-${fmtTime(newEnd)} (pause ${Math.round(clampedPause/60000)}min), le ${new Date(newStart).toLocaleDateString('fr-FR')}`);
   closeEditTimeModal();
   renderToday();
   renderHistory();
@@ -4776,16 +5313,87 @@ function exportXLSX() {
   navigator.clipboard.writeText(text).then(() => showToast('Résumé copié ✓')).catch(() => showToast('Erreur de copie'));
 }
 
-function clearAll() {
-    const ok = window.confirm("Voulez-vous vraiment effacer tout l'historique ? Cette action est irréversible.");
-    if (!ok) return;
-    state.sessions = [];
-    save();
-    renderToday();
-    renderHistory();
-    switchTab('today');
-    showToast('Données effacées ✓');
+// ── DOUBLE CONFIRMATION POUR SUPPRESSIONS SENSIBLES ──
+// Pour les actions irréversibles à fort impact (effacement de tout
+// l'historique, réinitialisation des données de rémunération), une simple
+// boîte de dialogue "OK/Annuler" est trop facile à valider par réflexe.
+// On exige ici de retaper un mot de confirmation avant d'exécuter l'action.
+let _dangerConfirmAction = null;
+let _dangerConfirmWord = '';
+
+function openDangerConfirmModal(opts) {
+  _dangerConfirmAction = opts.onConfirm;
+  _dangerConfirmWord = opts.word || 'SUPPRIMER';
+  const titleEl = document.getElementById('dangerConfirmTitle');
+  const msgEl = document.getElementById('dangerConfirmMessage');
+  const labelEl = document.getElementById('dangerConfirmInputLabel');
+  const inputEl = document.getElementById('dangerConfirmInput');
+  const errEl = document.getElementById('dangerConfirmError');
+  if (titleEl) titleEl.textContent = opts.title || '⚠️ Confirmation requise';
+  if (msgEl) msgEl.textContent = opts.message || 'Cette action est irréversible.';
+  if (labelEl) labelEl.textContent = `Tape "${_dangerConfirmWord}" pour confirmer :`;
+  if (inputEl) { inputEl.value = ''; inputEl.placeholder = _dangerConfirmWord; }
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  const modal = document.getElementById('dangerConfirmModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeDangerConfirmModal() {
+  const modal = document.getElementById('dangerConfirmModal');
+  if (modal) modal.style.display = 'none';
+  _dangerConfirmAction = null;
+}
+
+function submitDangerConfirmModal() {
+  const inputEl = document.getElementById('dangerConfirmInput');
+  const errEl = document.getElementById('dangerConfirmError');
+  const typed = inputEl ? inputEl.value.trim() : '';
+  if (typed !== _dangerConfirmWord) {
+    if (errEl) { errEl.textContent = `Le texte ne correspond pas à "${_dangerConfirmWord}".`; errEl.style.display = 'block'; }
+    return;
   }
+  const action = _dangerConfirmAction;
+  closeDangerConfirmModal();
+  if (typeof action === 'function') action();
+}
+
+function clearAll() {
+  openDangerConfirmModal({
+    title: '⚠️ Effacer tout l\'historique',
+    message: `Toutes tes sessions (${state.sessions.length}) seront définitivement supprimées. Cette action est irréversible et ne peut pas être annulée.`,
+    word: 'SUPPRIMER',
+    onConfirm: () => {
+      logAuditEntry('session', 'suppression', `Effacement complet de l'historique (${state.sessions.length} session(s))`);
+      state.sessions = [];
+      save();
+      renderToday();
+      renderHistory();
+      switchTab('today');
+      showToast('Données effacées ✓');
+    }
+  });
+}
+
+function resetRemunerationData() {
+  openDangerConfirmModal({
+    title: '⚠️ Réinitialiser la rémunération',
+    message: `Le taux horaire actuel, tout l'historique des taux (${tauxHoraireHistory.length} entrée(s)) et toutes les primes enregistrées (${primesHistory.length} entrée(s)) seront définitivement supprimés.`,
+    word: 'REINITIALISER',
+    onConfirm: () => {
+      logAuditEntry('taux', 'suppression', `Réinitialisation complète (taux + ${tauxHoraireHistory.length} entrée(s) d'historique)`);
+      logAuditEntry('prime', 'suppression', `Réinitialisation complète (${primesHistory.length} prime(s) supprimée(s))`);
+      remuneration.enabled = false;
+      remuneration.tauxHoraire = 0;
+      tauxHoraireHistory = [];
+      primesHistory = [];
+      saveRemuneration();
+      saveTauxHoraireHistory();
+      savePrimesHistory();
+      renderToday();
+      showToast('Données de rémunération réinitialisées ✓');
+    }
+  });
+}
 
 // ── CONGES ──
 const CONGE_COLORS = { cp:'cp', rtt:'rtt', css:'css', csp:'csp' };
@@ -4809,6 +5417,7 @@ function saveConges() {
   localStorage.setItem('timetracker_conges', JSON.stringify(state.conges));
   localStorage.setItem('timetracker_quotas', JSON.stringify(state.quotas));
   localStorage.setItem('timetracker_labels', JSON.stringify(CONGE_LABELS));   localStorage.setItem('timetracker_custom_types', JSON.stringify(customCongeTypes));
+  if (typeof enqueueSyncChange === 'function') enqueueSyncChange('conges', 'Congés mis à jour');
 }
 
 function workdaysBetween(d1, d2) {
@@ -4835,10 +5444,11 @@ function addConge() {
     // check quota (les types personnalisés n'ont pas de notion de quota : illimités)
     const isCustomType = customCongeTypes.some(t => t.id === type);
     if (!isCustomType) {
-      const taken = state.conges.filter(c => c.type === type).reduce((a, c) => a + (c.days || 0), 0);
-      const quota = Number(state.quotas[type] || 0);
+      const congeYear = Number(startVal.slice(0, 4));
+      const taken = getCongesTakenForYear(type, congeYear);
+      const quota = getEffectiveQuotaForYear(type, congeYear);
       if (taken + days > quota) {
-        return showToast(`Erreur : quota dépassé pour ${type.toUpperCase()} (${taken}/${quota} jours utilisés)`);
+        return showToast(`Erreur : quota dépassé pour ${type.toUpperCase()} (${taken}/${quota} jours utilisés, report inclus)`);
       }
     }
     // check overlap with existing conges
@@ -4866,6 +5476,7 @@ function addConge() {
     }
     state.conges.push({ type, start: startVal, end: endFinal, note, days, id: Date.now() + Math.floor(Math.random()*100000) });
     saveConges();
+    logAuditEntry('conge', 'création', `${days} jour(s) de ${getCongeTypeLabel(type)} du ${startVal} au ${endFinal}`);
     document.getElementById('congeStart').value = '';
     document.getElementById('congeEnd').value = '';
     document.getElementById('congeNote').value = '';
@@ -4875,8 +5486,10 @@ function addConge() {
 
 function deleteConge(id) {
   if (!confirm('Supprimer ce congé ?')) return;
+  const deleted = state.conges.find(c => c.id === id);
   state.conges = state.conges.filter(c => c.id !== id);
   saveConges();
+  if (deleted) logAuditEntry('conge', 'suppression', `${deleted.days} jour(s) de ${getCongeTypeLabel(deleted.type)} du ${deleted.start} au ${deleted.end}`);
   renderConges();
 }
 
@@ -5094,20 +5707,256 @@ function getCongeTypeColor(type) {
   return custom ? custom.color : '#8b8fa8';
 }
 
+
+// ── CONGÉS REPORTÉS D'UNE ANNÉE SUR L'AUTRE ──
+// Calcule, pour un type de congé et une année données, le nombre de jours
+// pris sur cette année précise (les quotas sont annuels : les congés pris
+// une année N ne doivent pas amputer le solde de l'année N+1).
+function getCongesTakenForYear(type, year) {
+  return state.conges
+    .filter(c => c.type === type && c.start.slice(0, 4) === String(year))
+    .reduce((a, c) => a + (c.days || 0), 0);
+}
+
+function getCarryoverConfig() {
+  try {
+    const raw = localStorage.getItem('orvia_carryover_config');
+    if (!raw) return { enabled: false, caps: { cp: 5, rtt: 2, css: 0, csp: 0 } };
+    const p = JSON.parse(raw);
+    const caps = { cp: 5, rtt: 2, css: 0, csp: 0 };
+    if (p.caps && typeof p.caps === 'object') {
+      ['cp', 'rtt', 'css', 'csp'].forEach(t => {
+        if (Number.isFinite(Number(p.caps[t]))) caps[t] = clampNumber(Number(p.caps[t]), 0, 365, caps[t]);
+      });
+    }
+    return { enabled: p.enabled === true, caps };
+  } catch (e) {
+    return { enabled: false, caps: { cp: 5, rtt: 2, css: 0, csp: 0 } };
+  }
+}
+
+function saveCarryoverConfig(cfg) {
+  localStorage.setItem('orvia_carryover_config', JSON.stringify(cfg));
+}
+
+// Jours reportés de l'année précédente vers l'année donnée, plafonnés par
+// la config. Basé sur le solde non utilisé de l'année N-1 (quota - pris).
+function getCarryoverForYear(type, year) {
+  const cfg = getCarryoverConfig();
+  if (!cfg.enabled) return 0;
+  const cap = cfg.caps[type] || 0;
+  if (cap <= 0) return 0;
+  const prevYear = year - 1;
+  const quota = Number(state.quotas[type] || 0);
+  if (quota <= 0) return 0;
+  const takenPrevYear = getCongesTakenForYear(type, prevYear);
+  const leftoverPrevYear = Math.max(0, quota - takenPrevYear);
+  return Math.min(cap, leftoverPrevYear);
+}
+
+function getEffectiveQuotaForYear(type, year) {
+  const base = Number(state.quotas[type] || 0);
+  return base + getCarryoverForYear(type, year);
+}
+
+
+// ── CALENDRIER SCOLAIRE (ZONES A / B / C) ──
+// Dates officielles des vacances scolaires françaises par zone, pour
+// anticiper les congés familiaux (Éducation nationale, arrêtés officiels).
+const SCHOOL_HOLIDAYS = {
+  // ── Année scolaire 2025-2026 ──
+  A: [
+    { label: 'Toussaint', start: '2025-10-18', end: '2025-11-03' },
+    { label: 'Noël', start: '2025-12-20', end: '2026-01-05' },
+    { label: 'Hiver', start: '2026-02-07', end: '2026-02-23' },
+    { label: 'Printemps', start: '2026-04-04', end: '2026-04-20' },
+    { label: 'Été', start: '2026-07-04', end: '2026-09-01' },
+    { label: 'Toussaint', start: '2026-10-17', end: '2026-11-02' },
+    { label: 'Noël', start: '2026-12-19', end: '2027-01-04' },
+    { label: 'Hiver', start: '2027-02-13', end: '2027-03-01' },
+    { label: 'Printemps', start: '2027-04-10', end: '2027-04-26' },
+    { label: 'Été', start: '2027-07-03', end: '2027-09-01' }
+  ],
+  B: [
+    { label: 'Toussaint', start: '2025-10-18', end: '2025-11-03' },
+    { label: 'Noël', start: '2025-12-20', end: '2026-01-05' },
+    { label: 'Hiver', start: '2026-02-14', end: '2026-03-02' },
+    { label: 'Printemps', start: '2026-04-11', end: '2026-04-27' },
+    { label: 'Été', start: '2026-07-04', end: '2026-09-01' },
+    { label: 'Toussaint', start: '2026-10-17', end: '2026-11-02' },
+    { label: 'Noël', start: '2026-12-19', end: '2027-01-04' },
+    { label: 'Hiver', start: '2027-02-20', end: '2027-03-08' },
+    { label: 'Printemps', start: '2027-04-17', end: '2027-05-03' },
+    { label: 'Été', start: '2027-07-03', end: '2027-09-01' }
+  ],
+  C: [
+    { label: 'Toussaint', start: '2025-10-18', end: '2025-11-03' },
+    { label: 'Noël', start: '2025-12-20', end: '2026-01-05' },
+    { label: 'Hiver', start: '2026-02-21', end: '2026-03-09' },
+    { label: 'Printemps', start: '2026-04-18', end: '2026-05-04' },
+    { label: 'Été', start: '2026-07-04', end: '2026-09-01' },
+    { label: 'Toussaint', start: '2026-10-17', end: '2026-11-02' },
+    { label: 'Noël', start: '2026-12-19', end: '2027-01-04' },
+    { label: 'Hiver', start: '2027-02-06', end: '2027-02-22' },
+    { label: 'Printemps', start: '2027-04-03', end: '2027-04-19' },
+    { label: 'Été', start: '2027-07-03', end: '2027-09-01' }
+  ]
+};
+const SCHOOL_ZONE_ACADEMIES = {
+  A: 'Besançon, Bordeaux, Clermont-Ferrand, Dijon, Grenoble, Limoges, Lyon, Poitiers',
+  B: 'Aix-Marseille, Amiens, Lille, Nancy-Metz, Nantes, Nice, Normandie, Orléans-Tours, Reims, Rennes, Strasbourg',
+  C: 'Créteil, Montpellier, Paris, Toulouse, Versailles'
+};
+
+function getSchoolZoneConfig() {
+  try {
+    const raw = localStorage.getItem('orvia_school_zone');
+    if (!raw) return { zone: null };
+    const p = JSON.parse(raw);
+    return { zone: ['A', 'B', 'C'].includes(p.zone) ? p.zone : null };
+  } catch (e) {
+    return { zone: null };
+  }
+}
+
+function saveSchoolZoneConfig(cfg) {
+  localStorage.setItem('orvia_school_zone', JSON.stringify(cfg));
+}
+
+function isDateInSchoolHoliday(dateStr) {
+  const cfg = getSchoolZoneConfig();
+  if (!cfg.zone) return null;
+  const periods = SCHOOL_HOLIDAYS[cfg.zone] || [];
+  return periods.find(p => dateStr >= p.start && dateStr <= p.end) || null;
+}
+
+function getUpcomingSchoolHolidays(count) {
+  const cfg = getSchoolZoneConfig();
+  if (!cfg.zone) return [];
+  const today = todayKey();
+  const periods = SCHOOL_HOLIDAYS[cfg.zone] || [];
+  return periods.filter(p => p.end >= today).slice(0, count || 5);
+}
+
+function openSchoolCalendarSettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-schoolcal-settings').classList.add('active');
+  renderSchoolCalendarSettingsForm();
+}
+
+function renderSchoolCalendarSettingsForm() {
+  const cfg = getSchoolZoneConfig();
+  ['A', 'B', 'C', 'none'].forEach(z => {
+    const el = document.getElementById('schoolZoneOpt_' + z);
+    if (el) el.checked = (cfg.zone === z) || (z === 'none' && !cfg.zone);
+  });
+  renderSchoolCalendarUpcoming();
+}
+
+function onSchoolZoneChange() {
+  let selected = null;
+  ['A', 'B', 'C'].forEach(z => {
+    const el = document.getElementById('schoolZoneOpt_' + z);
+    if (el && el.checked) selected = z;
+  });
+  saveSchoolZoneConfig({ zone: selected });
+  renderSchoolCalendarUpcoming();
+  showToast(selected ? `Zone ${selected} sélectionnée ✓` : 'Calendrier scolaire désactivé');
+}
+
+function renderSchoolCalendarUpcoming() {
+  const el = document.getElementById('schoolCalendarUpcoming');
+  if (!el) return;
+  const cfg = getSchoolZoneConfig();
+  if (!cfg.zone) {
+    el.innerHTML = '<div class="settings-card" style="padding:14px;"><div style="font-size:13px;color:var(--muted);">Sélectionne ta zone académique pour voir les prochaines périodes de vacances scolaires.</div></div>';
+    return;
+  }
+  const upcoming = getUpcomingSchoolHolidays(6);
+  if (!upcoming.length) {
+    el.innerHTML = '<div class="settings-card" style="padding:14px;"><div style="font-size:13px;color:var(--muted);">Aucune période à venir dans les données disponibles.</div></div>';
+    return;
+  }
+  el.innerHTML = upcoming.map(p => {
+    const startD = new Date(p.start + 'T00:00:00');
+    const endD = new Date(p.end + 'T00:00:00');
+    const startStr = startD.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+    const endStr = endD.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+    return `<div class="settings-card" style="margin-bottom:8px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-weight:700;font-size:13px;color:var(--text);">🏫 ${p.label}</span>
+      <span style="font-size:12px;color:var(--muted);">${startStr} → ${endStr}</span>
+    </div>`;
+  }).join('');
+}
+
+function openCarryoverSettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-carryover-settings').classList.add('active');
+  renderCarryoverSettingsForm();
+}
+
+function renderCarryoverSettingsForm() {
+  const cfg = getCarryoverConfig();
+  const enabledEl = document.getElementById('carryoverEnabled');
+  if (enabledEl) enabledEl.checked = cfg.enabled;
+  ['cp', 'rtt', 'css', 'csp'].forEach(t => {
+    const el = document.getElementById('carryoverCap_' + t);
+    if (el) el.value = cfg.caps[t];
+  });
+  renderCarryoverPreview();
+}
+
+function renderCarryoverPreview() {
+  const el = document.getElementById('carryoverPreview');
+  if (!el) return;
+  const cfg = getCarryoverConfig();
+  const thisYear = new Date().getFullYear();
+  if (!cfg.enabled) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted);">Le report est désactivé : les quotas repartent à zéro chaque année.</div>';
+    return;
+  }
+  const rows = ['cp', 'rtt', 'css', 'csp']
+    .filter(t => cfg.caps[t] > 0)
+    .map(t => {
+      const carried = getCarryoverForYear(t, thisYear);
+      return `<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text);margin-bottom:4px;"><span>${getCongeTypeLabel(t)}</span><span style="font-weight:700;color:var(--accent);">+${carried}j reportés en ${thisYear}</span></div>`;
+    }).join('');
+  el.innerHTML = rows || '<div style="font-size:12px;color:var(--muted);">Aucun plafond de report configuré.</div>';
+}
+
+function onCarryoverSettingsChange() {
+  const enabledEl = document.getElementById('carryoverEnabled');
+  const caps = {};
+  ['cp', 'rtt', 'css', 'csp'].forEach(t => {
+    const el = document.getElementById('carryoverCap_' + t);
+    caps[t] = el ? clampNumber(Number(el.value), 0, 365, 0) : 0;
+  });
+  const cfg = { enabled: enabledEl ? enabledEl.checked : false, caps };
+  saveCarryoverConfig(cfg);
+  renderCarryoverPreview();
+  renderConges();
+  showToast('Réglages mis à jour ✓');
+}
+
 function renderConges() {
   const types = ['cp','rtt','css','csp'];
   const colors = { cp:'#6c63ff', rtt:'#3ecf8e', css:'#f59e0b', csp:'#ff6584' };
+  const thisYear = new Date().getFullYear();
 
   // Solde cards
   document.getElementById('soldeGrid').innerHTML = types.map(t => {
-    const quota = state.quotas[t];
-    const taken = state.conges.filter(c => c.type === t).reduce((a,c) => a + c.days, 0);
+    const carryover = getCarryoverForYear(t, thisYear);
+    const quota = Number(state.quotas[t] || 0) + carryover;
+    const taken = getCongesTakenForYear(t, thisYear);
     const left = Math.max(0, quota - taken);
     const pct = quota > 0 ? Math.min(100, (taken / quota) * 100) : 0;
     const isLow = (t === 'cp' || t === 'rtt') && quota > 0 && left > 0 && left < LOW_QUOTA_THRESHOLD;
     const lowBadge = isLow ? `<span style="font-size:11px;color:var(--orange);font-weight:700;margin-left:6px;">⚠️ bas</span>` : '';
+    const carryBadge = carryover > 0 ? `<span style="font-size:10px;color:var(--accent);font-weight:700;margin-left:6px;">+${carryover}j reportés</span>` : '';
     return `<div class="solde-card" style="background:${colors[t]}18${isLow ? ';border:1px solid var(--orange)' : ''}">
-      <div class="sc-type" style="color:${colors[t]}">${CONGE_LABELS[t]}${lowBadge}</div>
+      <div class="sc-type" style="color:${colors[t]}">${CONGE_LABELS[t]}${lowBadge}${carryBadge}</div>
       <div class="sc-nums">
         <span class="sc-taken" style="color:${colors[t]}">${left}</span>
         <span class="sc-total">/ ${quota} j restants</span>
@@ -5191,9 +6040,11 @@ function renderCal() {
     else if (workedDays.has(dateStr)) cls += ' work';
     if (hasConge) cls += ' has-conge';
     const holidayLabel = isHoliday ? getHolidayLabel(dateStr) : null;
-    const titleAttr = holidayLabel ? ` title="${holidayLabel}"` : '';
+    const schoolHoliday = isDateInSchoolHoliday(dateStr);
+    const titleAttr = (holidayLabel || schoolHoliday) ? ` title="${holidayLabel || ''}${holidayLabel && schoolHoliday ? ' — ' : ''}${schoolHoliday ? 'Vacances scolaires: ' + schoolHoliday.label : ''}"` : '';
     const clickAttr = hasConge ? ` onclick="openCalDayDetail('${dateStr}')"` : ` onclick="openAddCongeForDate('${dateStr}')"` ;
-    html += `<div class="${cls}"${customColor ? ' style="background:'+customColor+'33;color:'+customColor+'"' : ''}${clickAttr}${titleAttr}>${d}</div>`;
+    const schoolDot = schoolHoliday ? '<span style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#f59e0b;"></span>' : '';
+    html += `<div class="${cls}" style="position:relative;${customColor ? 'background:'+customColor+'33;color:'+customColor+';' : ''}"${clickAttr}${titleAttr}>${d}${schoolDot}</div>`;
   }
   grid.innerHTML = html;
 }
@@ -6094,6 +6945,12 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '0.4.0', date: '2026-07-16', items: ['Fusion complète : audit trail, double confirmation, congés reportés, calendrier scolaire, alerte 48h et notifications visuelles de synchronisation réunis dans une seule version.'] },
+    { version: '0.3.4', date: '2026-07-16', items: ['Intégration du calendrier scolaire (zones A/B/C) : dates officielles des vacances scolaires, visibles dans le calendrier des congés et listées pour anticiper les congés familiaux.'] },
+    { version: '0.3.3', date: '2026-07-16', items: ['Gestion des congés reportés d\u2019une année sur l\u2019autre : plafond configurable par type, appliqué automatiquement au solde et au contrôle de quota.'] },
+    { version: '0.3.2', date: '2026-07-16', items: ['Double confirmation avant suppression définitive de données sensibles : effacement complet de l\u2019historique et réinitialisation de la rémunération demandent désormais de taper un mot de confirmation.'] },
+    { version: '0.3.1', date: '2026-07-16', items: ['Historique des modifications manuelles (audit trail) : trace les créations, modifications et suppressions sur les sessions, congés, taux horaires et primes.'] },
+    { version: '0.3.0', date: '2026-07-16', items: ['Alerte de dépassement du plafond horaire légal hebdomadaire (48h par défaut, configurable) avec avertissement préventif et notification.'] },
     { version: '0.2.9', date: '2026-07-16', items: ['Correction : le champ Note manquait dans le modal \u00abModifier les horaires\u00bb, empêchant de consulter/modifier la note d\u2019une session terminée depuis cet écran.'] },
     { version: '0.2.8', date: '2026-07-16', items: ['Export PDF enrichi de graphiques : heures travaillées sur 12 semaines, répartition des congés, revenus bruts sur 6 mois (primes incluses).'] },
     { version: '0.2.7', date: '2026-07-16', items: ['Détection de tendances dans l\u2019Historique : jour de la semaine le plus/moins travaillé, évolution récente du temps de travail, régularité des horaires.'] },
@@ -6904,6 +7761,9 @@ function importBackup(event) {
     event.target.value = '';
   }
 
+  window.addEventListener('online', onNetworkOnline);
+  window.addEventListener('offline', onNetworkOffline);
+
   let swReady = false;
   let swRefreshing = false;
   if ('serviceWorker' in navigator) {
@@ -6935,8 +7795,7 @@ function importBackup(event) {
       });
     });
 
-    window.addEventListener('online', () => showToast('Connexion rétablie ✓'));
-    window.addEventListener('offline', () => showToast('Mode hors-ligne actif'));
+// (listeners online/offline déjà attachés globalement plus haut)
   } else {
     console.warn('[SW] Service worker non supporté par ce navigateur');
   }
@@ -6946,7 +7805,9 @@ applyTheme(getCurrentThemeId());
 applyMode(getCurrentMode());
 initSeasonalTheme();
 load();
-loadConges(); checkLowQuotaAlerts(); checkCongeExpiryNotification();
+loadConges(); checkLowQuotaAlerts(); checkCongeExpiryNotification(); loadAuditLog();
+renderSyncStatusBadge();
+processSyncQueue();
 loadObjectifs();
 loadRemuneration();
 loadTauxHoraireHistory();
