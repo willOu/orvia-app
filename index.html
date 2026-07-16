@@ -676,6 +676,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 <div class="page active" id="page-today">
 
   <div id="weeklyCapBanner" style="display:none;"></div>
+  <div id="dailyComplianceBanner" style="display:none;"></div>
 
   <div class="clock-card">
     <div class="big-time" id="bigTime">00:00:00</div>
@@ -768,6 +769,9 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 
   <div id="congeExpiryBanner" style="display:none;"></div>
 
+  <div id="btpFifthWeekBanner" style="display:none;"></div>
+  <div id="btpSummaryCard" style="display:none;"></div>
+
   <!-- Soldes -->
   <div class="section-title">Soldes annuels</div>
   <div class="solde-grid" id="soldeGrid"></div>
@@ -854,6 +858,13 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       <label style="font-weight:800;color:var(--accent2);">⚠️ Plafond horaire légal</label>
     </div>
     <div class="settings-desc-box">Alerte en cas de dépassement hebdomadaire</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openPlanningTools()">
+      <label style="font-weight:800;color:var(--accent);">🗓️ Planning intelligent</label>
+    </div>
+    <div class="settings-desc-box">Ponts, règles de repos et modèles de sessions</div>
   </div>
 
   <div class="settings-card" style="margin-bottom:10px;">
@@ -1025,7 +1036,114 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     </div>
     <div class="settings-desc-box">Autoriser le report de jours non pris vers l'année suivante</div>
   </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openBTPSettings()">
+      <label style="font-weight:800;color:var(--accent);">🏗️ Mode BTP (CIBTP)</label>
+    </div>
+    <div class="settings-desc-box">Congé principal, 5e semaine, ancienneté et fractionnement</div>
+  </div>
 </div>
+
+<div class="page" id="page-btp-settings">
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="section-title">🏗️ Mode BTP (CIBTP)</div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:11px;color:var(--muted);line-height:1.5;">
+      Active le calcul spécifique au secteur du BTP (caisse CIBTP) : congé principal (jusqu'à 24j), 5e semaine, jours d'ancienneté selon ta grille, et jours de fractionnement calculés selon les règles légales. Le décompte se fait en jours ouvrables (lundi–samedi, hors jours fériés), sur une période d'acquisition du 1er avril au 31 mars.
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="toggleBTPExplainer()">
+      <label style="font-weight:800;color:var(--accent);">📖 Comment ça marche (CIBTP Rhône-Alpes Auvergne)</label>
+    </div>
+    <div class="settings-desc-box">Dépliant explicatif du fonctionnement des congés BTP</div>
+    <div id="btpExplainerBox" style="display:none;padding:14px 16px 16px;font-size:12px;color:var(--muted);line-height:1.7;border-top:1px solid var(--border);">
+      <div style="font-weight:800;color:var(--text);margin-bottom:4px;">🏗️ Une gestion par caisse, pas par l'employeur</div>
+      Dans le BTP, ce n'est pas ton employeur qui gère directement tes congés payés, mais une caisse professionnelle (le CIBTP). Comme les salariés changent souvent de chantier ou d'entreprise, la caisse centralise les droits et verse elle-même l'indemnité de congé.
+      <div style="font-weight:800;color:var(--text);margin:12px 0 4px;">📅 Une période d'acquisition décalée</div>
+      Tes droits se constituent du <b>1er avril au 31 mars</b> de l'année suivante (et non du 1er juin au 31 mai comme ailleurs), à raison d'environ 2,5 jours ouvrables par mois travaillé, dans la limite de 30 jours ouvrables par an.
+      <div style="font-weight:800;color:var(--text);margin:12px 0 4px;">🧩 Composition du congé</div>
+      Le congé se décompose en plusieurs blocs cumulables : le <b>congé légal</b> (jusqu'à 30 jours ouvrables), les <b>jours de fractionnement</b> (selon la répartition de tes dates de prise), les <b>jours d'ancienneté</b> (selon ta convention), et d'éventuels <b>jours enfant à charge</b>.
+      <div style="font-weight:800;color:var(--text);margin:12px 0 4px;">🗓️ Quand prendre ses congés</div>
+      Le <b>congé principal</b> (12 à 24 jours) doit inclure une fraction continue de 12 jours prise entre le <b>1er mai et le 31 octobre</b>. Le solde au-delà du 24e jour, appelé <b>5e semaine</b>, doit être pris avant le <b>31 mars</b> (ouvriers) ou le <b>30 avril</b> (ETAM/cadres) de l'année suivante — sinon ces jours sont définitivement perdus. Les jours d'ancienneté ne doivent en principe pas être accolés au congé principal, sauf accord de l'employeur.
+      <div style="font-weight:800;color:var(--text);margin:12px 0 4px;">✂️ Le fractionnement</div>
+      Si tu poses une partie de ton congé principal <b>hors</b> de la période mai-octobre, tu gagnes des jours supplémentaires : <b>1 jour</b> si tu poses 3 à 5 jours hors période, <b>2 jours</b> si tu en poses 6 ou plus.
+      <div style="font-weight:800;color:var(--text);margin:12px 0 4px;">💰 Paiement et prime de vacances</div>
+      L'employeur remet un <b>certificat de congés</b> qui te permet de faire valoir tes droits auprès de la caisse. L'indemnité est versée environ 10 jours avant ton départ, à condition que ta demande soit faite à temps et ton RIB à jour dans ton espace CIBTP. Une <b>prime de vacances de 30%</b> s'ajoute au congé principal et aux jours de fractionnement/ancienneté, mais pas à la 5e semaine.
+      <div style="font-size:11px;color:var(--muted);margin-top:12px;font-style:italic;">Source : CIBTP Rhône-Alpes Auvergne — ces règles peuvent évoluer, vérifie toujours ton mémento congés ou ton espace sécurisé CIBTP en cas de doute.</div>
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:800;color:var(--accent);">Activer le mode BTP</label>
+      <label class="switch">
+        <input type="checkbox" id="btpEnabled" onchange="onBTPSettingsChange()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Statut</div>
+    <select id="btpStatut" onchange="onBTPSettingsChange()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);">
+      <option value="ouvrier">Ouvrier (5e semaine avant le 31 mars)</option>
+      <option value="etam_cadre">ETAM / Cadre (5e semaine avant le 30 avril)</option>
+    </select>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Date d'embauche</div>
+    <input type="date" id="btpEmbaucheDate" onchange="onBTPSettingsChange()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);">
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;">Utilisée pour calculer ton ancienneté et tes droits acquis.</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:10px;">Grille de jours d'ancienneté</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Ajoute un palier pour chaque nombre d'années d'ancienneté ouvrant droit à des jours supplémentaires. Cette grille dépend de ta convention collective : ajuste-la librement.</div>
+    <div id="btpAncienneteGrid" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <button class="btn-primary" style="width:100%;margin-top:10px;" onclick="addAncienneteRow()">+ Ajouter un palier</button>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:800;color:var(--accent);">🏗️⏳ Alerte 5e semaine</label>
+      <label class="switch">
+        <input type="checkbox" id="btpAlertEnabled" onchange="onBTPAlertSettingsChange()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="settings-desc-box">Notification push avant la date limite (31 mars ou 30 avril selon le statut)</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Délai d'avertissement</div>
+    <select id="btpAlertWarningDays" onchange="onBTPAlertSettingsChange()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);">
+      <option value="15">15 jours avant</option>
+      <option value="30">30 jours avant</option>
+      <option value="45">45 jours avant</option>
+      <option value="60">60 jours avant</option>
+      <option value="90">90 jours avant</option>
+    </select>
+    <div id="btpAlertPreview" style="font-size:11px;color:var(--muted);margin-top:8px;"></div>
+  </div>
+
+  <div class="settings-card" style="padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">⚠️ Limites du calcul</div>
+    <div style="font-size:11px;color:var(--muted);line-height:1.5;">
+      Ce module estime tes droits à partir des sessions et congés déjà enregistrés dans Orvia. Il ne remplace pas les décomptes officiels de ta caisse CIBTP (certificats de congés, cotisations employeur). Le fractionnement est calculé à partir des jours de congé payé (type CP) pris hors de la période mai–octobre, dans la limite des 12 jours restants du congé principal.
+    </div>
+  </div>
+</div>
+
 
 <div class="page" id="page-carryover-settings">
   <div class="settings-card" style="margin-bottom:10px;">
@@ -1388,6 +1506,14 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 
   <div class="section-title">Historique des récupérations</div>
   <div id="recuperationsList"></div>
+</div>
+
+<div class="page" id="page-planning-tools">
+  <div class="settings-card" style="margin-bottom:10px;"><div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')"><label>← Retour</label><div class="settings-summary">Revenir aux réglages</div></div></div>
+  <div class="section-title">🗓️ Planning intelligent</div>
+  <div class="settings-card" style="padding:14px;margin-bottom:10px;"><div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Ponts suggérés</div><div id="bridgeSuggestions" style="font-size:12px;color:var(--muted);"></div></div>
+  <div class="settings-card" style="padding:14px;margin-bottom:10px;"><div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Règles légales</div><label class="switch"><input type="checkbox" id="dailyCapEnabled" onchange="saveDailyRules()"><span class="slider"></span></label> <span style="font-size:13px;">Alerte plafond quotidien (10h)</span><br><label class="switch" style="margin-top:12px;"><input type="checkbox" id="restRuleEnabled" onchange="saveDailyRules()"><span class="slider"></span></label> <span style="font-size:13px;">Alerte repos minimum (11h)</span></div>
+  <div class="settings-card" style="padding:14px;"><div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Modèles de sessions</div><div id="sessionTemplatesList"></div><button class="btn-primary" style="width:100%;margin-top:10px" onclick="addSessionTemplate()">+ Créer un modèle</button></div>
 </div>
 
 <div class="page" id="page-weeklycap-settings">
@@ -2066,14 +2192,46 @@ function onNoteInputChange(){
 }
 function maybeShowWeeklyReport() {
   const now = new Date();
-  if (now.getDay() !== 1) return;
-  const todayKey = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+  if (now.getDay() !== 1 && now.getDay() !== 5) return;
+  const todayKey_ = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
   const lastShown = localStorage.getItem('orvia_weekly_report_shown');
-  if (lastShown === todayKey) return;
-  localStorage.setItem('orvia_weekly_report_shown', todayKey);
-  const lastMonday = new Date(now); lastMonday.setDate(now.getDate() - 7); lastMonday.setHours(0, 0, 0, 0);
-  const lastSunday = new Date(now); lastSunday.setDate(now.getDate() - 1); lastSunday.setHours(23, 59, 59, 999);
-  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.4.0';
+  if (lastShown === todayKey_) return;
+  localStorage.setItem('orvia_weekly_report_shown', todayKey_);
+  let periodStart, periodEnd;
+  if (now.getDay() === 1) {
+    periodStart = new Date(now); periodStart.setDate(now.getDate() - 7); periodStart.setHours(0,0,0,0);
+    periodEnd = new Date(now); periodEnd.setDate(now.getDate() - 1); periodEnd.setHours(23,59,59,999);
+  } else {
+    periodStart = getMondayOf(now); periodStart.setHours(0,0,0,0);
+    periodEnd = new Date(now); periodEnd.setHours(23,59,59,999);
+  }
+  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= periodStart && d <= periodEnd; });
+  if (sessions.length === 0) return;
+  const totalMs = sessions.reduce((a,s) => a+s.net, 0);
+  const totalH = Math.floor(totalMs/3600000);
+  const totalM = Math.floor((totalMs%3600000)/60000);
+  const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;
+  const goalMs = objectifs.semaine || 35*3600000;
+  const pct = Math.min(100, Math.round(totalMs/goalMs*100));
+  const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';
+  const capCfg = getWeeklyLegalCapConfig();
+  const capExceeded = capCfg.enabled && totalMs >= capCfg.capHours*3600000;
+  const dailyRules = getDailyRules();
+  const overCapDays = dailyRules.daily ? [...new Set(sessions.map(s=>s.date))].filter(d => dayTotal(d) >= 10*3600000) : [];
+  const restViol = dailyRules.rest ? restViolations().filter(v => v.b.start >= periodStart.getTime() && v.b.start <= periodEnd.getTime()) : [];
+  const totalPauseMs = sessions.reduce((a,s) => a + (s.pauseMs||0), 0);
+  const avgPauseMs = sessions.length ? Math.round(totalPauseMs / joursActifs) : 0;
+  const alertsHtml = [
+    capExceeded ? `<div style="font-size:12px;color:var(--accent2);font-weight:700;margin-top:4px;">⚠️ Plafond légal hebdomadaire dépassé (${capCfg.capHours}h)</div>` : '',
+    overCapDays.length ? `<div style="font-size:12px;color:var(--orange);font-weight:700;margin-top:4px;">⚠️ ${overCapDays.length} jour${overCapDays.length>1?'s':''} au-delà de 10h</div>` : '',
+    restViol.length ? `<div style="font-size:12px;color:var(--orange);font-weight:700;margin-top:4px;">⚠️ ${restViol.length} repos inférieur${restViol.length>1?'s':''} à 11h entre deux journées</div>` : ''
+  ].filter(Boolean).join('');
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'weeklyReportModal';
+  modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Bilan ${now.getDay()===1?'de la semaine dernière':'de la semaine'}</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Du ${periodStart.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${periodEnd.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''} · pause moy. ${fmtHM(avgPauseMs)}</div>${alertsHtml}<div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
+  document.body.appendChild(modal);
+}  const APP_VERSION = '0.7.0';
 
 
 // ── STORAGE ──
@@ -3529,6 +3687,7 @@ function renderToday() {
     container.innerHTML = todaySessions.map(s => sessionItemHtml(s)).join('');
   }
   renderObjectifs();
+  renderDailyCompliance();
 }
 
 
@@ -3769,6 +3928,22 @@ function checkGoalNotifications(dayTotal, dayGoal, weekTotal, weekGoal) {
   }
   if (changed) saveNotifState();
 }
+
+
+// ── PLANNING INTELLIGENT : PONTS, REPOS LÉGAL ET MODÈLES ──
+function getDailyRules(){try{const x=JSON.parse(localStorage.getItem('orvia_daily_rules'));return {daily:x?.daily!==false,rest:x?.rest!==false}}catch(e){return {daily:true,rest:true}}}
+function saveDailyRules(){const x={daily:document.getElementById('dailyCapEnabled')?.checked,rest:document.getElementById('restRuleEnabled')?.checked};localStorage.setItem('orvia_daily_rules',JSON.stringify(x));renderToday();}
+function dayTotal(date){return state.sessions.filter(s=>s.date===date).reduce((a,s)=>a+s.net,0)}
+function restViolations(){const ss=[...state.sessions].sort((a,b)=>a.start-b.start), out=[];for(let i=1;i<ss.length;i++){const gap=ss[i].start-ss[i-1].end;if(gap>=0&&gap<11*3600000&&tsToKey(ss[i].start)!==tsToKey(ss[i-1].start))out.push({gap,a:ss[i-1],b:ss[i]})}return out}
+function renderDailyCompliance(){const el=document.getElementById('dailyComplianceBanner');if(!el)return;const r=getDailyRules(), h=dayTotal(todayKey())/3600000, v=restViolations().filter(x=>tsToKey(x.b.start)===todayKey());let msgs=[];if(r.daily&&h>=10)msgs.push(`⚠️ Plafond journalier dépassé : ${h.toFixed(1)}h / 10h`);else if(r.daily&&h>=9)msgs.push(`⏰ Plafond journalier proche : ${h.toFixed(1)}h / 10h`);if(r.rest&&v.length)msgs.push(`⚠️ Repos légal insuffisant : ${Math.floor(v[0].gap/3600000)}h${String(Math.floor(v[0].gap/60000)%60).padStart(2,'0')} entre deux journées (minimum 11h)`);el.style.display=msgs.length?'block':'none';el.innerHTML=msgs.map(x=>`<div style="background:rgba(245,158,11,.12);border:1px solid var(--orange);border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:var(--orange);font-weight:700;">${x}</div>`).join('')}
+function computeBridgeSuggestions(){const now=new Date(),year=now.getFullYear(),out=[];for(let d=new Date(year,0,1);d.getFullYear()===year;d.setDate(d.getDate()+1)){const k=toLocalISO(d);if(!isDateHoliday(k))continue;const dow=d.getDay();if(dow===2||dow===4){const p=new Date(d);p.setDate(d.getDate()+(dow===2?-1:1));const pk=toLocalISO(p);if(!isDateHoliday(pk)&&p.getDay()!==0&&p.getDay()!==6)out.push({date:pk,label:getHolidayLabel(k)})}}return out.filter(x=>x.date>=toLocalISO(now)).slice(0,5)}
+function getTemplates(){try{const a=JSON.parse(localStorage.getItem('orvia_session_templates'));return Array.isArray(a)?a:[]}catch(e){return []}}
+function saveTemplates(a){localStorage.setItem('orvia_session_templates',JSON.stringify(a))}
+function addSessionTemplate(){const name=prompt('Nom du modèle (ex : Journée standard)');if(!name)return;const start=prompt('Heure de début (HH:MM)','09:00');const end=prompt('Heure de fin (HH:MM)','17:00');const pause=Number(prompt('Pause en minutes','60'));if(!/^\d{2}:\d{2}$/.test(start)||!/^\d{2}:\d{2}$/.test(end)||!Number.isFinite(pause))return showToast('Modèle invalide');const a=getTemplates();a.push({id:Date.now(),name:name.slice(0,40),start,end,pause:Math.max(0,pause)});saveTemplates(a);renderPlanningTools()}
+function applySessionTemplate(id){const t=getTemplates().find(x=>x.id===id);if(!t)return;openAddSessionModal();document.getElementById('addSessionStart').value=t.start;document.getElementById('addSessionEnd').value=t.end;document.getElementById('addSessionPause').value=t.pause;showToast(`Modèle « ${t.name} » appliqué`) }
+function deleteSessionTemplate(id){saveTemplates(getTemplates().filter(x=>x.id!==id));renderPlanningTools()}
+function renderPlanningTools(){const r=getDailyRules();const a=document.getElementById('dailyCapEnabled'),b=document.getElementById('restRuleEnabled');if(a)a.checked=r.daily;if(b)b.checked=r.rest;const br=document.getElementById('bridgeSuggestions');if(br){const x=computeBridgeSuggestions();br.innerHTML=x.length?x.map(z=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);">💡 Poser le <b>${z.date}</b> autour de ${z.label}</div>`).join(''):'Aucun pont à venir détecté.'}const el=document.getElementById('sessionTemplatesList');if(el)el.innerHTML=getTemplates().map(t=>`<div class="settings-row"><span><b>${escapeHtml(t.name)}</b><br><small>${t.start}–${t.end} · pause ${t.pause} min</small></span><span><button onclick="applySessionTemplate(${t.id})">Appliquer</button> <button onclick="deleteSessionTemplate(${t.id})">✕</button></span></div>`).join('')||'<span style="font-size:12px;color:var(--muted)">Aucun modèle enregistré.</span>'}
+function openPlanningTools(){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-planning-tools').classList.add('active');renderPlanningTools()}
 
 // ── ALERTE PLAFOND HORAIRE LÉGAL HEBDOMADAIRE ──
 // Prévient si le temps de travail hebdomadaire dépasse un seuil légal
@@ -5759,6 +5934,276 @@ function getEffectiveQuotaForYear(type, year) {
   return base + getCarryoverForYear(type, year);
 }
 
+// ── MODE BTP (CIBTP) : STATUT, ANCIENNETÉ, FRACTIONNEMENT ──
+// Règles issues du régime des congés payés du secteur BTP (caisses CIBTP) :
+// congé principal 12-24j pris entre mai et octobre, 5e semaine prise avant
+// le 31 mars (ouvriers) ou le 30 avril (ETAM/cadres), jours d'ancienneté
+// selon une grille configurable, et jours de fractionnement calculés selon
+// le nombre de jours de CP pris hors de la période mai-octobre.
+function getBTPConfig() {
+  try {
+    const raw = localStorage.getItem('orvia_btp_config');
+    if (!raw) return { enabled: false, statut: 'ouvrier', embaucheDate: '', anciennete: [], alertEnabled: true, alertWarningDays: 30 };
+    const p = JSON.parse(raw);
+    return {
+      enabled: p.enabled === true,
+      statut: (p.statut === 'etam_cadre') ? 'etam_cadre' : 'ouvrier',
+      embaucheDate: typeof p.embaucheDate === 'string' ? p.embaucheDate : '',
+      anciennete: Array.isArray(p.anciennete) ? p.anciennete.filter(x => Number.isFinite(Number(x.years)) && Number.isFinite(Number(x.days))) : [],
+      alertEnabled: p.alertEnabled !== false,
+      alertWarningDays: Number.isFinite(Number(p.alertWarningDays)) ? clampNumber(Number(p.alertWarningDays), 1, 180, 30) : 30
+    };
+  } catch (e) {
+    return { enabled: false, statut: 'ouvrier', embaucheDate: '', anciennete: [], alertEnabled: true, alertWarningDays: 30 };
+  }
+}
+
+function saveBTPConfig(cfg) {
+  localStorage.setItem('orvia_btp_config', JSON.stringify(cfg));
+}
+
+function getBTPAncienneteYears(cfg) {
+  if (!cfg.embaucheDate) return 0;
+  const start = new Date(cfg.embaucheDate + 'T00:00:00');
+  if (Number.isNaN(start.getTime())) return 0;
+  const now = new Date();
+  let years = now.getFullYear() - start.getFullYear();
+  const anniv = new Date(start); anniv.setFullYear(now.getFullYear());
+  if (now < anniv) years--;
+  return Math.max(0, years);
+}
+
+function getBTPAncienneteDays(cfg) {
+  cfg = cfg || getBTPConfig();
+  const years = getBTPAncienneteYears(cfg);
+  const sorted = [...cfg.anciennete].sort((a, b) => Number(a.years) - Number(b.years));
+  let days = 0;
+  sorted.forEach(row => { if (years >= Number(row.years)) days = Number(row.days); });
+  return days;
+}
+
+// Fractionnement légal : jours de CP pris hors période 1er mai-31 octobre,
+// dans la limite des 12 jours restant du congé principal (24j max, 12j
+// obligatoirement posés en mai-octobre). 2j si >= 6j hors période, 1j si
+// 3 à 5j hors période, sinon 0.
+function getBTPFractionnementInfo(year) {
+  const periodStart = `${year}-05-01`;
+  const periodEnd = `${year}-10-31`;
+  const cpDaysThisYear = state.conges.filter(c => c.type === 'cp' && c.start.slice(0, 4) === String(year));
+  let insidePeriod = 0, outsidePeriod = 0;
+  cpDaysThisYear.forEach(c => {
+    const inside = c.start >= periodStart && c.end <= periodEnd;
+    if (inside) insidePeriod += c.days;
+    else outsidePeriod += c.days;
+  });
+  let bonusDays = 0;
+  if (outsidePeriod >= 6) bonusDays = 2;
+  else if (outsidePeriod >= 3) bonusDays = 1;
+  return { insidePeriod, outsidePeriod, bonusDays };
+}
+
+function getBTPDeadlines(cfg) {
+  cfg = cfg || getBTPConfig();
+  const now = new Date();
+  const year = now.getFullYear();
+  const cinquiemeDeadline = cfg.statut === 'ouvrier' ? `${year}-03-31` : `${year}-04-30`;
+  return {
+    congePrincipalEnd: `${year}-10-31`,
+    cinquiemeSemaineEnd: cinquiemeDeadline,
+    fractionnementEnd: `${year}-04-30`
+  };
+}
+
+// ── ALERTE 5E SEMAINE À RISQUE (BTP) ──
+// Vérifie si le solde de CP restant sur la période d'acquisition en cours
+// (1er avril - 31 mars) risque d'être perdu avant l'échéance légale de la
+// 5e semaine (31 mars pour les ouvriers, 30 avril pour les ETAM/cadres).
+function getBTPAcquisitionYearStart(refDate) {
+  const d = refDate || new Date();
+  const year = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
+  return year;
+}
+
+function getBTP5eSemaineRisk() {
+  const cfg = getBTPConfig();
+  if (!cfg.enabled || !cfg.alertEnabled) return null;
+  const deadlines = getBTPDeadlines(cfg);
+  const deadlineDate = new Date(deadlines.cinquiemeSemaineEnd + 'T23:59:59');
+  const now = new Date();
+  let effectiveDeadline = deadlineDate;
+  if (effectiveDeadline.getTime() < now.getTime()) {
+    effectiveDeadline = new Date(effectiveDeadline.getFullYear() + 1, effectiveDeadline.getMonth(), effectiveDeadline.getDate(), 23, 59, 59);
+  }
+  const daysLeft = Math.ceil((effectiveDeadline.getTime() - now.getTime()) / 86400000);
+  if (daysLeft < 0 || daysLeft > cfg.alertWarningDays) return null;
+
+  const acquisitionYear = getBTPAcquisitionYearStart(new Date(effectiveDeadline.getFullYear(), effectiveDeadline.getMonth() - 4, 1));
+  const periodStart = `${acquisitionYear}-04-01`;
+  const periodEnd = `${acquisitionYear + 1}-03-31`;
+  const cpTaken = state.conges
+    .filter(c => c.type === 'cp' && c.start >= periodStart && c.start <= periodEnd)
+    .reduce((a, c) => a + (c.days || 0), 0);
+  const quota = Number(state.quotas.cp || 0);
+  const left = Math.max(0, quota - cpTaken);
+  if (left <= 0) return null;
+
+  return { left, deadline: effectiveDeadline, daysLeft, statut: cfg.statut };
+}
+
+function renderBTP5eSemaineBanner() {
+  const el = document.getElementById('btpFifthWeekBanner');
+  if (!el) return;
+  const risk = getBTP5eSemaineRisk();
+  if (!risk) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const deadlineStr = risk.deadline.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div style="background:rgba(239,68,68,.12);border:1px solid var(--accent2);border-radius:12px;padding:12px 14px;margin-bottom:16px;">
+      <div style="font-weight:700;color:var(--accent2);font-size:13px;margin-bottom:4px;">🏗️⏳ 5e semaine à risque</div>
+      <div style="font-size:12px;color:var(--muted);">${risk.left} jour${risk.left > 1 ? 's' : ''} de CP à utiliser avant le ${deadlineStr} (dans ${risk.daysLeft} jour${risk.daysLeft > 1 ? 's' : ''}), sous peine de perte selon la règle CIBTP.</div>
+    </div>`;
+}
+
+// Notification push proactive, une fois par jour, si la 5e semaine est à risque.
+function checkBTP5eSemaineNotification() {
+  const risk = getBTP5eSemaineRisk();
+  if (!risk) return;
+  const today = todayKey();
+  const lastNotifKey = 'orvia_btp_fifthweek_last_notif';
+  if (localStorage.getItem(lastNotifKey) === today) return;
+  const canNotify = ('Notification' in window) && Notification.permission === 'granted';
+  if (canNotify) {
+    new Notification('5e semaine à risque 🏗️⏳', { body: `${risk.left}j de congé payé à prendre avant le ${risk.deadline.toLocaleDateString('fr-FR')} (règle CIBTP).` });
+  }
+  localStorage.setItem(lastNotifKey, today);
+}
+
+function addAncienneteRow(years, days) {
+  const cfg = getBTPConfig();
+  cfg.anciennete.push({ years: years ?? 5, days: days ?? 1 });
+  saveBTPConfig(cfg);
+  renderBTPSettings();
+}
+
+function removeAncienneteRow(index) {
+  const cfg = getBTPConfig();
+  cfg.anciennete.splice(index, 1);
+  saveBTPConfig(cfg);
+  renderBTPSettings();
+}
+
+function updateAncienneteRow(index, field, value) {
+  const cfg = getBTPConfig();
+  if (!cfg.anciennete[index]) return;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return;
+  cfg.anciennete[index][field] = n;
+  saveBTPConfig(cfg);
+}
+
+function onBTPSettingsChange() {
+  const cfg = getBTPConfig();
+  const enabledEl = document.getElementById('btpEnabled');
+  const statutEl = document.getElementById('btpStatut');
+  const dateEl = document.getElementById('btpEmbaucheDate');
+  cfg.enabled = enabledEl ? enabledEl.checked : false;
+  cfg.statut = statutEl ? statutEl.value : 'ouvrier';
+  cfg.embaucheDate = dateEl ? dateEl.value : '';
+  saveBTPConfig(cfg);
+  renderConges();
+  showToast(cfg.enabled ? 'Mode BTP activé' : 'Mode BTP désactivé');
+}
+
+function onBTPAlertSettingsChange() {
+  const cfg = getBTPConfig();
+  const alertEnabledEl = document.getElementById('btpAlertEnabled');
+  const alertWarningEl = document.getElementById('btpAlertWarningDays');
+  cfg.alertEnabled = alertEnabledEl ? alertEnabledEl.checked : true;
+  cfg.alertWarningDays = alertWarningEl ? Number(alertWarningEl.value) : 30;
+  saveBTPConfig(cfg);
+  if (cfg.alertEnabled && 'Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+  renderBTPAlertPreview();
+  renderConges();
+  showToast(cfg.alertEnabled ? 'Alerte 5e semaine activée' : 'Alerte 5e semaine désactivée');
+}
+
+function renderBTPAlertPreview() {
+  const el = document.getElementById('btpAlertPreview');
+  if (!el) return;
+  const cfg = getBTPConfig();
+  const deadlines = getBTPDeadlines(cfg);
+  const deadlineStr = new Date(deadlines.cinquiemeSemaineEnd + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' });
+  el.textContent = `Prochaine échéance de la 5e semaine : ${deadlineStr}. Tu seras averti ${cfg.alertWarningDays} jours avant si un solde de CP reste à prendre.`;
+}
+
+function renderBTPSettings() {
+  const cfg = getBTPConfig();
+  const enabledEl = document.getElementById('btpEnabled');
+  const statutEl = document.getElementById('btpStatut');
+  const dateEl = document.getElementById('btpEmbaucheDate');
+  const alertEnabledEl = document.getElementById('btpAlertEnabled');
+  const alertWarningEl = document.getElementById('btpAlertWarningDays');
+  if (enabledEl) enabledEl.checked = cfg.enabled;
+  if (statutEl) statutEl.value = cfg.statut;
+  if (dateEl) dateEl.value = cfg.embaucheDate;
+  if (alertEnabledEl) alertEnabledEl.checked = cfg.alertEnabled;
+  if (alertWarningEl) alertWarningEl.value = String(cfg.alertWarningDays);
+  renderBTPAlertPreview();
+  const grid = document.getElementById('btpAncienneteGrid');
+  if (!grid) return;
+  if (!cfg.anciennete.length) {
+    grid.innerHTML = '<div style="font-size:12px;color:var(--muted);">Aucun palier défini.</div>';
+    return;
+  }
+  const sorted = cfg.anciennete.map((row, i) => ({ ...row, i })).sort((a, b) => Number(a.years) - Number(b.years));
+  grid.innerHTML = sorted.map(row => `
+    <div style="display:flex;align-items:center;gap:8px;">
+      <input type="number" min="0" max="60" value="${row.years}" onchange="updateAncienneteRow(${row.i},'years',this.value)" style="width:70px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 8px;color:var(--text);">
+      <span style="font-size:12px;color:var(--muted);">ans →</span>
+      <input type="number" min="0" max="30" value="${row.days}" onchange="updateAncienneteRow(${row.i},'days',this.value)" style="width:70px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 8px;color:var(--text);">
+      <span style="font-size:12px;color:var(--muted);">jours</span>
+      <button onclick="removeAncienneteRow(${row.i})" style="margin-left:auto;background:transparent;color:var(--accent2);border:1px solid var(--accent2);padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;">✕</button>
+    </div>`).join('');
+}
+
+function toggleBTPExplainer() {
+  const box = document.getElementById('btpExplainerBox');
+  if (!box) return;
+  box.style.display = box.style.display === 'none' ? 'block' : 'none';
+}
+
+function openBTPSettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-btp-settings').classList.add('active');
+  renderBTPSettings();
+}
+
+function renderBTPSummaryCard() {
+  const el = document.getElementById('btpSummaryCard');
+  if (!el) return;
+  const cfg = getBTPConfig();
+  if (!cfg.enabled) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const year = new Date().getFullYear();
+  const anciennete = getBTPAncienneteDays(cfg);
+  const frac = getBTPFractionnementInfo(year);
+  const deadlines = getBTPDeadlines(cfg);
+  const years = getBTPAncienneteYears(cfg);
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="settings-card" style="margin-bottom:16px;padding:14px;">
+      <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">🏗️ Droits BTP (${year})</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.7;">
+        Ancienneté : <b style="color:var(--text);">${years} an${years > 1 ? 's' : ''}</b> → <b style="color:var(--text);">${anciennete} jour${anciennete > 1 ? 's' : ''}</b> supplémentaire${anciennete > 1 ? 's' : ''}<br>
+        Jours de fractionnement acquis : <b style="color:var(--text);">${frac.bonusDays}</b> (${frac.outsidePeriod}j de CP pris hors mai-octobre)<br>
+        5e semaine à prendre avant le <b style="color:var(--text);">${new Date(deadlines.cinquiemeSemaineEnd + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })}</b>
+      </div>
+    </div>`;
+}
+
+
 
 // ── CALENDRIER SCOLAIRE (ZONES A / B / C) ──
 // Dates officielles des vacances scolaires françaises par zone, pour
@@ -5944,6 +6389,10 @@ function renderConges() {
   const types = ['cp','rtt','css','csp'];
   const colors = { cp:'#6c63ff', rtt:'#3ecf8e', css:'#f59e0b', csp:'#ff6584' };
   const thisYear = new Date().getFullYear();
+
+  renderBTPSummaryCard();
+  renderBTP5eSemaineBanner();
+  checkBTP5eSemaineNotification();
 
   // Solde cards
   document.getElementById('soldeGrid').innerHTML = types.map(t => {
@@ -6945,6 +7394,11 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '0.7.0', date: '2026-07-16', items: ['Nouvelle alerte 5e semaine (Mode BTP) : notification push et bannière avant la date limite de prise (31 mars ou 30 avril selon le statut), avec délai d\u2019avertissement réglable (15 à 90 jours).'] },
+    { version: '0.6.1', date: '2026-07-16', items: ['Ajout d\u2019un dépliant explicatif dans Mode BTP (CIBTP) : fonctionnement de la caisse, période d\u2019acquisition, composition du congé, périodes de prise, calcul du fractionnement et prime de vacances, spécifiques au CIBTP Rhône-Alpes Auvergne.'] },
+    { version: '0.6.0', date: '2026-07-16', items: ['Nouveau Mode BTP (CIBTP) dans les réglages des congés : statut ouvrier ou ETAM/cadre réglable (échéance de la 5e semaine), grille de jours d\u2019ancienneté entièrement personnalisable selon ta convention, et calcul automatique des jours de fractionnement (1 ou 2 jours) selon les jours de congé payé pris hors de la période mai-octobre.'] },
+    { version: '0.5.1', date: '2026-07-16', items: ['Correction : collision de nom entre l\u2019identifiant HTML et la fonction de suggestion de ponts, qui empêchait leur affichage fiable.', 'Correction : comparaison de dates incohérente (format ISO vs format français) dans le calcul des ponts suggérés.'] },
+    { version: '0.5.0', date: '2026-07-16', items: ['Nouveau Planning intelligent dans les réglages : suggestions de ponts autour des jours fériés, alerte de repos légal (11h entre deux journées), alerte de plafond journalier (10h), et modèles de sessions réutilisables en un clic.', 'Bilan hebdomadaire enrichi (vendredi et lundi) : pause moyenne, jours travaillés, et alertes de dépassement (plafond hebdo/jour, repos légal).'] },
     { version: '0.4.0', date: '2026-07-16', items: ['Fusion complète : audit trail, double confirmation, congés reportés, calendrier scolaire, alerte 48h et notifications visuelles de synchronisation réunis dans une seule version.'] },
     { version: '0.3.4', date: '2026-07-16', items: ['Intégration du calendrier scolaire (zones A/B/C) : dates officielles des vacances scolaires, visibles dans le calendrier des congés et listées pour anticiper les congés familiaux.'] },
     { version: '0.3.3', date: '2026-07-16', items: ['Gestion des congés reportés d\u2019une année sur l\u2019autre : plafond configurable par type, appliqué automatiquement au solde et au contrôle de quota.'] },
@@ -7805,7 +8259,7 @@ applyTheme(getCurrentThemeId());
 applyMode(getCurrentMode());
 initSeasonalTheme();
 load();
-loadConges(); checkLowQuotaAlerts(); checkCongeExpiryNotification(); loadAuditLog();
+loadConges(); checkLowQuotaAlerts(); checkCongeExpiryNotification(); checkBTP5eSemaineNotification(); loadAuditLog();
 renderSyncStatusBadge();
 processSyncQueue();
 loadObjectifs();
