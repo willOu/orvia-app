@@ -739,6 +739,9 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     </div>
   </div>
 
+  <div class="section-title">Tes tendances</div>
+  <div id="trendInsightsList" style="margin-bottom:16px;"></div>
+
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
     <div class="view-selector" style="margin:0;flex:1;">
       <button class="view-btn active" onclick="setView('day')">Jour</button>
@@ -757,6 +760,8 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 
 <!-- PAGE CONGES -->
 <div class="page" id="page-conges">
+
+  <div id="congeExpiryBanner" style="display:none;"></div>
 
   <!-- Soldes -->
   <div class="section-title">Soldes annuels</div>
@@ -847,6 +852,20 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
 
   <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openPrimesSettings()">
+      <label style="font-weight:800;color:var(--accent);">Primes ponctuelles</label>
+    </div>
+    <div class="settings-desc-box">13e mois, prime de vacances et autres primes</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openComparateurSettings()">
+      <label style="font-weight:800;color:var(--accent);">Comparateur augmentation</label>
+    </div>
+    <div class="settings-desc-box">Impact d'un changement de taux sur le revenu annuel</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
     <div class="settings-row" style="cursor:pointer;" onclick="openArrondiSettings()">
       <label style="font-weight:800;color:var(--accent);">Arrondi des pointages</label>
     </div>
@@ -865,6 +884,13 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       <label style="font-weight:800;color:var(--accent);">Congés</label>
     </div>
     <div class="settings-desc-box">Quotas annuels et noms des types</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openCongeExpirySettings()">
+      <label style="font-weight:800;color:var(--accent2);">⏳ Alerte congés à risque</label>
+    </div>
+    <div class="settings-desc-box">Prévenir avant la perte d'un solde non pris</div>
   </div>
 
   <div class="section-title" style="margin-top:20px;">🎨 Personnalisation</div>
@@ -965,6 +991,68 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div style="margin-bottom:20px" id="quotaCards"></div>
   <div class="section-title">Noms des types de congés</div>
   <div id="labelCards"></div>   <div class="section-title" style="margin-top:20px">Types personnalisés</div>   <div id="customTypeCards"></div>   <div style="margin:12px 0"><button class="btn-primary" style="width:100%;font-size:14px" onclick="openAddCustomType()">+ Ajouter un type</button></div>
+</div>
+
+<div class="page" id="page-conge-expiry-settings">
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="section-title">Alerte congés à risque</div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:11px;color:var(--muted);line-height:1.5;">
+      Prévient si un solde de congés non pris risque d'être perdu avant l'échéance légale (souvent le 31 mai pour les CP en France). Ajuste la date et le type de congé concerné selon ta convention.
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:800;color:var(--accent);">Activer l'alerte</label>
+      <label class="switch">
+        <input type="checkbox" id="congeExpiryEnabled" onchange="onCongeExpirySettingsChange()">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Date limite légale</div>
+    <div style="display:flex;gap:10px;">
+      <div style="flex:1;">
+        <label style="font-size:11px;color:var(--muted);">Mois</label>
+        <select id="congeExpiryMonth" onchange="onCongeExpirySettingsChange()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);">
+          <option value="1">Janvier</option><option value="2">Février</option><option value="3">Mars</option>
+          <option value="4">Avril</option><option value="5" selected>Mai</option><option value="6">Juin</option>
+          <option value="7">Juillet</option><option value="8">Août</option><option value="9">Septembre</option>
+          <option value="10">Octobre</option><option value="11">Novembre</option><option value="12">Décembre</option>
+        </select>
+      </div>
+      <div style="flex:1;">
+        <label style="font-size:11px;color:var(--muted);">Jour</label>
+        <input type="number" id="congeExpiryDay" min="1" max="31" onchange="onCongeExpirySettingsChange()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);">
+      </div>
+    </div>
+    <div id="congeExpiryPreview" style="font-size:11px;color:var(--muted);margin-top:10px;"></div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Anticipation de l'alerte</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Nombre de jours avant l'échéance à partir desquels l'alerte se déclenche.</div>
+    <input type="number" id="congeExpiryWarningDays" min="1" max="365" onchange="onCongeExpirySettingsChange()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);">
+  </div>
+
+  <div class="settings-card" style="padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:10px;">Types de congés concernés</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" id="congeExpiryType_cp" onchange="onCongeExpirySettingsChange()"> Congé payé</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" id="congeExpiryType_rtt" onchange="onCongeExpirySettingsChange()"> RTT</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" id="congeExpiryType_css" onchange="onCongeExpirySettingsChange()"> Congé sans solde</label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" id="congeExpiryType_csp" onchange="onCongeExpirySettingsChange()"> Congé enfant malade</label>
+    </div>
+  </div>
 </div>
 
 
@@ -1270,6 +1358,99 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div id="tauxHoraireHistoList"></div>
 </div>
 
+<div class="page" id="page-primes-settings">
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="section-title">Primes ponctuelles</div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:11px;color:var(--muted);line-height:1.5;">
+      Enregistre tes primes exceptionnelles (13e mois, prime de vacances, prime d'ancienneté...) séparément du taux horaire. Elles s'ajoutent aux gains estimés du mois où elles sont perçues.
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:16px;padding:14px;">
+    <div class="form-row">
+      <div class="form-field">
+        <label>Date de versement</label>
+        <input type="date" id="primeDateInput" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+      </div>
+      <div class="form-field">
+        <label>Montant (€)</label>
+        <input type="number" id="primeMontantInput" min="0" step="0.01" placeholder="ex: 1500" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+      </div>
+      <div class="form-field">
+        <label>Type de prime</label>
+        <select id="primeTypeInput" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+          <option value="13eme">🎁 13e mois</option>
+          <option value="vacances">🏖️ Prime de vacances</option>
+          <option value="exceptionnelle">⭐ Prime exceptionnelle</option>
+          <option value="anciennete">📅 Prime d'ancienneté</option>
+          <option value="autre">💰 Autre prime</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Note (optionnelle)</label>
+        <input type="text" id="primeNoteInput" placeholder="ex: versée avec la paie de juin" maxlength="60" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+      </div>
+    </div>
+    <button onclick="submitPrimeEntry()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Ajouter la prime</button>
+  </div>
+
+  <div class="section-title">Historique des primes</div>
+  <div id="primesHistoList"></div>
+</div>
+
+<div class="page" id="page-comparateur-settings">
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="section-title">Comparateur augmentation</div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:11px;color:var(--muted);line-height:1.5;">
+      Compare ton revenu annuel projeté avant et après un changement de taux horaire, en te basant sur ta moyenne réelle d'heures travaillées par semaine.
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:16px;padding:14px;">
+    <div class="form-row" style="display:flex;gap:10px;margin-bottom:14px;">
+      <div class="form-field" style="flex:1;">
+        <label>Taux avant (€/h)</label>
+        <input type="number" id="comparateurTauxAvant" min="0" step="0.01" onchange="renderComparateurResult()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+      </div>
+      <div class="form-field" style="flex:1;">
+        <label>Taux après (€/h)</label>
+        <input type="number" id="comparateurTauxApres" min="0" step="0.01" placeholder="ex: 17.00" onchange="renderComparateurResult()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+      </div>
+    </div>
+
+    <div class="form-field" style="margin-bottom:14px;">
+      <label>Primes annuelles estimées (€)</label>
+      <input type="number" id="comparateurPrimesInput" min="0" step="1" onchange="renderComparateurResult()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+    </div>
+
+    <div class="form-field">
+      <label>Période de référence pour la moyenne hebdomadaire</label>
+      <select id="comparateurWeeksBack" onchange="renderComparateurResult()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+        <option value="4">4 dernières semaines</option>
+        <option value="12" selected>12 dernières semaines</option>
+        <option value="26">26 dernières semaines</option>
+        <option value="52">52 dernières semaines</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="comparateurResult"></div>
+</div>
+
 <div class="page" id="page-arrondi-settings">
   <div class="section-title">Arrondi des pointages</div>
   <div class="settings-card" style="margin-bottom:10px;">
@@ -1473,6 +1654,10 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       <label>Pause (minutes)</label>
       <input type="number" id="editTimePause" min="0" step="1">
     </div>
+    <div class="modal-row">
+      <label>Note</label>
+      <input type="text" id="editTimeNote" maxlength="60" placeholder="optionnelle">
+    </div>
     <div class="modal-error" id="editTimeError"></div>
     <div class="modal-actions">
       <button class="modal-btn-cancel" onclick="closeEditTimeModal()">Annuler</button>
@@ -1555,7 +1740,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div class="settings-card">
     <div class="settings-row" style="cursor:pointer;" onclick="exportPDF()">
       <label style="font-weight:800;color:var(--accent);">Exporter en PDF</label>
-      <div class="settings-summary">Ouvre la boîte d’impression. Choisir “Enregistrer en PDF”</div>
+      <div class="settings-summary">Historique + graphiques. Ouvre la boîte d’impression, choisir “Enregistrer en PDF”</div>
     </div>
   </div>
 </div>
@@ -1692,7 +1877,7 @@ function maybeShowWeeklyReport() {
   localStorage.setItem('orvia_weekly_report_shown', todayKey);
   const lastMonday = new Date(now); lastMonday.setDate(now.getDate() - 7); lastMonday.setHours(0, 0, 0, 0);
   const lastSunday = new Date(now); lastSunday.setDate(now.getDate() - 1); lastSunday.setHours(23, 59, 59, 999);
-  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.2.3';
+  const sessions = state.sessions.filter(s => { const d = new Date(s.start); return d >= lastMonday && d <= lastSunday; });   if (sessions.length === 0) return;   const totalMs = sessions.reduce((a,s) => a+s.net, 0);   const totalH = Math.floor(totalMs/3600000);   const totalM = Math.floor((totalMs%3600000)/60000);   const joursActifs = new Set(sessions.map(s=>tsToKey(s.start))).size;   const goalMs = objectifs.semaine || 35*3600000;   const pct = Math.min(100, Math.round(totalMs/goalMs*100));   const emoji = pct>=100 ? '🎉' : pct>=75 ? '👍' : '💪';   const modal = document.createElement('div');   modal.className = 'modal-overlay';   modal.id = 'weeklyReportModal';   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Rapport de la semaine</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Semaine du ${lastMonday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${lastSunday.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''}</div><div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;   document.body.appendChild(modal); }  const APP_VERSION = '0.2.9';
 
 
 // ── STORAGE ──
@@ -1862,6 +2047,246 @@ function recordCurrentTauxIfChanged(newTaux) {
     addTauxHoraireEntry(today, newTaux, 'Mise à jour depuis les réglages');
   }
   renderTauxHoraireHistoList();
+}
+
+// ── HISTORIQUE DES PRIMES PONCTUELLES ──
+// Enregistre les primes exceptionnelles (13e mois, prime de vacances, prime
+// exceptionnelle...) datées et catégorisées, distinctes du salaire horaire.
+// Elles s'ajoutent aux gains du mois concerné dans les calculs de rémunération.
+const PRIME_TYPES = [
+  { id: '13eme', label: '🎁 13e mois' },
+  { id: 'vacances', label: '🏖️ Prime de vacances' },
+  { id: 'exceptionnelle', label: '⭐ Prime exceptionnelle' },
+  { id: 'anciennete', label: '📅 Prime d\'ancienneté' },
+  { id: 'autre', label: '💰 Autre prime' }
+];
+
+let primesHistory = [];
+
+function savePrimesHistory() {
+  localStorage.setItem('orvia_primes_historique', JSON.stringify(primesHistory));
+}
+
+function loadPrimesHistory() {
+  try {
+    const raw = localStorage.getItem('orvia_primes_historique');
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      primesHistory = parsed
+        .filter(e => e && typeof e.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.date) && Number.isFinite(Number(e.montant)))
+        .map(e => ({
+          id: Number.isFinite(e.id) ? e.id : (Date.now() + Math.floor(Math.random() * 100000)),
+          date: e.date,
+          montant: clampNumber(Number(e.montant), 0, 1000000, 0),
+          type: PRIME_TYPES.some(t => t.id === e.type) ? e.type : 'autre',
+          note: typeof e.note === 'string' ? e.note.slice(0, 60) : ''
+        }))
+        .sort((a, b) => b.date.localeCompare(a.date));
+    }
+  } catch (e) {}
+}
+
+function addPrimeEntry(dateStr, montant, type, note) {
+  const clean = clampNumber(Number(montant), 0, 1000000, 0);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr) || !clean) return false;
+  primesHistory.push({
+    id: Date.now() + Math.floor(Math.random() * 100000),
+    date: dateStr,
+    montant: clean,
+    type: PRIME_TYPES.some(t => t.id === type) ? type : 'autre',
+    note: (note || '').slice(0, 60)
+  });
+  primesHistory.sort((a, b) => b.date.localeCompare(a.date));
+  savePrimesHistory();
+  return true;
+}
+
+function deletePrimeEntry(id) {
+  primesHistory = primesHistory.filter(e => e.id !== id);
+  savePrimesHistory();
+  renderPrimesHistoList();
+  renderToday();
+  showToast('Prime supprimée');
+}
+
+// Total des primes perçues sur un mois donné (year: 4 chiffres, month: 0-11).
+function getPrimesForMonth(year, month) {
+  return primesHistory
+    .filter(e => {
+      const d = new Date(e.date + 'T00:00:00');
+      return d.getFullYear() === year && d.getMonth() === month;
+    })
+    .reduce((a, e) => a + e.montant, 0);
+}
+
+// Total des primes perçues sur une année donnée.
+function getPrimesForYear(year) {
+  return primesHistory
+    .filter(e => new Date(e.date + 'T00:00:00').getFullYear() === year)
+    .reduce((a, e) => a + e.montant, 0);
+}
+
+function submitPrimeEntry() {
+  const dateEl = document.getElementById('primeDateInput');
+  const montantEl = document.getElementById('primeMontantInput');
+  const typeEl = document.getElementById('primeTypeInput');
+  const noteEl = document.getElementById('primeNoteInput');
+  const dateStr = dateEl ? dateEl.value : '';
+  const montant = montantEl ? Number(montantEl.value) : NaN;
+  const type = typeEl ? typeEl.value : 'autre';
+  if (!dateStr || !Number.isFinite(montant) || montant <= 0) {
+    showToast('Date et montant valides requis');
+    return;
+  }
+  const ok = addPrimeEntry(dateStr, montant, type, noteEl ? noteEl.value : '');
+  if (!ok) { showToast('Prime invalide'); return; }
+  if (dateEl) dateEl.value = '';
+  if (montantEl) montantEl.value = '';
+  if (noteEl) noteEl.value = '';
+  renderPrimesHistoList();
+  renderToday();
+  showToast('Prime ajoutée ✓');
+}
+
+function renderPrimesHistoList() {
+  const el = document.getElementById('primesHistoList');
+  if (!el) return;
+  if (!primesHistory.length) {
+    el.innerHTML = '<div class="settings-card" style="padding:14px;"><div style="font-size:13px;color:var(--muted);">Aucune prime enregistrée pour le moment.</div></div>';
+    return;
+  }
+  el.innerHTML = primesHistory.map(e => {
+    const typeInfo = PRIME_TYPES.find(t => t.id === e.type) || PRIME_TYPES[PRIME_TYPES.length - 1];
+    return `
+    <div class="settings-card" style="margin-bottom:8px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:14px;">${typeInfo.label} — ${fmtEuros(e.montant)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">${e.date}${e.note ? ' — ' + escapeHtml(e.note) : ''}</div>
+      </div>
+      <button onclick="deletePrimeEntry(${e.id})" style="background:none;border:none;color:var(--accent2);font-size:18px;cursor:pointer;padding:4px 8px;">🗑</button>
+    </div>
+  `;
+  }).join('');
+}
+
+function openPrimesSettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-primes-settings').classList.add('active');
+  renderPrimesHistoList();
+}
+
+// ── COMPARATEUR AVANT/APRÈS AUGMENTATION ──
+// Projette l'impact d'un changement de taux horaire sur le revenu annuel
+// estimé, en se basant sur la moyenne réelle d'heures travaillées par
+// semaine (calculée sur les sessions enregistrées) et sur les primes
+// annuelles moyennes déjà présentes dans l'historique des primes.
+function getAverageWeeklyNetMs(weeksBack) {
+  if (!state.sessions.length) return 0;
+  const now = Date.now();
+  const cutoff = weeksBack ? now - weeksBack * 7 * 86400000 : 0;
+  const relevant = state.sessions.filter(s => s.start >= cutoff);
+  if (!relevant.length) return 0;
+
+  const byWeek = {};
+  relevant.forEach(s => {
+    const mon = getMondayOf(new Date(s.start)).getTime();
+    byWeek[mon] = (byWeek[mon] || 0) + (s.net || 0);
+  });
+  const weekKeys = Object.keys(byWeek);
+  if (!weekKeys.length) return 0;
+  const total = weekKeys.reduce((a, k) => a + byWeek[k], 0);
+  return total / weekKeys.length;
+}
+
+// Estimation du revenu annuel brut pour un taux horaire donné, à partir
+// d'une moyenne hebdomadaire d'heures nettes (en ms) et de primes annuelles.
+function projectAnnualIncome(taux, avgWeeklyNetMs, seuil1, seuil2, maj1, maj2, annualPrimes) {
+  if (!taux) return 0;
+  const hoursH = avgWeeklyNetMs / 3600000;
+  const weeklyGain = calcTrancheGainForRange(0, hoursH, taux, seuil1, seuil2, maj1, maj2);
+  return weeklyGain * 52 + (annualPrimes || 0);
+}
+
+function getAnnualPrimesAverage() {
+  if (!primesHistory.length) return 0;
+  const now = new Date();
+  return getPrimesForYear(now.getFullYear()) || getPrimesForYear(now.getFullYear() - 1) || 0;
+}
+
+function openComparateurSettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-comparateur-settings').classList.add('active');
+  const avantEl = document.getElementById('comparateurTauxAvant');
+  const apresEl = document.getElementById('comparateurTauxApres');
+  const primesEl = document.getElementById('comparateurPrimesInput');
+  if (avantEl) avantEl.value = remuneration.tauxHoraire || '';
+  if (apresEl) apresEl.value = '';
+  if (primesEl) primesEl.value = Math.round(getAnnualPrimesAverage());
+  renderComparateurResult();
+}
+
+function renderComparateurResult() {
+  const el = document.getElementById('comparateurResult');
+  if (!el) return;
+
+  const avantEl = document.getElementById('comparateurTauxAvant');
+  const apresEl = document.getElementById('comparateurTauxApres');
+  const primesEl = document.getElementById('comparateurPrimesInput');
+  const weeksBackEl = document.getElementById('comparateurWeeksBack');
+
+  const tauxAvant = avantEl ? Number(avantEl.value) : 0;
+  const tauxApres = apresEl ? Number(apresEl.value) : 0;
+  const annualPrimes = primesEl ? Math.max(0, Number(primesEl.value) || 0) : 0;
+  const weeksBack = weeksBackEl ? Number(weeksBackEl.value) : 12;
+
+  if (!Number.isFinite(tauxAvant) || tauxAvant <= 0 || !Number.isFinite(tauxApres) || tauxApres <= 0) {
+    el.innerHTML = '<div class="settings-card" style="padding:14px;"><div style="font-size:13px;color:var(--muted);">Renseigne un taux avant et un taux après pour lancer la comparaison.</div></div>';
+    return;
+  }
+
+  const avgWeeklyNetMs = getAverageWeeklyNetMs(weeksBack);
+  const avgWeeklyH = avgWeeklyNetMs / 3600000;
+
+  if (avgWeeklyH <= 0) {
+    el.innerHTML = '<div class="settings-card" style="padding:14px;"><div style="font-size:13px;color:var(--muted);">Pas assez de sessions enregistrées récemment pour estimer une moyenne hebdomadaire fiable.</div></div>';
+    return;
+  }
+
+  const seuil1 = remuneration.seuil1, seuil2 = remuneration.seuil2;
+  const maj1 = remuneration.majorationTranche1, maj2 = remuneration.majorationTranche2;
+
+  const annualAvant = projectAnnualIncome(tauxAvant, avgWeeklyNetMs, seuil1, seuil2, maj1, maj2, annualPrimes);
+  const annualApres = projectAnnualIncome(tauxApres, avgWeeklyNetMs, seuil1, seuil2, maj1, maj2, annualPrimes);
+  const diff = annualApres - annualAvant;
+  const diffPct = annualAvant > 0 ? (diff / annualAvant) * 100 : 0;
+  const diffColor = diff >= 0 ? 'var(--green)' : 'var(--accent2)';
+  const diffSign = diff >= 0 ? '+' : '';
+
+  el.innerHTML = `
+    <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">Basé sur une moyenne de ${avgWeeklyH.toFixed(1)}h travaillées/semaine sur les ${weeksBack} dernières semaines, primes annuelles incluses.</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:13px;color:var(--muted);">Revenu annuel avant (${tauxAvant.toLocaleString('fr-FR')} €/h)</span>
+        <span style="font-weight:700;color:var(--text);">${fmtEuros(annualAvant)}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:13px;color:var(--muted);">Revenu annuel après (${tauxApres.toLocaleString('fr-FR')} €/h)</span>
+        <span style="font-weight:700;color:var(--text);">${fmtEuros(annualApres)}</span>
+      </div>
+      <div style="height:1px;background:var(--border);margin:10px 0;"></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <span style="font-size:14px;font-weight:800;color:var(--text);">Différence annuelle</span>
+        <span style="font-size:16px;font-weight:800;color:${diffColor};">${diffSign}${fmtEuros(diff)} (${diffSign}${diffPct.toFixed(1)}%)</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+        <span style="font-size:12px;color:var(--muted);">Différence mensuelle moyenne</span>
+        <span style="font-size:13px;font-weight:700;color:${diffColor};">${diffSign}${fmtEuros(diff / 12)}</span>
+      </div>
+    </div>
+  `;
 }
 
 function submitTauxHoraireHistoEntry() {
@@ -2290,8 +2715,12 @@ function renderRemunerationCardInto(elId, dayTotal, dayGoal, weekTotal, weekGoal
   }
 
   const now = new Date();
-  const gainsMonthBrut = calcGainsMois(now.getFullYear(), now.getMonth());
+  const primesMonth = getPrimesForMonth(now.getFullYear(), now.getMonth());
+  const gainsMonthBrut = calcGainsMois(now.getFullYear(), now.getMonth()) + primesMonth;
   const gainsMonthNet = calcNet(gainsMonthBrut);
+  const primesRow = primesMonth > 0
+    ? `<div style="font-size:11px;color:var(--accent2);margin-top:2px;font-weight:700;">+ ${fmtEuros(primesMonth)} de primes ce mois-ci</div>`
+    : '';
 
   const netRow = remuneration.netEnabled
     ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">Net estimé (−${remuneration.tauxImposition}%): <span style="color:var(--green);font-weight:700">${fmtEuros(gainsDayNet)}</span></div>`
@@ -2326,6 +2755,7 @@ function renderRemunerationCardInto(elId, dayTotal, dayGoal, weekTotal, weekGoal
         <span class="objectif-label">Gains du mois (brut)</span>
         <span class="objectif-values" style="color:var(--accent)">${fmtEuros(gainsMonthBrut)}</span>
       </div>
+      ${primesRow}
       ${netRowMonth}
     </div>
   `;
@@ -3791,10 +4221,15 @@ function renderHistory() {
           <span>Objectif: ${fmtHM(monthGoal)}</span>
           <span style="color:${diffColor};font-weight:700">${diffSign}${fmtHM(Math.abs(diff))} h.sup</span>
         </div>
-        ${remuneration.enabled && remuneration.tauxHoraire ? `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--accent);margin:0 0 10px 0;font-weight:700;">
+        ${remuneration.enabled && remuneration.tauxHoraire ? (() => {
+          const primesM = getPrimesForMonth(year, month);
+          const totalM = calcGainsMois(year, month) + primesM;
+          const primesLabel = primesM > 0 ? ` <span style="color:var(--accent2);font-weight:600;">(+${fmtEuros(primesM)} primes)</span>` : '';
+          return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--accent);margin:0 0 10px 0;font-weight:700;">
           <span>Gains du mois</span>
-          <span>${fmtEuros(calcGainsMois(year, month))}${remuneration.netEnabled ? ` (net: ${fmtEuros(calcNet(calcGainsMois(year, month)))})` : ''}</span>
-        </div>` : ''}
+          <span>${fmtEuros(totalM)}${primesLabel}${remuneration.netEnabled ? ` (net: ${fmtEuros(calcNet(totalM))})` : ''}</span>
+        </div>`;
+        })() : ''}
         ${sortedWeeks.map(wk => {
           const {label: wl, sessions: ws} = byWeek[wk];
           const weekNet = ws.reduce((a,s) => a+s.net, 0);
@@ -3830,6 +4265,120 @@ function getWeekSessions() {
   const day = now.getDay() || 7;
   const monday = new Date(now); monday.setDate(now.getDate() - day + 1); monday.setHours(0,0,0,0);
   return state.sessions.filter(s => new Date(s.start) >= monday);
+}
+
+
+// ── HELPERS GRAPHIQUES SVG (pour export PDF) ──
+// Génère des graphiques en SVG natif (pas de dépendance externe/CDN,
+// compatible impression navigateur → "Enregistrer en PDF").
+function svgBarChart(labels, values, opts) {
+  opts = opts || {};
+  const w = opts.width || 680, h = opts.height || 220;
+  const padL = 40, padR = 10, padT = 10, padB = 30;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+  const maxVal = Math.max(1, ...values) * 1.15;
+  const n = values.length;
+  const gap = 6;
+  const barW = Math.max(2, (plotW / n) - gap);
+  const color = opts.color || '#1a73e8';
+
+  let bars = '';
+  let labelsSvg = '';
+  const gridLines = [0, 1, 2, 3].map(g => {
+    const y = padT + plotH - (g / 3) * plotH;
+    const val = (maxVal * g / 3).toFixed(1);
+    return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="#e0e0e0" stroke-width="1"/><text x="2" y="${y + 4}" font-size="9" fill="#888">${val}${opts.unit || ''}</text>`;
+  }).join('');
+
+  values.forEach((v, i) => {
+    const x = padL + i * (plotW / n) + (plotW / n - barW) / 2;
+    const barH = (v / maxVal) * plotH;
+    bars += `<rect x="${x}" y="${padT + plotH - barH}" width="${barW}" height="${barH}" fill="${color}" rx="2"/>`;
+    if (n <= 14 || i % Math.ceil(n / 14) === 0) {
+      labelsSvg += `<text x="${x + barW / 2}" y="${h - 6}" font-size="9" fill="#888" text-anchor="middle">${labels[i]}</text>`;
+    }
+  });
+
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">
+    ${gridLines}
+    ${bars}
+    ${labelsSvg}
+  </svg>`;
+}
+
+function svgDonutChart(segments, opts) {
+  opts = opts || {};
+  const size = opts.size || 200;
+  const cx = size / 2, cy = size / 2, r = size / 2 - 10, innerR = r * 0.55;
+  const total = segments.reduce((a, s) => a + s.value, 0);
+  if (total <= 0) return '<div style="font-size:12px;color:#888;">Aucune donnée</div>';
+
+  let angle = -Math.PI / 2;
+  let paths = '';
+  let legend = '';
+  segments.forEach(seg => {
+    const frac = seg.value / total;
+    const startAngle = angle;
+    const endAngle = angle + frac * 2 * Math.PI;
+    const x1 = cx + r * Math.cos(startAngle), y1 = cy + r * Math.sin(startAngle);
+    const x2 = cx + r * Math.cos(endAngle), y2 = cy + r * Math.sin(endAngle);
+    const ix1 = cx + innerR * Math.cos(startAngle), iy1 = cy + innerR * Math.sin(startAngle);
+    const ix2 = cx + innerR * Math.cos(endAngle), iy2 = cy + innerR * Math.sin(endAngle);
+    const largeArc = (endAngle - startAngle) > Math.PI ? 1 : 0;
+    paths += `<path d="M ${x1} ${y1} A ${r} ${r} 0 ${largeArc} 1 ${x2} ${y2} L ${ix2} ${iy2} A ${innerR} ${innerR} 0 ${largeArc} 0 ${ix1} ${iy1} Z" fill="${seg.color}"/>`;
+    legend += `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#333;margin-bottom:3px;"><span style="width:10px;height:10px;border-radius:2px;background:${seg.color};display:inline-block;"></span>${seg.label}: ${seg.value}${opts.unit || ''} (${(frac * 100).toFixed(0)}%)</div>`;
+    angle = endAngle;
+  });
+
+  return `<div style="display:flex;align-items:center;gap:20px;">
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">${paths}</svg>
+    <div>${legend}</div>
+  </div>`;
+}
+
+// Prépare les données des graphiques inclus dans l'export PDF : heures
+// travaillées sur 12 semaines, répartition des congés, revenus sur 6 mois.
+function buildPdfChartsHtml() {
+  let out = '<h2>📊 Graphiques</h2>';
+
+  const now = new Date();
+  const thisMonday = getMondayOf(now);
+  const weekLabels = [], weekValues = [];
+  for (let i = 11; i >= 0; i--) {
+    const wkStart = new Date(thisMonday); wkStart.setDate(thisMonday.getDate() - i * 7);
+    const wkEnd = new Date(wkStart); wkEnd.setDate(wkStart.getDate() + 7);
+    const ms = state.sessions.filter(s => s.start >= wkStart.getTime() && s.start < wkEnd.getTime()).reduce((a, s) => a + (s.net || 0), 0);
+    weekLabels.push('S' + wkStart.getDate() + '/' + (wkStart.getMonth() + 1));
+    weekValues.push(Math.round((ms / 3600000) * 10) / 10);
+  }
+  out += '<h3>Heures travaillées — 12 dernières semaines</h3>';
+  out += svgBarChart(weekLabels, weekValues, { color: '#1a73e8', unit: 'h' });
+
+  if (typeof state.conges !== 'undefined' && state.conges.length) {
+    const congeTotals = {};
+    state.conges.forEach(c => { congeTotals[c.type] = (congeTotals[c.type] || 0) + c.days; });
+    const segments = Object.keys(congeTotals).map(t => ({
+      label: getCongeTypeLabel(t), value: congeTotals[t], color: getCongeTypeColor(t)
+    }));
+    if (segments.length) {
+      out += '<h3>Répartition des congés pris (tous types confondus)</h3>';
+      out += svgDonutChart(segments, { unit: 'j' });
+    }
+  }
+
+  if (remuneration.enabled && remuneration.tauxHoraire) {
+    const monthLabels = [], monthValues = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const brut = calcGainsMois(d.getFullYear(), d.getMonth()) + getPrimesForMonth(d.getFullYear(), d.getMonth());
+      monthLabels.push(d.toLocaleDateString('fr-FR', { month: 'short' }));
+      monthValues.push(Math.round(brut));
+    }
+    out += '<h3>Revenus bruts estimés — 6 derniers mois (primes incluses)</h3>';
+    out += svgBarChart(monthLabels, monthValues, { color: '#3ecf8e', unit: '€' });
+  }
+
+  return out;
 }
 
 function exportPDF() {
@@ -3960,6 +4509,8 @@ function exportPDF() {
       html += `<tr><td>${yr}</td><td>${jours}</td><td>${semaines}</td><td>${fmtMs(total)}</td></tr>`;
     });
     html += '</table>';
+
+    html += buildPdfChartsHtml();
 
     html += '</body></html>';
 
@@ -4350,6 +4901,152 @@ function saveLowQuotaAlertState(st) {
   localStorage.setItem('orvia_low_quota_alert', JSON.stringify(st));
 }
 
+// ── ALERTE SOLDE DE CONGÉS À RISQUE (péremption) ──
+// Certains types de congés (CP notamment) doivent légalement être pris avant
+// une date limite (souvent le 31 mai suivant la fin de la période
+// d'acquisition en France) sous peine d'être perdus. Cette alerte prévient
+// proactivement si un solde restant risque d'expirer.
+function getCongeExpiryConfig() {
+  try {
+    const raw = localStorage.getItem('orvia_conge_expiry_config');
+    if (!raw) return { enabled: true, deadlineMonth: 5, deadlineDay: 31, warningDays: 60, types: ['cp'] };
+    const p = JSON.parse(raw);
+    return {
+      enabled: p.enabled !== false,
+      deadlineMonth: Number.isFinite(Number(p.deadlineMonth)) ? clampNumber(Number(p.deadlineMonth), 1, 12, 5) : 5,
+      deadlineDay: Number.isFinite(Number(p.deadlineDay)) ? clampNumber(Number(p.deadlineDay), 1, 31, 31) : 31,
+      warningDays: Number.isFinite(Number(p.warningDays)) ? clampNumber(Number(p.warningDays), 1, 365, 60) : 60,
+      types: Array.isArray(p.types) && p.types.length ? p.types : ['cp']
+    };
+  } catch (e) {
+    return { enabled: true, deadlineMonth: 5, deadlineDay: 31, warningDays: 60, types: ['cp'] };
+  }
+}
+
+function saveCongeExpiryConfig(cfg) {
+  localStorage.setItem('orvia_conge_expiry_config', JSON.stringify(cfg));
+}
+
+// Retourne la prochaine échéance légale (Date) : le mois/jour configuré,
+// dans l'année courante si pas encore passé, sinon l'année suivante.
+function getNextCongeDeadline(cfg) {
+  const now = new Date();
+  let deadline = new Date(now.getFullYear(), cfg.deadlineMonth - 1, cfg.deadlineDay, 23, 59, 59);
+  if (deadline.getTime() < now.getTime()) {
+    deadline = new Date(now.getFullYear() + 1, cfg.deadlineMonth - 1, cfg.deadlineDay, 23, 59, 59);
+  }
+  return deadline;
+}
+
+function getCongeExpiryRisks() {
+  const cfg = getCongeExpiryConfig();
+  if (!cfg.enabled) return [];
+  const deadline = getNextCongeDeadline(cfg);
+  const daysLeft = Math.ceil((deadline.getTime() - Date.now()) / 86400000);
+  if (daysLeft > cfg.warningDays || daysLeft < 0) return [];
+
+  const risks = [];
+  cfg.types.forEach(t => {
+    const quota = state.quotas[t];
+    if (!quota || quota <= 0) return;
+    const taken = state.conges.filter(c => c.type === t).reduce((a, c) => a + c.days, 0);
+    const left = Math.max(0, quota - taken);
+    if (left > 0) {
+      risks.push({ type: t, label: getCongeTypeLabel(t), left, daysLeft, deadline });
+    }
+  });
+  return risks;
+}
+
+function renderCongeExpiryBanner() {
+  const banner = document.getElementById('congeExpiryBanner');
+  if (!banner) return;
+  const risks = getCongeExpiryRisks();
+  if (!risks.length) {
+    banner.style.display = 'none';
+    banner.innerHTML = '';
+    return;
+  }
+  const deadlineStr = risks[0].deadline.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const itemsHtml = risks.map(r => `${r.left} jour${r.left > 1 ? 's' : ''} de ${r.label}`).join(', ');
+  banner.style.display = 'block';
+  banner.innerHTML = `
+    <div style="background:rgba(239,68,68,.12);border:1px solid var(--accent2);border-radius:12px;padding:12px 14px;margin-bottom:16px;">
+      <div style="font-weight:700;color:var(--accent2);font-size:13px;margin-bottom:4px;">⏳ Solde de congés à risque</div>
+      <div style="font-size:12px;color:var(--muted);">${itemsHtml} à utiliser avant le ${deadlineStr} (dans ${risks[0].daysLeft} jour${risks[0].daysLeft > 1 ? 's' : ''}), sous peine de perte.</div>
+    </div>`;
+}
+
+// Notification proactive une fois par jour si un solde est à risque.
+function checkCongeExpiryNotification() {
+  const risks = getCongeExpiryRisks();
+  if (!risks.length) return;
+  const today = todayKey();
+  const lastNotifKey = 'orvia_conge_expiry_last_notif';
+  if (localStorage.getItem(lastNotifKey) === today) return;
+  const canNotify = ('Notification' in window) && Notification.permission === 'granted';
+  const itemsHtml = risks.map(r => `${r.left}j ${r.label}`).join(', ');
+  if (canNotify) {
+    new Notification('Congés à risque ⏳', { body: `${itemsHtml} à utiliser avant le ${risks[0].deadline.toLocaleDateString('fr-FR')}.` });
+  }
+  localStorage.setItem(lastNotifKey, today);
+}
+
+function openCongeExpirySettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-conge-expiry-settings').classList.add('active');
+  renderCongeExpirySettingsForm();
+}
+
+function renderCongeExpirySettingsForm() {
+  const cfg = getCongeExpiryConfig();
+  const enabledEl = document.getElementById('congeExpiryEnabled');
+  const monthEl = document.getElementById('congeExpiryMonth');
+  const dayEl = document.getElementById('congeExpiryDay');
+  const warnEl = document.getElementById('congeExpiryWarningDays');
+  if (enabledEl) enabledEl.checked = cfg.enabled;
+  if (monthEl) monthEl.value = String(cfg.deadlineMonth);
+  if (dayEl) dayEl.value = cfg.deadlineDay;
+  if (warnEl) warnEl.value = cfg.warningDays;
+  ['cp', 'rtt', 'css', 'csp'].forEach(t => {
+    const cb = document.getElementById('congeExpiryType_' + t);
+    if (cb) cb.checked = cfg.types.includes(t);
+  });
+  renderCongeExpiryPreview();
+}
+
+function renderCongeExpiryPreview() {
+  const el = document.getElementById('congeExpiryPreview');
+  if (!el) return;
+  const cfg = getCongeExpiryConfig();
+  const deadline = getNextCongeDeadline(cfg);
+  const daysLeft = Math.ceil((deadline.getTime() - Date.now()) / 86400000);
+  el.textContent = `Prochaine échéance : ${deadline.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })} (dans ${daysLeft} jours)`;
+}
+
+function onCongeExpirySettingsChange() {
+  const enabledEl = document.getElementById('congeExpiryEnabled');
+  const monthEl = document.getElementById('congeExpiryMonth');
+  const dayEl = document.getElementById('congeExpiryDay');
+  const warnEl = document.getElementById('congeExpiryWarningDays');
+  const types = ['cp', 'rtt', 'css', 'csp'].filter(t => {
+    const cb = document.getElementById('congeExpiryType_' + t);
+    return cb && cb.checked;
+  });
+  const cfg = {
+    enabled: enabledEl ? enabledEl.checked : true,
+    deadlineMonth: monthEl ? clampNumber(Number(monthEl.value), 1, 12, 5) : 5,
+    deadlineDay: dayEl ? clampNumber(Number(dayEl.value), 1, 31, 31) : 31,
+    warningDays: warnEl ? clampNumber(Number(warnEl.value), 1, 365, 60) : 60,
+    types: types.length ? types : ['cp']
+  };
+  saveCongeExpiryConfig(cfg);
+  renderCongeExpiryPreview();
+  renderCongeExpiryBanner();
+  showToast('Réglages mis à jour ✓');
+}
+
 function checkLowQuotaAlerts() {
   const today = todayKey();
   let st = getLowQuotaAlertState();
@@ -4423,6 +5120,8 @@ function renderConges() {
   renderCal();
 
   checkLowQuotaAlerts();
+  renderCongeExpiryBanner();
+  checkCongeExpiryNotification();
 
   // Liste
   const list = document.getElementById('congeList');
@@ -5395,6 +6094,12 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '0.2.9', date: '2026-07-16', items: ['Correction : le champ Note manquait dans le modal \u00abModifier les horaires\u00bb, empêchant de consulter/modifier la note d\u2019une session terminée depuis cet écran.'] },
+    { version: '0.2.8', date: '2026-07-16', items: ['Export PDF enrichi de graphiques : heures travaillées sur 12 semaines, répartition des congés, revenus bruts sur 6 mois (primes incluses).'] },
+    { version: '0.2.7', date: '2026-07-16', items: ['Détection de tendances dans l\u2019Historique : jour de la semaine le plus/moins travaillé, évolution récente du temps de travail, régularité des horaires.'] },
+    { version: '0.2.6', date: '2026-07-16', items: ['Alerte proactive de solde de congés à risque : avertit avant la date limite légale (ex. 31 mai) si des jours de CP/RTT non pris risquent d\u2019être perdus.'] },
+    { version: '0.2.5', date: '2026-07-16', items: ['Comparateur avant/après augmentation : projette l\u2019impact d\u2019un changement de taux horaire sur le revenu annuel, basé sur ta moyenne réelle d\u2019heures travaillées et tes primes annuelles.'] },
+    { version: '0.2.4', date: '2026-07-16', items: ['Historique des primes ponctuelles (13e mois, prime de vacances, prime d\u2019anciennet\u00e9...) : ajoutées aux gains estimés du mois où elles sont perçues.'] },
     { version: '0.2.3', date: '2026-07-16', items: ['Thèmes saisonniers avec dégradés (printemps, été, automne, hiver, Noël, coucher de soleil, aurore boréale, sakura) en plus des couleurs unies.'] },
     { version: '0.2.2', date: '2026-07-16', items: ['Réintégration du géofencing automatique : démarrage/fin de session en entrant/sortant de la zone de travail (ou d\u2019une zone secondaire), avec confirmation optionnelle avant action.'] },
     { version: '0.2.1', date: '2026-07-16', items: ['Possibilité de modifier le temps de pause d\u2019une session terminée (champ dédié) et d\u2019ajuster la pause d\u2019une session en cours directement depuis l\u2019écran principal.'] },
@@ -5569,6 +6274,131 @@ function renderTrendChart() {
 
 window.addEventListener('resize', () => { if (document.getElementById('page-history').classList.contains('active')) renderTrendChart(); });
 
+// ── DÉTECTION DE TENDANCES ──
+// Analyse les sessions historiques pour repérer des habitudes récurrentes :
+// jour de la semaine le plus/moins travaillé, évolution récente vs
+// précédente, régularité des horaires. Nécessite un minimum de données pour
+// éviter des conclusions statistiquement peu fiables.
+const TREND_MIN_SESSIONS = 10;
+const TREND_MIN_WEEKS = 3;
+
+function getSessionDayOfWeekStats() {
+  const byDow = [[], [], [], [], [], [], []]; // 0=dimanche ... 6=samedi
+  state.sessions.forEach(s => {
+    const dow = new Date(s.start).getDay();
+    byDow[dow].push((s.net || 0) / 3600000);
+  });
+  return byDow.map((hoursArr, dow) => ({
+    dow,
+    count: hoursArr.length,
+    avgH: hoursArr.length ? hoursArr.reduce((a, h) => a + h, 0) / hoursArr.length : 0
+  }));
+}
+
+function getDowLabel(dow) {
+  return ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'][dow];
+}
+
+// Compare les 4 dernières semaines pleines aux 4 précédentes, pour détecter
+// une tendance à la hausse ou à la baisse du temps travaillé.
+function getRecentTrendComparison() {
+  const now = new Date();
+  const thisMonday = getMondayOf(now);
+  const recentStart = new Date(thisMonday); recentStart.setDate(thisMonday.getDate() - 28);
+  const priorStart = new Date(thisMonday); priorStart.setDate(thisMonday.getDate() - 56);
+
+  const recentMs = state.sessions
+    .filter(s => s.start >= recentStart.getTime() && s.start < thisMonday.getTime())
+    .reduce((a, s) => a + (s.net || 0), 0);
+  const priorMs = state.sessions
+    .filter(s => s.start >= priorStart.getTime() && s.start < recentStart.getTime())
+    .reduce((a, s) => a + (s.net || 0), 0);
+
+  if (priorMs <= 0) return null;
+  const pct = ((recentMs - priorMs) / priorMs) * 100;
+  return { recentH: recentMs / 3600000, priorH: priorMs / 3600000, pct };
+}
+
+// Écart-type des heures de démarrage de session, pour évaluer la régularité
+// des horaires (faible écart = routine stable, fort écart = horaires variables).
+function getStartTimeRegularity() {
+  const startMinutes = state.sessions.map(s => {
+    const d = new Date(s.start);
+    return d.getHours() * 60 + d.getMinutes();
+  });
+  if (startMinutes.length < TREND_MIN_SESSIONS) return null;
+  const avg = startMinutes.reduce((a, m) => a + m, 0) / startMinutes.length;
+  const variance = startMinutes.reduce((a, m) => a + Math.pow(m - avg, 2), 0) / startMinutes.length;
+  const stdDevMinutes = Math.sqrt(variance);
+  const avgH = Math.floor(avg / 60), avgM = Math.round(avg % 60);
+  return { avgTime: `${String(avgH).padStart(2, '0')}:${String(avgM).padStart(2, '0')}`, stdDevMinutes };
+}
+
+function computeTrendInsights() {
+  const insights = [];
+  if (state.sessions.length < TREND_MIN_SESSIONS) return insights;
+
+  const dowStats = getSessionDayOfWeekStats();
+  const withData = dowStats.filter(d => d.count >= 2);
+  if (withData.length >= 3) {
+    const overallAvg = withData.reduce((a, d) => a + d.avgH * d.count, 0) / withData.reduce((a, d) => a + d.count, 0);
+    if (overallAvg > 0) {
+      const sorted = [...withData].sort((a, b) => b.avgH - a.avgH);
+      const top = sorted[0];
+      const bottom = sorted[sorted.length - 1];
+      const topDiffPct = ((top.avgH - overallAvg) / overallAvg) * 100;
+      const bottomDiffPct = ((overallAvg - bottom.avgH) / overallAvg) * 100;
+      if (topDiffPct > 8) {
+        insights.push({ icon: '📈', text: `Tu travailles en moyenne ${topDiffPct.toFixed(0)}% plus le ${getDowLabel(top.dow)} que les autres jours.` });
+      }
+      if (bottomDiffPct > 8 && bottom.dow !== top.dow) {
+        insights.push({ icon: '📉', text: `Tu travailles en moyenne ${bottomDiffPct.toFixed(0)}% moins le ${getDowLabel(bottom.dow)} que les autres jours.` });
+      }
+    }
+  }
+
+  const trend = getRecentTrendComparison();
+  if (trend && Math.abs(trend.pct) > 5) {
+    const sign = trend.pct > 0 ? 'en hausse' : 'en baisse';
+    const icon = trend.pct > 0 ? '📈' : '📉';
+    insights.push({ icon, text: `Ton temps de travail est ${sign} de ${Math.abs(trend.pct).toFixed(0)}% sur les 4 dernières semaines (${trend.recentH.toFixed(1)}h vs ${trend.priorH.toFixed(1)}h précédemment).` });
+  }
+
+  const regularity = getStartTimeRegularity();
+  if (regularity) {
+    if (regularity.stdDevMinutes < 20) {
+      insights.push({ icon: '🎯', text: `Tes horaires sont très réguliers : tu démarres en moyenne vers ${regularity.avgTime} avec peu de variation.` });
+    } else if (regularity.stdDevMinutes > 60) {
+      insights.push({ icon: '🔀', text: `Tes horaires de démarrage varient beaucoup (moyenne ${regularity.avgTime}, écart-type ${Math.round(regularity.stdDevMinutes)} min).` });
+    }
+  }
+
+  return insights;
+}
+
+function renderTrendInsights() {
+  const el = document.getElementById('trendInsightsList');
+  if (!el) return;
+
+  if (state.sessions.length < TREND_MIN_SESSIONS) {
+    el.innerHTML = `<div class="settings-card" style="padding:14px;"><div style="font-size:13px;color:var(--muted);">Pas encore assez de sessions enregistrées (minimum ${TREND_MIN_SESSIONS}) pour détecter des tendances fiables.</div></div>`;
+    return;
+  }
+
+  const insights = computeTrendInsights();
+  if (!insights.length) {
+    el.innerHTML = '<div class="settings-card" style="padding:14px;"><div style="font-size:13px;color:var(--muted);">Aucune tendance marquante détectée pour le moment, tes habitudes de travail semblent stables.</div></div>';
+    return;
+  }
+
+  el.innerHTML = insights.map(ins => `
+    <div class="settings-card" style="margin-bottom:8px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px;">
+      <div style="font-size:18px;line-height:1;">${ins.icon}</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.4;">${ins.text}</div>
+    </div>
+  `).join('');
+}
+
 function showTrendTooltip(clientX, clientY, rect) {
   const dateObj = new Date(rect.dateStr + 'T00:00:00');
   const dateLabel = dateObj.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -5649,7 +6479,7 @@ function switchTab(name) {
   if (tabEl) tabEl.classList.add('active');
   document.getElementById('page-' + name).classList.add('active');
   if (name === 'today') renderObjectifs();
-  if (name === 'history') { renderHistory(); renderTrendChart(); }
+  if (name === 'history') { renderHistory(); renderTrendChart(); renderTrendInsights(); }
   if (name === 'conges') renderConges();
   if (name === 'reglages') renderReglages();
 }
@@ -6116,10 +6946,11 @@ applyTheme(getCurrentThemeId());
 applyMode(getCurrentMode());
 initSeasonalTheme();
 load();
-loadConges(); checkLowQuotaAlerts();
+loadConges(); checkLowQuotaAlerts(); checkCongeExpiryNotification();
 loadObjectifs();
 loadRemuneration();
 loadTauxHoraireHistory();
+loadPrimesHistory();
 loadArrondi();
 if (getGeofenceConfig().enabled) startGeofenceWatch();
 loadInactivite();
