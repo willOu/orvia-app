@@ -2076,15 +2076,25 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     </div>
   </div>
   <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:800;color:var(--accent);">📅 Inclure les congés</label>
+      <label class="switch">
+        <input type="checkbox" id="exportIncludeConges" onchange="onExportIncludeCongesChange()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="settings-desc-box">Ajoute une section congés (type, dates, jours, note) dans les exports CSV, Excel et PDF</div>
+  </div>
+  <div class="settings-card" style="margin-bottom:10px;">
     <div class="settings-row" style="cursor:pointer;" onclick="exportCSV()">
       <label style="font-weight:800;color:var(--accent);">Télécharger le CSV</label>
-      <div class="settings-summary">Toutes les sessions en fichier CSV</div>
+      <div class="settings-summary">Sessions (+ congés si activé) en fichier CSV</div>
     </div>
   </div>
   <div class="settings-card" style="margin-bottom:10px;">
     <div class="settings-row" style="cursor:pointer;" onclick="exportXLSX()">
       <label style="font-weight:800;color:var(--accent);">Télécharger l'Excel (.xlsx)</label>
-      <div class="settings-summary">Toutes les sessions en fichier Excel mis en forme</div>
+      <div class="settings-summary">Sessions (+ congés si activé) en fichier Excel mis en forme</div>
     </div>
   </div>
   <div class="settings-card">
@@ -2231,7 +2241,7 @@ function maybeShowWeeklyReport() {
   modal.id = 'weeklyReportModal';
   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Bilan ${now.getDay()===1?'de la semaine dernière':'de la semaine'}</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Du ${periodStart.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${periodEnd.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''} · pause moy. ${fmtHM(avgPauseMs)}</div>${alertsHtml}<div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
   document.body.appendChild(modal);
-}  const APP_VERSION = '0.7.0';
+}  const APP_VERSION = '0.8.0';
 
 
 // ── STORAGE ──
@@ -5222,6 +5232,16 @@ function exportPDF() {
     });
     html += '</table>';
 
+    if (getExportIncludeConges() && (state.conges || []).length) {
+      html += '<h2>📅 Congés</h2>';
+      html += `<table>
+        <tr><th>Type</th><th>Début</th><th>Fin</th><th>Jours</th><th>Note</th></tr>`;
+      getCongesExportRows().forEach(r => {
+        html += `<tr><td>${escapeHtml(r[0])}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${escapeHtml(r[4])}</td></tr>`;
+      });
+      html += '</table>';
+    }
+
     html += buildPdfChartsHtml();
 
     html += '</body></html>';
@@ -5441,6 +5461,13 @@ function exportXLSX() {
     s.endGeo ? s.endGeo.label : ''
   ]);
 
+  if (getExportIncludeConges() && (state.conges || []).length) {
+    rows.push(['', '', '', '', '', '', '', '']);
+    rows.push(['— CONGÉS —', '', '', '', '', '', '', '']);
+    rows.push(['Type', 'Debut', 'Fin', 'Jours', 'Note', '', '', '']);
+    getCongesExportRows().forEach(r => rows.push([r[0], r[1], r[2], r[3], r[4], '', '', '']));
+  }
+
   const bytes = _buildXlsxBytes(headers, rows, 'Heures');
   const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
   const url = URL.createObjectURL(blob);
@@ -5454,11 +5481,46 @@ function exportXLSX() {
   showToast('Excel téléchargé');
 }
 
-  function exportCSV() {
+  
+// ── OPTION D'EXPORT : INCLURE LES CONGÉS ──
+function getExportIncludeConges() {
+  return localStorage.getItem('orvia_export_include_conges') === 'true';
+}
+
+function onExportIncludeCongesChange() {
+  const el = document.getElementById('exportIncludeConges');
+  const enabled = el ? el.checked : false;
+  localStorage.setItem('orvia_export_include_conges', String(enabled));
+  showToast(enabled ? 'Congés inclus dans les exports' : 'Congés exclus des exports');
+}
+
+function renderExportIncludeCongesToggle() {
+  const el = document.getElementById('exportIncludeConges');
+  if (el) el.checked = getExportIncludeConges();
+}
+
+function getCongesExportRows() {
+  const sorted = [...(state.conges || [])].sort((a, b) => a.start.localeCompare(b.start));
+  return sorted.map(c => [
+    getCongeTypeLabel(c.type),
+    c.start,
+    c.end,
+    String(c.days || 0),
+    c.note || ''
+  ]);
+}
+
+function exportCSV() {
     const rows = [['Date','Arrivee','Depart','Pause min','Net h','Note','Localisation depart','Localisation fin']];
     (state.sessions || []).forEach(s => rows.push([
       s.date || '', fmtTime(s.start), fmtTime(s.end), Math.round((s.pauseMs || 0)/60000), ((s.net || 0)/3600000).toFixed(2), s.note || '', s.startGeo ? s.startGeo.label : '', s.endGeo ? s.endGeo.label : ''
     ]));
+    if (getExportIncludeConges() && (state.conges || []).length) {
+      rows.push([]);
+      rows.push(['— CONGÉS —']);
+      rows.push(['Type','Debut','Fin','Jours','Note']);
+      getCongesExportRows().forEach(r => rows.push(r));
+    }
     const csv = rows.map(r => r.map(c => '"' + String(c).replaceAll('"','""') + '"').join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -6687,6 +6749,7 @@ function updateObjectif(type, val) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-export-list-settings').classList.add('active');
+  renderExportIncludeCongesToggle();
 }
 
 function openExportSettings() {
@@ -7394,6 +7457,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '0.8.0', date: '2026-07-17', items: ['Nouveau réglage \u2018Inclure les congés\u2019 dans Exporter les données : ajoute une section congés (type, dates, jours, note) aux exports CSV, Excel et PDF, en plus des sessions.'] },
     { version: '0.7.0', date: '2026-07-16', items: ['Nouvelle alerte 5e semaine (Mode BTP) : notification push et bannière avant la date limite de prise (31 mars ou 30 avril selon le statut), avec délai d\u2019avertissement réglable (15 à 90 jours).'] },
     { version: '0.6.1', date: '2026-07-16', items: ['Ajout d\u2019un dépliant explicatif dans Mode BTP (CIBTP) : fonctionnement de la caisse, période d\u2019acquisition, composition du congé, périodes de prise, calcul du fractionnement et prime de vacances, spécifiques au CIBTP Rhône-Alpes Auvergne.'] },
     { version: '0.6.0', date: '2026-07-16', items: ['Nouveau Mode BTP (CIBTP) dans les réglages des congés : statut ouvrier ou ETAM/cadre réglable (échéance de la 5e semaine), grille de jours d\u2019ancienneté entièrement personnalisable selon ta convention, et calcul automatique des jours de fractionnement (1 ou 2 jours) selon les jours de congé payé pris hors de la période mai-octobre.'] },
