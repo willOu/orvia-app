@@ -742,6 +742,8 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <div style="display:flex;gap:14px;margin-top:8px;justify-content:center;">
       <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);"><div style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></div>Réalisé</div>
       <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);"><div style="width:14px;height:2px;background:var(--muted)"></div>Objectif</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);"><div style="width:10px;height:10px;border-radius:3px;background:#8b8fa8"></div>Jour férié</div>
+      <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);"><div style="width:10px;height:10px;border-radius:3px;background:#6c63ff"></div>Congé</div>
     </div>
   </div>
 
@@ -2241,7 +2243,7 @@ function maybeShowWeeklyReport() {
   modal.id = 'weeklyReportModal';
   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Bilan ${now.getDay()===1?'de la semaine dernière':'de la semaine'}</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Du ${periodStart.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${periodEnd.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''} · pause moy. ${fmtHM(avgPauseMs)}</div>${alertsHtml}<div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
   document.body.appendChild(modal);
-}  const APP_VERSION = '0.8.0';
+}  const APP_VERSION = '0.9.0';
 
 
 // ── STORAGE ──
@@ -7457,6 +7459,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '0.9.0', date: '2026-07-17', items: ['Le graphique de tendance (Historique) compte désormais les jours fériés dans les barres, tout en les distinguant clairement des congés et des jours normaux : un repère coloré en haut de la colonne, une légende dédiée, et un détail dans l\u2019info-bulle au clic (type de jour affiché explicitement).'] },
     { version: '0.8.0', date: '2026-07-17', items: ['Nouveau réglage \u2018Inclure les congés\u2019 dans Exporter les données : ajoute une section congés (type, dates, jours, note) aux exports CSV, Excel et PDF, en plus des sessions.'] },
     { version: '0.7.0', date: '2026-07-16', items: ['Nouvelle alerte 5e semaine (Mode BTP) : notification push et bannière avant la date limite de prise (31 mars ou 30 avril selon le statut), avec délai d\u2019avertissement réglable (15 à 90 jours).'] },
     { version: '0.6.1', date: '2026-07-16', items: ['Ajout d\u2019un dépliant explicatif dans Mode BTP (CIBTP) : fonctionnement de la caisse, période d\u2019acquisition, composition du congé, périodes de prise, calcul du fractionnement et prime de vacances, spécifiques au CIBTP Rhône-Alpes Auvergne.'] },
@@ -7569,6 +7572,29 @@ function getGoalForDate(dateStr) {
   return base;
 }
 
+// ── IDENTIFICATION DU TYPE DE JOUR POUR LES GRAPHIQUES ──
+// Renvoie le congé (s'il y en a un) couvrant cette date, ou null.
+function getCongeOnDate(dateStr) {
+  return state.conges.find(c => dateStr >= c.start && dateStr <= (c.end || c.start)) || null;
+}
+
+// Détermine le type de jour à afficher dans les graphiques : jour férié,
+// congé (avec son type/couleur), ou jour normal travaillé/vide. Les jours
+// fériés sont désormais comptés dans les graphiques (comme du temps à 0h
+// « prévu ») mais restent visuellement distincts des congés et des jours
+// normaux, pour qu'on comprenne pourquoi une barre est vide.
+function getDayTypeInfo(dateStr) {
+  const holidayLabel = getHolidayLabel(dateStr);
+  if (holidayLabel) {
+    return { kind: 'holiday', label: 'Jour férié : ' + holidayLabel, color: '#8b8fa8', short: 'F' };
+  }
+  const conge = getCongeOnDate(dateStr);
+  if (conge) {
+    return { kind: 'conge', label: getCongeTypeLabel(conge.type), color: getCongeTypeColor(conge.type), short: (getCongeTypeLabel(conge.type)[0] || 'C').toUpperCase() };
+  }
+  return { kind: 'normal', label: null, color: null, short: null };
+}
+
 let trendBarRects = [];
 
 function renderTrendChart() {
@@ -7618,17 +7644,32 @@ function renderTrendChart() {
   }
 
   const accent = getComputedStyle(document.body).getPropertyValue('--accent') || '#6c63ff';
+  const muted = getComputedStyle(document.body).getPropertyValue('--muted') || '#8b8fa8';
   days.forEach((dateStr, i) => {
     const x = padL + i * (plotW / n) + (plotW/n - barW)/2;
     const h = (doneByDay[i] / maxVal) * plotH;
     const goalH = (goalByDay[i] / maxVal) * plotH;
     const done = doneByDay[i];
     const goal = goalByDay[i];
+    const dayInfo = getDayTypeInfo(dateStr);
     ctx.fillStyle = goal > 0 && done >= goal ? (getComputedStyle(document.body).getPropertyValue('--green') || '#3ecf8e') : accent;
     ctx.fillRect(x, padT + plotH - h, barW, h);
-    trendBarRects.push({ x, y: padT, w: barW, h: plotH, dateStr, done, goal });
+
+    // Marque distincte pour les jours fériés / congés : un petit repère coloré
+    // en haut de la colonne, pour que la barre à 0h ne soit pas confondue
+    // avec un jour simplement non travaillé.
+    if (dayInfo.kind !== 'normal') {
+      ctx.save();
+      ctx.fillStyle = dayInfo.color;
+      const markerH = 4;
+      ctx.fillRect(x, padT + plotH - Math.max(h, markerH), barW, markerH);
+      if (h < markerH) ctx.fillRect(x, padT + plotH - markerH, barW, markerH);
+      ctx.restore();
+    }
+
+    trendBarRects.push({ x, y: padT, w: barW, h: plotH, dateStr, done, goal, dayInfo });
     if (goal > 0) {
-      ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--muted') || '#8b8fa8';
+      ctx.strokeStyle = muted;
       ctx.setLineDash([2,2]);
       ctx.beginPath();
       ctx.moveTo(x - 1, padT + plotH - goalH);
@@ -7639,7 +7680,7 @@ function renderTrendChart() {
     if (n === 7 || i % 5 === 0 || i === n-1) {
       const d = new Date(dateStr + 'T00:00:00');
       const label = n === 7 ? d.toLocaleDateString('fr-FR', {weekday:'short'}).slice(0,2) : d.getDate().toString();
-      ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted') || '#8b8fa8';
+      ctx.fillStyle = dayInfo.kind !== 'normal' ? dayInfo.color : muted;
       ctx.textAlign = 'center';
       ctx.fillText(label, x + barW/2, cssH - 4);
       ctx.textAlign = 'left';
@@ -7787,11 +7828,16 @@ function showTrendTooltip(clientX, clientY, rect) {
 
   const tooltip = document.getElementById('trendTooltip');
   if (!tooltip) return;
+  const dayInfo = rect.dayInfo || getDayTypeInfo(rect.dateStr);
+  const dayTypeHtml = dayInfo.kind !== 'normal'
+    ? `<div style="color:${dayInfo.color};font-weight:700;margin-top:2px;">${dayInfo.kind === 'holiday' ? '🏳️' : '📅'} ${dayInfo.label}</div>`
+    : '';
   tooltip.innerHTML = `
     <div style="font-weight:700;margin-bottom:4px;">${dateLabel}</div>
     <div>Réalisé : <strong>${fmtHM(doneMs)}</strong></div>
     <div>Objectif : <strong>${rect.goal > 0 ? fmtHM(goalMs) : '—'}</strong></div>
     <div style="color:${diffColor};font-weight:600;margin-top:2px;">${diffLabel}</div>
+    ${dayTypeHtml}
   `;
   tooltip.style.display = 'block';
 
