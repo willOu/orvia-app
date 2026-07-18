@@ -747,6 +747,23 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     </div>
   </div>
 
+  <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">
+    <span>Comparaisons</span>
+    <div class="view-selector" style="margin:0;width:auto;padding:2px;">
+      <button class="view-btn cmp-btn active" id="cmpBtnMonth" onclick="setComparisonMode('month')">Mois</button>
+      <button class="view-btn cmp-btn" id="cmpBtnYear" onclick="setComparisonMode('year')">Année</button>
+    </div>
+  </div>
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:10px;position:relative;">
+    <canvas id="comparisonChart" style="width:100%;height:160px;display:block;cursor:pointer;"></canvas>
+    <div id="comparisonTooltip" style="display:none;position:absolute;background:#0b1f2a;border:1px solid var(--accent);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.4);pointer-events:none;z-index:10;white-space:nowrap;"></div>
+  </div>
+  <div style="display:flex;gap:10px;margin-bottom:16px;">
+    <button class="btn-primary" style="flex:1;font-size:13px;" onclick="exportComparisonChartImage()">📷 Exporter en image</button>
+  </div>
+
+  <div class="stats-grid" id="pauseStatsGrid" style="margin-bottom:16px;"></div>
+
   <div class="section-title">Tes tendances</div>
   <div id="trendInsightsList" style="margin-bottom:16px;"></div>
 
@@ -2243,7 +2260,7 @@ function maybeShowWeeklyReport() {
   modal.id = 'weeklyReportModal';
   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Bilan ${now.getDay()===1?'de la semaine dernière':'de la semaine'}</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Du ${periodStart.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${periodEnd.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''} · pause moy. ${fmtHM(avgPauseMs)}</div>${alertsHtml}<div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
   document.body.appendChild(modal);
-}  const APP_VERSION = '0.9.0';
+}  const APP_VERSION = '1.0.0';
 
 
 // ── STORAGE ──
@@ -7459,6 +7476,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '1.0.0', date: '2026-07-17', items: ['Nouveau bloc Comparaisons dans Historique : graphique mois par mois (12 derniers mois) ou année par année, export du graphique en image PNG, et carte de moyenne du temps de pause par jour travaillé.'] },
     { version: '0.9.0', date: '2026-07-17', items: ['Le graphique de tendance (Historique) compte désormais les jours fériés dans les barres, tout en les distinguant clairement des congés et des jours normaux : un repère coloré en haut de la colonne, une légende dédiée, et un détail dans l\u2019info-bulle au clic (type de jour affiché explicitement).'] },
     { version: '0.8.0', date: '2026-07-17', items: ['Nouveau réglage \u2018Inclure les congés\u2019 dans Exporter les données : ajoute une section congés (type, dates, jours, note) aux exports CSV, Excel et PDF, en plus des sessions.'] },
     { version: '0.7.0', date: '2026-07-16', items: ['Nouvelle alerte 5e semaine (Mode BTP) : notification push et bannière avant la date limite de prise (31 mars ou 30 avril selon le statut), avec délai d\u2019avertissement réglable (15 à 90 jours).'] },
@@ -7691,6 +7709,196 @@ function renderTrendChart() {
 window.addEventListener('resize', () => { if (document.getElementById('page-history').classList.contains('active')) renderTrendChart(); });
 
 // ── DÉTECTION DE TENDANCES ──
+
+// ── COMPARAISONS MOIS PAR MOIS / ANNÉE PAR ANNÉE ──
+let comparisonMode = 'month';
+let comparisonBarRects = [];
+
+function setComparisonMode(mode) {
+  comparisonMode = mode;
+  document.getElementById('cmpBtnMonth').classList.toggle('active', mode === 'month');
+  document.getElementById('cmpBtnYear').classList.toggle('active', mode === 'year');
+  renderComparisonChart();
+}
+
+function getMonthlyComparisonData() {
+  const now = new Date();
+  const labels = [], values = [];
+  for (let i = 11; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const start = d.getTime();
+    const end = new Date(d.getFullYear(), d.getMonth() + 1, 1).getTime();
+    const ms = state.sessions.filter(s => s.start >= start && s.start < end).reduce((a, s) => a + (s.net || 0), 0);
+    labels.push(d.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' }));
+    values.push(ms / 3600000);
+  }
+  return { labels, values };
+}
+
+function getYearlyComparisonData() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const years = [...new Set(state.sessions.map(s => new Date(s.start).getFullYear()))];
+  const minYear = years.length ? Math.min(...years, currentYear) : currentYear;
+  const labels = [], values = [];
+  for (let y = minYear; y <= currentYear; y++) {
+    const start = new Date(y, 0, 1).getTime();
+    const end = new Date(y + 1, 0, 1).getTime();
+    const ms = state.sessions.filter(s => s.start >= start && s.start < end).reduce((a, s) => a + (s.net || 0), 0);
+    labels.push(String(y));
+    values.push(ms / 3600000);
+  }
+  return { labels, values };
+}
+
+function renderComparisonChart() {
+  const canvas = document.getElementById('comparisonChart');
+  if (!canvas) return;
+  comparisonBarRects = [];
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const cssW = rect.width || canvas.parentElement.clientWidth;
+  const cssH = 160;
+  canvas.width = cssW * dpr;
+  canvas.height = cssH * dpr;
+  canvas.style.height = cssH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  const { labels, values } = comparisonMode === 'month' ? getMonthlyComparisonData() : getYearlyComparisonData();
+  const n = values.length;
+  if (!n) return;
+  const maxVal = Math.max(1, ...values) * 1.15;
+  const padL = 34, padR = 8, padT = 10, padB = 20;
+  const plotW = cssW - padL - padR;
+  const plotH = cssH - padT - padB;
+  const barGap = 6;
+  const barW = Math.max(2, (plotW / n) - barGap);
+
+  const muted = getComputedStyle(document.body).getPropertyValue('--muted') || '#8b8fa8';
+  const accent = getComputedStyle(document.body).getPropertyValue('--accent') || '#6c63ff';
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  ctx.fillStyle = muted;
+  ctx.font = '9px -apple-system, sans-serif';
+  for (let g = 0; g <= 3; g++) {
+    const y = padT + plotH - (g / 3) * plotH;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(cssW - padR, y); ctx.stroke();
+    ctx.fillText((maxVal * g / 3).toFixed(0) + 'h', 2, y + 3);
+  }
+
+  const avg = values.reduce((a, v) => a + v, 0) / n;
+  values.forEach((v, i) => {
+    const x = padL + i * (plotW / n) + (plotW / n - barW) / 2;
+    const h = (v / maxVal) * plotH;
+    const isCurrent = i === n - 1;
+    ctx.fillStyle = isCurrent ? accent : (v >= avg ? (getComputedStyle(document.body).getPropertyValue('--green') || '#3ecf8e') : muted);
+    ctx.fillRect(x, padT + plotH - h, barW, h);
+    comparisonBarRects.push({ x, y: padT, w: barW, h: plotH, label: labels[i], value: v });
+    if (n <= 12 || i % Math.ceil(n / 12) === 0 || i === n - 1) {
+      ctx.fillStyle = muted;
+      ctx.textAlign = 'center';
+      ctx.fillText(labels[i], x + barW / 2, cssH - 4);
+      ctx.textAlign = 'left';
+    }
+  });
+}
+
+function comparisonChartInteraction(evt) {
+  const canvas = document.getElementById('comparisonChart');
+  if (!canvas || !comparisonBarRects.length) return;
+  const canvasRect = canvas.getBoundingClientRect();
+  const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+  const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+  const x = clientX - canvasRect.left;
+  const y = clientY - canvasRect.top;
+  const hit = comparisonBarRects.find(r => x >= r.x - 2 && x <= r.x + r.w + 2 && y >= r.y && y <= r.y + r.h);
+  const tooltip = document.getElementById('comparisonTooltip');
+  if (!tooltip) return;
+  if (hit) {
+    tooltip.innerHTML = `<div style="font-weight:700;margin-bottom:4px;">${hit.label}</div><div>Total : <strong>${fmtHM(hit.value * 3600000)}</strong></div>`;
+    tooltip.style.display = 'block';
+    const container = canvas.parentElement;
+    const containerRect = container.getBoundingClientRect();
+    let left = clientX - containerRect.left;
+    let top = (canvasRect.top - containerRect.top) - 10;
+    requestAnimationFrame(() => {
+      const tw = tooltip.offsetWidth;
+      left = Math.max(4, Math.min(left - tw / 2, container.clientWidth - tw - 4));
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = Math.max(0, top - tooltip.offsetHeight) + 'px';
+    });
+  } else {
+    tooltip.style.display = 'none';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const canvas = document.getElementById('comparisonChart');
+  if (canvas) {
+    canvas.addEventListener('click', comparisonChartInteraction);
+    canvas.addEventListener('mousemove', comparisonChartInteraction);
+    canvas.addEventListener('touchstart', comparisonChartInteraction, { passive: true });
+    canvas.addEventListener('mouseleave', () => { const t = document.getElementById('comparisonTooltip'); if (t) t.style.display = 'none'; });
+  }
+});
+
+window.addEventListener('resize', () => { if (document.getElementById('page-history').classList.contains('active')) renderComparisonChart(); });
+
+// Export du graphique de comparaison actif (mois ou année) en image PNG,
+// en redessinant sur un canvas hors-écran à plus haute résolution pour un
+// export net, avec fond opaque (le canvas d'affichage a un fond transparent).
+function exportComparisonChartImage() {
+  const canvas = document.getElementById('comparisonChart');
+  if (!canvas) return;
+  const scale = 2;
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = canvas.width * scale / (window.devicePixelRatio || 1);
+  exportCanvas.height = canvas.height * scale / (window.devicePixelRatio || 1);
+  const ectx = exportCanvas.getContext('2d');
+  const bgColor = getComputedStyle(document.body).getPropertyValue('--card') || '#12222b';
+  ectx.fillStyle = bgColor.trim() || '#12222b';
+  ectx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+  ectx.drawImage(canvas, 0, 0, exportCanvas.width, exportCanvas.height);
+  exportCanvas.toBlob(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `comparaison_${comparisonMode === 'month' ? 'mensuelle' : 'annuelle'}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast('Image exportée');
+  }, 'image/png');
+}
+
+// ── MOYENNE DU TEMPS DE PAUSE PAR JOUR ──
+function getAveragePauseStats() {
+  const byDate = {};
+  state.sessions.forEach(s => {
+    if (!byDate[s.date]) byDate[s.date] = 0;
+    byDate[s.date] += (s.pauseMs || 0);
+  });
+  const dates = Object.keys(byDate);
+  if (!dates.length) return { avgMs: 0, daysCount: 0, totalMs: 0 };
+  const totalMs = dates.reduce((a, d) => a + byDate[d], 0);
+  return { avgMs: totalMs / dates.length, daysCount: dates.length, totalMs };
+}
+
+function renderPauseStatsGrid() {
+  const el = document.getElementById('pauseStatsGrid');
+  if (!el) return;
+  const { avgMs, daysCount } = getAveragePauseStats();
+  el.innerHTML = `
+    <div class="stat-card full">
+      <div class="stat-val" style="color:var(--accent2)">${fmtHM(avgMs)}</div>
+      <div class="stat-lbl">Pause moyenne / jour travaillé (${daysCount} jour${daysCount > 1 ? 's' : ''})</div>
+    </div>`;
+}
+
 // Analyse les sessions historiques pour repérer des habitudes récurrentes :
 // jour de la semaine le plus/moins travaillé, évolution récente vs
 // précédente, régularité des horaires. Nécessite un minimum de données pour
@@ -7900,7 +8108,7 @@ function switchTab(name) {
   if (tabEl) tabEl.classList.add('active');
   document.getElementById('page-' + name).classList.add('active');
   if (name === 'today') renderObjectifs();
-  if (name === 'history') { renderHistory(); renderTrendChart(); renderTrendInsights(); }
+  if (name === 'history') { renderHistory(); renderTrendChart(); renderTrendInsights(); renderComparisonChart(); renderPauseStatsGrid(); }
   if (name === 'conges') renderConges();
   if (name === 'reglages') renderReglages();
 }
