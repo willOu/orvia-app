@@ -625,6 +625,7 @@
 @media print { .tabs, .header, .btn-row, .toast, .view-selector { display:none !important; } .page { display:block !important; padding:0 !important; } body { background:#fff !important; color:#000 !important; } }
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
 </head>
 <body><div id='topSplashLogo' style='position:absolute;left:50%;top:calc(env(safe-area-inset-top, 0px) + 12px);transform:translateX(-50%);width:120px;height:50px;display:flex;justify-content:center;align-items:center;overflow:auto;pointer-events:auto;z-index:9999'><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 340 140' width='120' height='50' role='img' aria-label='Orvia' style='display:block;margin:0 auto'><g fill='none' stroke='var(--text)' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'><circle cx='82' cy='58' r='30'></circle><path d='M82 38v20l16 11'></path></g><text x='170' y='100' text-anchor='middle' dominant-baseline='middle' fill='var(--text)' font-family='Inter, Arial, sans-serif' font-size='42' font-weight='800' letter-spacing='6'>ORVIA</text></svg></div><div class="tabs-guard"></div>
@@ -1004,6 +1005,13 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <div class="settings-desc-box">Exporter ou importer toutes les données</div>
   </div>
 
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openCloudSyncSettings()">
+      <label style="font-weight:800;color:var(--accent);">Synchronisation cloud</label>
+    </div>
+    <div class="settings-desc-box" id="cloudSyncSummary">Connexion par lien magique, sauvegarde automatique</div>
+  </div>
+
   <div class="section-title" style="margin-top:20px;">ℹ️ Autres</div>
 
   <div class="settings-card" style="margin-bottom:10px;">
@@ -1306,6 +1314,44 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 
   <div class="section-title">Prochaines vacances scolaires</div>
   <div id="schoolCalendarUpcoming"></div>
+</div>
+
+<div class="page" id="page-cloudsync-settings">
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="section-title">Synchronisation cloud</div>
+
+  <div id="cloudSyncLoggedOutBox" style="display:none;">
+    <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+      <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:14px;">
+        Connectez-vous pour sauvegarder vos données dans le cloud et les retrouver sur un autre appareil. Pas de mot de passe : un lien vous est envoyé par email.
+      </div>
+      <input type="email" id="cloudSyncEmail" placeholder="votre@email.com" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;margin-bottom:10px;">
+      <button onclick="onSendMagicLinkClick()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Envoyer le lien magique</button>
+    </div>
+  </div>
+
+  <div id="cloudSyncLoggedInBox" style="display:none;">
+    <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:2px;">Connecté en tant que</div>
+      <div id="cloudSyncEmailLabel" style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;"></div>
+      <div id="cloudSyncLastSync" style="font-size:12px;color:var(--muted);margin-bottom:14px;"></div>
+      <button onclick="manualPushToCloud()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:11px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;">📤 Sauvegarder maintenant</button>
+      <button onclick="manualPullFromCloud()" style="width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);padding:11px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;">📥 Restaurer depuis le cloud</button>
+      <button onclick="signOutCloud()" style="width:100%;background:transparent;border:none;color:var(--accent2);padding:8px;font-size:13px;font-weight:600;cursor:pointer;">Se déconnecter</button>
+    </div>
+  </div>
+
+  <div class="settings-card" style="padding:14px;">
+    <div style="font-size:12px;color:var(--muted);line-height:1.5;">
+      💡 Vos sessions et congés sont envoyés automatiquement au cloud dès qu'une modification est faite (si vous êtes en ligne et connecté). Les autres réglages (thème, objectifs...) restent uniquement locaux pour l'instant.
+    </div>
+  </div>
 </div>
 
 <div class="page" id="page-workmode-settings">
@@ -2302,6 +2348,7 @@ function enqueueSyncChange(kind, summary) {
   q.push({ id: Date.now() + Math.floor(Math.random() * 100000), ts: Date.now(), kind, summary: (summary || '').slice(0, 120) });
   saveSyncQueue(q);
   renderSyncStatusBadge();
+  processSyncQueue();
 }
 
 function getSyncPhase() {
@@ -2309,6 +2356,7 @@ function getSyncPhase() {
   const cfg = getSyncState();
   const queueLen = getSyncQueue().length;
   if (!cfg.cloudEnabled) return online ? 'offline-nocloud' : 'offline';
+  if (!_cloudUser) return 'offline-nocloud';
   if (!online) return queueLen > 0 ? 'offline-pending' : 'offline';
   if (queueLen > 0) return 'syncing';
   return 'synced';
@@ -2354,13 +2402,16 @@ function notifySyncPhaseChange(fromPhase, toPhase) {
   }
 }
 
-function processSyncQueue() {
+async function processSyncQueue() {
   const cfg = getSyncState();
-  if (!cfg.cloudEnabled || !navigator.onLine) return;
+  if (!cfg.cloudEnabled || !navigator.onLine || !_cloudUser) return;
   const q = getSyncQueue();
   if (!q.length) return;
-  saveSyncQueue([]);
-  saveSyncState({ ...cfg, lastSyncTs: Date.now() });
+  const ok = await pushToCloud();
+  if (ok) {
+    saveSyncQueue([]);
+    saveSyncState({ ...getSyncState(), lastSyncTs: Date.now() });
+  }
   renderSyncStatusBadge();
 }
 
@@ -2370,6 +2421,167 @@ function onNetworkOnline() {
 }
 
 function onNetworkOffline() {
+  renderSyncStatusBadge();
+}
+
+// ── SUPABASE (synchronisation cloud) ──
+// L'anon key Supabase est publique par conception : la sécurité est assurée
+// par les policies Row Level Security côté serveur (voir supabase_schema.sql),
+// pas par le secret de cette clé. Elle peut donc être embarquée côté client.
+const SUPABASE_URL = 'https://aazoafadntpgwzfgrgsx.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhem9hZmFkbnRwZ3d6ZmdyZ3N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzOTUxMTAsImV4cCI6MjA5OTk3MTExMH0.rd0-Bcg_WE-NbbeHWY82bCm56Y60rZiT8SBVqepFooc';
+
+let sb = null;
+try {
+  if (window.supabase && typeof window.supabase.createClient === 'function') {
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+} catch (e) { sb = null; }
+
+let _cloudUser = null;
+
+async function refreshCloudUser() {
+  if (!sb) return null;
+  try {
+    const { data } = await sb.auth.getSession();
+    _cloudUser = (data && data.session && data.session.user) ? data.session.user : null;
+  } catch (e) { _cloudUser = null; }
+  return _cloudUser;
+}
+
+async function sendMagicLink(email) {
+  if (!sb) { showToast('Client cloud indisponible'); return false; }
+  const clean = (email || '').trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) { showToast('Adresse email invalide'); return false; }
+  const redirectTo = window.location.origin + window.location.pathname;
+  try {
+    const { error } = await sb.auth.signInWithOtp({ email: clean, options: { emailRedirectTo: redirectTo } });
+    if (error) { showToast('Erreur : ' + error.message); return false; }
+    showToast('📧 Lien envoyé — vérifiez vos emails');
+    return true;
+  } catch (e) {
+    showToast('Erreur réseau lors de l\'envoi du lien');
+    return false;
+  }
+}
+
+async function signOutCloud() {
+  if (!sb) return;
+  try { await sb.auth.signOut(); } catch (e) {}
+  _cloudUser = null;
+  const cfg = getSyncState();
+  saveSyncState({ ...cfg, cloudEnabled: false });
+  renderSyncStatusBadge();
+  showToast('Déconnecté du cloud');
+}
+
+async function pushToCloud() {
+  if (!sb || !_cloudUser) return false;
+  try {
+    const payload = buildBackupData();
+    const { error } = await sb.from('orvia_backups').upsert({
+      user_id: _cloudUser.id,
+      data: payload,
+      updated_at: new Date().toISOString(),
+    });
+    return !error;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function pullFromCloud() {
+  if (!sb || !_cloudUser) return null;
+  try {
+    const { data, error } = await sb.from('orvia_backups')
+      .select('data, updated_at')
+      .eq('user_id', _cloudUser.id)
+      .maybeSingle();
+    if (error || !data) return null;
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+function applyCloudBackup(remoteData) {
+  const clean = sanitizeBackupData(remoteData);
+  state.sessions = clean.sessions;
+  state.conges = clean.conges;
+  state.quotas = clean.quotas;
+  objectifs = clean.objectifs;
+  save();
+  saveConges();
+  saveObjectifs();
+  switchTab('today');
+  renderReglages();
+}
+
+// Au premier chargement, si un lien magique vient d'être suivi, le client
+// Supabase détecte automatiquement le jeton dans l'URL et déclenche cet event.
+if (sb) {
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      _cloudUser = session.user;
+      history.replaceState(null, '', window.location.pathname);
+      const cfg = getSyncState();
+      saveSyncState({ ...cfg, cloudEnabled: true });
+      const remote = await pullFromCloud();
+      if (remote && remote.data) {
+        openCloudConflictModal(remote);
+      } else {
+        await pushToCloud();
+        saveSyncState({ ...getSyncState(), lastSyncTs: Date.now() });
+        showToast('☁️ Connecté — première sauvegarde envoyée');
+      }
+      renderSyncStatusBadge();
+      renderCloudSyncSettings();
+    } else if (event === 'SIGNED_OUT') {
+      _cloudUser = null;
+      renderSyncStatusBadge();
+      renderCloudSyncSettings();
+    }
+  });
+}
+
+function openCloudConflictModal(remote) {
+  const remoteDate = new Date(remote.updated_at).toLocaleString('fr-FR', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  const localCount = state.sessions.length;
+  const remoteCount = Array.isArray(remote.data.sessions) ? remote.data.sessions.length : 0;
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'cloudConflictModal';
+  modal.style.display = 'flex';
+  modal.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-title">☁️ Des données existent déjà dans le cloud</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px;">
+        Dernière sauvegarde cloud : <strong style="color:var(--text)">${remoteDate}</strong> (${remoteCount} sessions).<br>
+        Sur cet appareil : ${localCount} sessions.<br><br>
+        Que voulez-vous faire ?
+      </div>
+      <div class="modal-actions" style="flex-direction:column;gap:8px;">
+        <button class="modal-btn-save" onclick="resolveCloudConflict('remote')">📥 Restaurer depuis le cloud (écrase cet appareil)</button>
+        <button class="modal-btn-save" style="background:var(--accent2)" onclick="resolveCloudConflict('local')">📤 Envoyer cet appareil (écrase le cloud)</button>
+        <button class="modal-btn-cancel" onclick="document.getElementById('cloudConflictModal').remove()">Décider plus tard</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+}
+
+async function resolveCloudConflict(choice) {
+  document.getElementById('cloudConflictModal').remove();
+  if (choice === 'remote') {
+    const remote = await pullFromCloud();
+    if (remote && remote.data) {
+      applyCloudBackup(remote.data);
+      showToast('☁️ Données restaurées depuis le cloud ✓');
+    }
+  } else {
+    await pushToCloud();
+    saveSyncState({ ...getSyncState(), lastSyncTs: Date.now() });
+    showToast('☁️ Données de cet appareil envoyées ✓');
+  }
   renderSyncStatusBadge();
 }
 
@@ -6627,6 +6839,7 @@ const CONGE_COLORS_HEX = { cp:'#6c63ff', rtt:'#3ecf8e', css:'#f59e0b', csp:'#ff6
 
 function renderReglages() {
   updateWorkModeSummary();
+  renderCloudSyncSettings();
   const types = ['cp','rtt','css','csp'];
 
   // Quota cards
@@ -6988,6 +7201,68 @@ function importThemeBackup(event) {
 
 function baseAppUrl() {
   return window.location.origin + window.location.pathname;
+}
+
+function openCloudSyncSettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-cloudsync-settings').classList.add('active');
+  renderCloudSyncSettings();
+}
+
+async function renderCloudSyncSettings() {
+  await refreshCloudUser();
+  const loggedOutBox = document.getElementById('cloudSyncLoggedOutBox');
+  const loggedInBox = document.getElementById('cloudSyncLoggedInBox');
+  const summaryEl = document.getElementById('cloudSyncSummary');
+  if (!loggedOutBox || !loggedInBox) return;
+
+  if (_cloudUser) {
+    loggedOutBox.style.display = 'none';
+    loggedInBox.style.display = 'block';
+    document.getElementById('cloudSyncEmailLabel').textContent = _cloudUser.email || '';
+    const cfg = getSyncState();
+    document.getElementById('cloudSyncLastSync').textContent = cfg.lastSyncTs
+      ? 'Dernière synchronisation : ' + new Date(cfg.lastSyncTs).toLocaleString('fr-FR', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })
+      : 'Pas encore synchronisé';
+    if (summaryEl) summaryEl.textContent = 'Connecté — ' + (_cloudUser.email || '');
+  } else {
+    loggedOutBox.style.display = 'block';
+    loggedInBox.style.display = 'none';
+    if (summaryEl) summaryEl.textContent = 'Connexion par lien magique, sauvegarde automatique';
+  }
+}
+
+async function onSendMagicLinkClick() {
+  const input = document.getElementById('cloudSyncEmail');
+  if (!input) return;
+  await sendMagicLink(input.value);
+}
+
+async function manualPushToCloud() {
+  showToast('Envoi en cours…');
+  const ok = await pushToCloud();
+  if (ok) {
+    saveSyncState({ ...getSyncState(), lastSyncTs: Date.now() });
+    renderSyncStatusBadge();
+    renderCloudSyncSettings();
+    showToast('☁️ Sauvegardé dans le cloud ✓');
+  } else {
+    showToast('Échec de la sauvegarde cloud');
+  }
+}
+
+async function manualPullFromCloud() {
+  const remote = await pullFromCloud();
+  if (!remote || !remote.data) {
+    showToast('Aucune sauvegarde cloud trouvée');
+    return;
+  }
+  if (!confirm('Remplacer les données de cet appareil par celles du cloud ? Cette action écrase les données locales.')) return;
+  applyCloudBackup(remote.data);
+  saveSyncState({ ...getSyncState(), lastSyncTs: Date.now() });
+  renderSyncStatusBadge();
+  showToast('☁️ Données restaurées depuis le cloud ✓');
 }
 
 function openWorkModeSettings() {
@@ -8598,6 +8873,7 @@ setInterval(checkForgottenSession, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForgottenSession(); });
 checkForgottenSession();
 checkAutoBackup();
+refreshCloudUser().then(() => renderSyncStatusBadge());
 
 // ── ACTION RAPIDE VIA URL (raccourci iOS "Raccourcis"/Siri) ──
 // Ouvrir l'app avec ?action=start ou ?action=stop déclenche l'action
