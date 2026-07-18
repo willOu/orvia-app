@@ -44,7 +44,7 @@ self.addEventListener('fetch', event => {
         }
         return networkResponse;
       }).catch(() => cached);
-      return fetchPromise || cached;
+      return cached || fetchPromise;
     })
   );
 });
