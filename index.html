@@ -642,7 +642,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div class="header-meta">
     <div class="date" id="headerDate"></div>
     <div class="date" id="headerTime" style="font-variant-numeric:tabular-nums;letter-spacing:.5px"></div>
-    <div id="syncStatusBadge" onclick="openSyncStatusModal()" style="position:absolute;top:12px;left:12px;font-size:10px;font-weight:800;padding:4px 9px;border-radius:999px;display:flex;align-items:center;gap:5px;cursor:pointer;"></div>
+    <div id="syncStatusBadge" onclick="openSyncStatusModal()" style="position:absolute;top:calc(env(safe-area-inset-top, 0px) + 12px);left:12px;font-size:10px;font-weight:800;padding:4px 9px;border-radius:999px;display:flex;align-items:center;gap:5px;cursor:pointer;"></div>
 </div>
 
 <div class="tabs">
