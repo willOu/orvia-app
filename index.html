@@ -2416,7 +2416,7 @@ async function processSyncQueue() {
 }
 
 function onNetworkOnline() {
-  processSyncQueue();
+  autoSyncOnOpen();
   renderSyncStatusBadge();
 }
 
@@ -2504,7 +2504,7 @@ async function pullFromCloud() {
   }
 }
 
-function applyCloudBackup(remoteData) {
+function applyCloudBackup(remoteData, silent) {
   const clean = sanitizeBackupData(remoteData);
   state.sessions = clean.sessions;
   state.conges = clean.conges;
@@ -2513,8 +2513,17 @@ function applyCloudBackup(remoteData) {
   save();
   saveConges();
   saveObjectifs();
-  switchTab('today');
-  renderReglages();
+  if (silent) {
+    // Rafraîchit le contenu de tous les onglets sans changer celui affiché à l'écran.
+    renderObjectifs();
+    renderHistory();
+    renderTrendChart();
+    renderConges();
+    renderReglages();
+  } else {
+    switchTab('today');
+    renderReglages();
+  }
 }
 
 // Au premier chargement, si un lien magique vient d'être suivi, le client
@@ -2583,6 +2592,39 @@ async function resolveCloudConflict(choice) {
     showToast('☁️ Données de cet appareil envoyées ✓');
   }
   renderSyncStatusBadge();
+}
+
+// Synchronisation automatique "au réveil" de l'app : pousse d'abord les
+// changements locaux en attente (pour ne jamais perdre de données non
+// envoyées), puis ne récupère le cloud que s'il est réellement plus récent
+// que notre dernier point de synchronisation connu — ce qui, une fois le push
+// fait, ne peut arriver que si un AUTRE appareil a écrit entre-temps.
+let _autoSyncing = false;
+async function autoSyncOnOpen() {
+  if (_autoSyncing) return;
+  const cfg = getSyncState();
+  if (!cfg.cloudEnabled || !navigator.onLine) return;
+  await refreshCloudUser();
+  if (!_cloudUser) return;
+
+  _autoSyncing = true;
+  try {
+    if (getSyncQueue().length > 0) {
+      await processSyncQueue();
+    }
+    const remote = await pullFromCloud();
+    if (!remote) return;
+    const remoteTs = new Date(remote.updated_at).getTime();
+    const localTs = getSyncState().lastSyncTs || 0;
+    if (remoteTs > localTs) {
+      applyCloudBackup(remote.data, true);
+      saveSyncState({ ...getSyncState(), lastSyncTs: remoteTs });
+      renderSyncStatusBadge();
+      showToast('☁️ Données mises à jour depuis un autre appareil');
+    }
+  } finally {
+    _autoSyncing = false;
+  }
 }
 
 function openSyncStatusModal() {
@@ -6858,7 +6900,7 @@ function renderReglages() {
     types.map(t => `
     <div class="settings-row">
       <div class="settings-dot" style="background:${CONGE_COLORS_HEX[t]}"></div>
-      <input type="text" value="${CONGE_LABELS[t]}"
+      <input type="text" value="${escapeHtml(CONGE_LABELS[t])}"
         onchange="updateLabel('${t}', this.value)" style="flex:1;width:auto">
     </div>`).join('')
   }</div>`;
@@ -8870,10 +8912,11 @@ setInterval(updateHeaderTime, 1000);
 setInterval(checkReminderTrigger, 60000);
 checkReminderTrigger();
 setInterval(checkForgottenSession, 60000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForgottenSession(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkForgottenSession(); autoSyncOnOpen(); } });
 checkForgottenSession();
 checkAutoBackup();
-refreshCloudUser().then(() => renderSyncStatusBadge());
+refreshCloudUser().then(() => { renderSyncStatusBadge(); autoSyncOnOpen(); });
+setInterval(autoSyncOnOpen, 5 * 60000);
 
 // ── ACTION RAPIDE VIA URL (raccourci iOS "Raccourcis"/Siri) ──
 // Ouvrir l'app avec ?action=start ou ?action=stop déclenche l'action
