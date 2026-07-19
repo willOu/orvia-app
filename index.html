@@ -2325,7 +2325,7 @@ function maybeShowWeeklyReport() {
   modal.id = 'weeklyReportModal';
   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Bilan ${now.getDay()===1?'de la semaine dernière':'de la semaine'}</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Du ${periodStart.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${periodEnd.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''} · pause moy. ${fmtHM(avgPauseMs)}</div>${alertsHtml}<div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
   document.body.appendChild(modal);
-}  const APP_VERSION = '1.4.0';
+}  const APP_VERSION = '1.5.0';
 
 
 // ── STORAGE ──
@@ -7395,10 +7395,30 @@ async function verifyPastedLink(pastedText) {
     showToast("Ça ne ressemble pas à un lien valide");
     return false;
   }
-  const tokenHash = url.searchParams.get('token_hash') || url.searchParams.get('token');
-  const type = url.searchParams.get('type') || 'email';
+
+  // Le jeton peut se trouver soit dans la query string (lien brut de l'email,
+  // avant tout clic), soit dans le fragment #... (si le lien a déjà été suivi
+  // et redirigé une première fois, ex: copié depuis la barre d'adresse Safari).
+  const hashParams = new URLSearchParams((url.hash || '').replace(/^#/, ''));
+  const getParam = (name) => url.searchParams.get(name) || hashParams.get(name);
+
+  const accessToken = getParam('access_token');
+  const refreshToken = getParam('refresh_token');
+  if (accessToken && refreshToken) {
+    try {
+      const { error } = await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+      if (error) { showToast('Session invalide ou expirée : ' + error.message); return false; }
+      return true;
+    } catch (e) {
+      showToast('Erreur réseau lors de la connexion');
+      return false;
+    }
+  }
+
+  const tokenHash = getParam('token_hash') || getParam('token');
+  const type = getParam('type') || 'email';
   if (!tokenHash) {
-    showToast("Aucun jeton trouvé dans ce lien");
+    showToast("Aucun jeton trouvé dans ce lien — copiez le lien directement depuis l'email, sans avoir cliqué dessus avant");
     return false;
   }
   try {
