@@ -2488,7 +2488,7 @@ function subscribeToCloudChanges() {
   try {
     _realtimeChannel = sb.channel('orvia_backups_' + _cloudUser.id)
       .on('postgres_changes', {
-        event: 'UPDATE',
+        event: '*',
         schema: 'public',
         table: 'orvia_backups',
         filter: 'user_id=eq.' + _cloudUser.id,
