@@ -663,7 +663,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <div class="date" id="headerDate"></div>
     <div class="date" id="headerTime" style="font-variant-numeric:tabular-nums;letter-spacing:.5px"></div>
   </div>
-  <div id="syncStatusBadge" onclick="openSyncStatusModal()" style="position:absolute;top:calc(env(safe-area-inset-top, 0px) + 14px);left:12px;font-size:10px;font-weight:800;padding:4px 9px;border-radius:999px;display:flex;align-items:center;gap:5px;cursor:pointer;z-index:5;"></div>
+  <div id="syncStatusBadge" onclick="openSyncStatusModal()" style="position:absolute;top:12px;left:12px;font-size:10px;font-weight:800;padding:4px 9px;border-radius:999px;display:flex;align-items:center;gap:5px;cursor:pointer;"></div>
 </div>
 
 <div class="tabs">
@@ -803,7 +803,14 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <span class="cal-month" id="calMonth"></span>
     <button onclick="calNext()">›</button>
   </div>
-  <div class="legend" id="calLegend"></div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(108,99,255,.5)"></div>CP</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(62,207,142,.4)"></div>RTT</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(245,158,11,.4)"></div>Sans solde</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(255,101,132,.4)"></div>Enfant malade</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(62,207,142,.1);border:1px solid var(--border)"></div>Travaillé</div>
+    <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,.06);border:1px dashed var(--muted)"></div>Jour férié</div>
+  </div>
   <div class="cal-grid" id="calGrid"></div>
 
   <!-- Ajouter un congé -->
@@ -815,8 +822,6 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
         <select id="congeType">
           <option value="cp">🟣 Congé payé (CP)</option>
           <option value="rtt">🟢 RTT</option>
-          <option value="css">🟡 Congé sans solde</option>
-          <option value="csp">🔴 Enfant malade</option>
         </select>
       </div>
       <div class="form-dates">
@@ -838,16 +843,11 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
 
   <!-- Liste des congés -->
-  <div class="section-title" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center" onclick="toggleCongeListCollapse()">
-    <span>Congés enregistrés</span>
-    <span id="congeListToggleIcon" style="font-size:12px;color:var(--muted)">▾ Afficher la liste</span>
-  </div>
-  <div id="congeListWrap" style="display:none">
-    <div id="congeList"></div>
-    <div class="empty" id="emptyConges" style="display:none">
-      <div class="emoji">🏖</div>
-      Aucun congé enregistré
-    </div>
+  <div class="section-title">Congés enregistrés</div>
+  <div id="congeList"></div>
+  <div class="empty" id="emptyConges" style="display:none">
+    <div class="emoji">🏖</div>
+    Aucun congé enregistré
   </div>
 
 </div>
@@ -1053,32 +1053,6 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div style="margin-bottom:20px" id="quotaCards"></div>
   <div class="section-title">Noms des types de congés</div>
   <div id="labelCards"></div>   <div class="section-title" style="margin-top:20px">Types personnalisés</div>   <div id="customTypeCards"></div>   <div style="margin:12px 0"><button class="btn-primary" style="width:100%;font-size:14px" onclick="openAddCustomType()">+ Ajouter un type</button></div>
-
-<div class="modal-overlay" id="customTypeModal" style="display:none">
-  <div class="modal-box">
-    <div class="modal-title" id="customTypeModalTitle">Nouveau type de congé</div>
-    <div class="modal-row">
-      <label>Nom</label>
-      <input type="text" id="customTypeNameInput" maxlength="40" placeholder="ex : Formation, RTT employeur..." oninput="updateCustomTypePreview()">
-    </div>
-    <div class="modal-row">
-      <label>Couleur</label>
-      <div id="customTypeColorSwatches" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:4px"></div>
-    </div>
-    <div class="modal-row" style="margin-bottom:6px">
-      <label>Aperçu</label>
-      <div style="display:flex;align-items:center;gap:8px">
-        <div id="customTypePreviewDot" style="width:14px;height:14px;border-radius:4px;background:#a78bfa"></div>
-        <span id="customTypePreviewLabel" style="font-size:14px;color:var(--text);font-weight:600">Nom du type</span>
-      </div>
-    </div>
-    <div class="modal-error" id="customTypeModalError"></div>
-    <div class="modal-actions">
-      <button class="modal-btn-cancel" onclick="closeCustomTypeModal()">Annuler</button>
-      <button class="modal-btn-save" onclick="submitCustomTypeModal()">Créer</button>
-    </div>
-  </div>
-</div>
 
   <div class="section-title" style="margin-top:20px">Report d'une année à l'autre</div>
   <div class="settings-card" style="margin-bottom:10px;">
@@ -2211,20 +2185,6 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       <div class="settings-summary">Résumé hebdomadaire à copier</div>
     </div>
   </div>
-
-  <div class="section-title" style="margin-top:20px;">🏖 Export dédié congés</div>
-  <div class="settings-card" style="margin-bottom:10px;">
-    <div class="settings-row" style="cursor:pointer;" onclick="exportCongesCSV()">
-      <label style="font-weight:800;color:var(--accent);">Télécharger le CSV (congés seuls)</label>
-      <div class="settings-summary">Uniquement les congés enregistrés, sans les sessions</div>
-    </div>
-  </div>
-  <div class="settings-card">
-    <div class="settings-row" style="cursor:pointer;" onclick="exportCongesXLSX()">
-      <label style="font-weight:800;color:var(--accent);">Télécharger l'Excel (congés seuls)</label>
-      <div class="settings-summary">Fichier Excel dédié : type, dates, jours, note</div>
-    </div>
-  </div>
 </div>
 
 <div class="page" id="page-clear-settings">
@@ -2363,7 +2323,7 @@ function maybeShowWeeklyReport() {
   modal.id = 'weeklyReportModal';
   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Bilan ${now.getDay()===1?'de la semaine dernière':'de la semaine'}</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Du ${periodStart.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${periodEnd.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''} · pause moy. ${fmtHM(avgPauseMs)}</div>${alertsHtml}<div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
   document.body.appendChild(modal);
-}  const APP_VERSION = '1.9.2';
+}  const APP_VERSION = '1.5.0';
 
 
 // ── STORAGE ──
@@ -2447,13 +2407,7 @@ function renderSyncStatusBadge() {
   _lastSyncPhase = phase;
 }
 
-let _lastSyncToastTs = 0;
-const SYNC_TOAST_MIN_INTERVAL = 30000;
-
 function notifySyncPhaseChange(fromPhase, toPhase) {
-  const now = Date.now();
-  if (now - _lastSyncToastTs < SYNC_TOAST_MIN_INTERVAL) return;
-  let shown = true;
   if (toPhase === 'offline' && fromPhase !== 'offline-pending') {
     showToast('📴 Connexion perdue — mode hors ligne');
   } else if (toPhase === 'offline-pending') {
@@ -2462,10 +2416,7 @@ function notifySyncPhaseChange(fromPhase, toPhase) {
     showToast('🔄 Connexion rétablie — synchronisation…');
   } else if (toPhase === 'synced' && (fromPhase === 'syncing' || fromPhase === 'offline-pending')) {
     showToast('☁️ Toutes les modifications sont synchronisées ✓');
-  } else {
-    shown = false;
   }
-  if (shown) _lastSyncToastTs = now;
 }
 
 async function processSyncQueue() {
@@ -4612,8 +4563,7 @@ function cancelUndo(){
   if(_undoDeleteTimer){clearTimeout(_undoDeleteTimer);_undoDeleteTimer=null;}
   const t=document.getElementById('undoToast');
   if(t){t.style.opacity='0';t.style.transform='translateX(-50%) translateY(20px)';}
-  showToast(window._undoRestoreMsg || 'Session restauree');
-  window._undoRestoreMsg=null;
+  showToast('Session restauree');
 }
 
 function getMondayOf(date) {
@@ -5918,34 +5868,6 @@ function getCongesExportRows() {
   ]);
 }
 
-function exportCongesCSV() {
-  if (!state.conges.length) { showToast('Aucun congé à exporter'); return; }
-  const rows = [['Type','Debut','Fin','Jours','Note']];
-  getCongesExportRows().forEach(r => rows.push(r));
-  const csv = rows.map(r => r.map(c => '"' + String(c).replaceAll('"','""') + '"').join(',')).join('\n');
-  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'conges.csv';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  showToast('CSV congés téléchargé');
-}
-
-function exportCongesXLSX() {
-  if (!state.conges.length) { showToast('Aucun congé à exporter'); return; }
-  const headers = ['Type','Debut','Fin','Jours','Note'];
-  const rows = getCongesExportRows();
-  const bytes = _buildXlsxBytes(headers, rows, 'Congés');
-  const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'conges.xlsx';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  showToast('Excel congés téléchargé');
-}
-
 function exportCSV() {
     const rows = [['Date','Arrivee','Depart','Pause min','Net h','Note','Localisation depart','Localisation fin']];
     (state.sessions || []).forEach(s => rows.push([
@@ -6069,9 +5991,9 @@ function resetRemunerationData() {
 }
 
 // ── CONGES ──
-const CONGE_COLORS = { cp:'cp', rtt:'rtt', css:'css', csp:'csp' };
-const CONGE_LABELS = { cp:'Congé payé', rtt:'RTT', css:'Congé sans solde', csp:'Congé enfant malade' }; let customCongeTypes = [];
-const SOLDE_DEFAULTS = { cp:25, rtt:10, css:0, csp:5 };
+const CONGE_COLORS = { cp:'cp', rtt:'rtt' };
+const CONGE_LABELS = { cp:'Congé payé', rtt:'RTT' }; let customCongeTypes = [];
+const SOLDE_DEFAULTS = { cp:25, rtt:10 };
 
 let calYear, calMonth;
 
@@ -6082,9 +6004,16 @@ function loadConges() {
     const q = localStorage.getItem('timetracker_quotas');
     if (q) state.quotas = JSON.parse(q);
     const l = localStorage.getItem('timetracker_labels');
-    if (l) { const parsed = JSON.parse(l); Object.assign(CONGE_LABELS, parsed); }     const ct = localStorage.getItem('timetracker_custom_types');     if (ct) customCongeTypes = JSON.parse(ct);
+    if (l) { const parsed = JSON.parse(l); Object.assign(CONGE_LABELS, parsed); }
+    const ct = localStorage.getItem('timetracker_customtypes');
+    if (ct) customCongeTypes = JSON.parse(ct);
   } catch(e) {}
+  // Purge old types css/csp definitively
+  if (Array.isArray(state.conges)) {
+    state.conges = state.conges.filter(c => c && c.type !== 'css' && c.type !== 'csp');
+  }
 }
+
 
 function saveConges() {
   localStorage.setItem('timetracker_conges', JSON.stringify(state.conges));
@@ -6157,32 +6086,13 @@ function addConge() {
     showToast(`${days} jour(s) enregistrés`);
   }
 
-let _undoDeleteConge = null;
-
 function deleteConge(id) {
-  const idx = state.conges.findIndex(c => c.id === id);
-  if (idx === -1) return;
-  if (_undoDeleteTimer) { clearTimeout(_undoDeleteTimer); _undoDeleteTimer = null; }
-  _undoDeleteConge = state.conges[idx];
-  const deletedSummary = `${_undoDeleteConge.days} jour(s) de ${getCongeTypeLabel(_undoDeleteConge.type)} du ${_undoDeleteConge.start} au ${_undoDeleteConge.end}`;
-  state.conges.splice(idx, 1);
+  if (!confirm('Supprimer ce congé ?')) return;
+  const deleted = state.conges.find(c => c.id === id);
+  state.conges = state.conges.filter(c => c.id !== id);
   saveConges();
+  if (deleted) logAuditEntry('conge', 'suppression', `${deleted.days} jour(s) de ${getCongeTypeLabel(deleted.type)} du ${deleted.start} au ${deleted.end}`);
   renderConges();
-  window._undoRestoreMsg = 'Congé restauré';
-  showUndoToast('Congé supprimé', () => {
-    if (_undoDeleteConge !== null) {
-      state.conges.splice(idx, 0, _undoDeleteConge);
-      state.conges.sort((a, b) => a.start.localeCompare(b.start));
-      _undoDeleteConge = null;
-      saveConges();
-      renderConges();
-    }
-  }, () => {
-    if (_undoDeleteConge !== null) {
-      logAuditEntry('conge', 'suppression', deletedSummary);
-    }
-    _undoDeleteConge = null;
-  });
 }
 
 
@@ -6314,7 +6224,7 @@ function renderCongeExpirySettingsForm() {
   if (monthEl) monthEl.value = String(cfg.deadlineMonth);
   if (dayEl) dayEl.value = cfg.deadlineDay;
   if (warnEl) warnEl.value = cfg.warningDays;
-  ['cp', 'rtt', 'css', 'csp'].forEach(t => {
+  ['cp', 'rtt'].forEach(t => {
     const cb = document.getElementById('congeExpiryType_' + t);
     if (cb) cb.checked = cfg.types.includes(t);
   });
@@ -6335,7 +6245,7 @@ function onCongeExpirySettingsChange() {
   const monthEl = document.getElementById('congeExpiryMonth');
   const dayEl = document.getElementById('congeExpiryDay');
   const warnEl = document.getElementById('congeExpiryWarningDays');
-  const types = ['cp', 'rtt', 'css', 'csp'].filter(t => {
+  const types = ['cp', 'rtt'].filter(t => {
     const cb = document.getElementById('congeExpiryType_' + t);
     return cb && cb.checked;
   });
@@ -6417,7 +6327,7 @@ function getCarryoverConfig() {
     const p = JSON.parse(raw);
     const caps = { cp: 5, rtt: 2, css: 0, csp: 0 };
     if (p.caps && typeof p.caps === 'object') {
-      ['cp', 'rtt', 'css', 'csp'].forEach(t => {
+      ['cp', 'rtt'].forEach(t => {
         if (Number.isFinite(Number(p.caps[t]))) caps[t] = clampNumber(Number(p.caps[t]), 0, 365, caps[t]);
       });
     }
@@ -6863,7 +6773,7 @@ function renderCarryoverSettingsForm() {
   const cfg = getCarryoverConfig();
   const enabledEl = document.getElementById('carryoverEnabled');
   if (enabledEl) enabledEl.checked = cfg.enabled;
-  ['cp', 'rtt', 'css', 'csp'].forEach(t => {
+  ['cp', 'rtt'].forEach(t => {
     const el = document.getElementById('carryoverCap_' + t);
     if (el) el.value = cfg.caps[t];
   });
@@ -6879,7 +6789,7 @@ function renderCarryoverPreview() {
     el.innerHTML = '<div style="font-size:12px;color:var(--muted);">Le report est désactivé : les quotas repartent à zéro chaque année.</div>';
     return;
   }
-  const rows = ['cp', 'rtt', 'css', 'csp']
+  const rows = ['cp', 'rtt']
     .filter(t => cfg.caps[t] > 0)
     .map(t => {
       const carried = getCarryoverForYear(t, thisYear);
@@ -6891,7 +6801,7 @@ function renderCarryoverPreview() {
 function onCarryoverSettingsChange() {
   const enabledEl = document.getElementById('carryoverEnabled');
   const caps = {};
-  ['cp', 'rtt', 'css', 'csp'].forEach(t => {
+  ['cp', 'rtt'].forEach(t => {
     const el = document.getElementById('carryoverCap_' + t);
     caps[t] = el ? clampNumber(Number(el.value), 0, 365, 0) : 0;
   });
@@ -6903,7 +6813,7 @@ function onCarryoverSettingsChange() {
 }
 
 function renderConges() {
-  const types = ['cp','rtt','css','csp'];
+  const types = ['cp','rtt'];
   const colors = { cp:'#6c63ff', rtt:'#3ecf8e', css:'#f59e0b', csp:'#ff6584' };
   const thisYear = new Date().getFullYear();
 
@@ -6961,39 +6871,11 @@ function findCongeForDate(dateStr) {
   return state.conges.find(c => c.start <= dateStr && dateStr <= c.end);
 }
 
-function renderCalLegend() {
-  const el = document.getElementById('calLegend');
-  if (!el) return;
-  const base = [
-    {label:'CP', color:'#6c63ff'},
-    {label:'RTT', color:'#3ecf8e'},
-    {label:'Sans solde', color:'#f59e0b'},
-    {label:'Enfant malade', color:'#ff6584'}
-  ];
-  const custom = customCongeTypes.map(t => ({label: t.label, color: t.color}));
-  const items = [...base, ...custom].map(x =>
-    `<div class="legend-item"><div class="legend-dot" style="background:${x.color}66"></div>${escapeHtml(x.label)}</div>`
-  ).join('');
-  el.innerHTML = items +
-    '<div class="legend-item"><div class="legend-dot" style="background:rgba(62,207,142,.1);border:1px solid var(--border)"></div>Travaillé</div>' +
-    '<div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,.06);border:1px dashed var(--muted)"></div>Jour férié</div>';
-}
-
-function toggleCongeListCollapse() {
-  const wrap = document.getElementById('congeListWrap');
-  const icon = document.getElementById('congeListToggleIcon');
-  if (!wrap) return;
-  const isHidden = wrap.style.display === 'none';
-  wrap.style.display = isHidden ? 'block' : 'none';
-  if (icon) icon.textContent = isHidden ? '▴ Masquer la liste' : '▾ Afficher la liste';
-}
-
 function renderCal() {
   const now = new Date();
   if (calYear === undefined) { calYear = now.getFullYear(); calMonth = now.getMonth(); }
   document.getElementById('calMonth').textContent =
     new Date(calYear, calMonth, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
-  renderCalLegend();
 
   const dateSets = { cp: new Set(), rtt: new Set(), css: new Set(), csp: new Set() };     customCongeTypes.forEach(t => { dateSets[t.id] = new Set(); });
   state.conges.forEach(c => {
@@ -7066,7 +6948,7 @@ function openCalDayDetail(dateStr) {
   document.getElementById('calDayDetailModal').style.display = 'flex';
 }
 
-function openAddCongeForDate(dateStr){const s=document.getElementById('congeStart');const e=document.getElementById('congeEnd');if(s)s.value=dateStr;if(e)e.value=dateStr;switchTab('conges');const addCard=document.querySelector('#page-conges .add-conge-card');window.scrollTo({top:(addCard?.offsetTop||0),behavior:'smooth'});showToast('Date sélectionnée: '+dateStr);}function closeCalDayDetail() {
+function openAddCongeForDate(dateStr){const s=document.getElementById('congeStart');const e=document.getElementById('congeEnd');if(s)s.value=dateStr;if(e)e.value=dateStr;document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));const tabBtn=document.querySelector('.tab-btn[data-tab="conges"]');const tabContent=document.getElementById('tab-conges');if(tabBtn)tabBtn.classList.add('active');if(tabContent)tabContent.classList.add('active');window.scrollTo({top:document.getElementById('tab-conges')?.offsetTop||0,behavior:'smooth'});showToast('Date sélectionnée: '+dateStr);}function closeCalDayDetail() {
   document.getElementById('calDayDetailModal').style.display = 'none';
 }
 
@@ -7092,7 +6974,7 @@ const CONGE_COLORS_HEX = { cp:'#6c63ff', rtt:'#3ecf8e', css:'#f59e0b', csp:'#ff6
 function renderReglages() {
   updateWorkModeSummary();
   renderCloudSyncSettings();
-  const types = ['cp','rtt','css','csp'];
+  const types = ['cp','rtt'];
 
   // Quota cards
   document.getElementById('quotaCards').innerHTML = `<div class="settings-card">${
@@ -7122,7 +7004,7 @@ function renderReglages() {
     if (customCongeTypes.length === 0) {
       cct.innerHTML = '<p style="color:#8b8fa8;font-size:13px;text-align:center;padding:8px">Aucun type personnalisé</p>';
     } else {
-      cct.innerHTML = '<div class="settings-card">' + customCongeTypes.map((t,i) => '<div class="settings-row"><div class="settings-dot" style="background:'+escapeHtml(t.color)+'"></div><span style="flex:1">'+escapeHtml(t.label)+'</span><button onclick="editCustomType('+i+')" style="background:var(--border);color:var(--text);border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;margin-right:6px">Modifier</button><button onclick="removeCustomType('+i+')" style="background:#ff6584;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">Supprimer</button></div>').join('') + '</div>';
+      cct.innerHTML = '<div class="settings-card">' + customCongeTypes.map((t,i) => '<div class="settings-row"><div class="settings-dot" style="background:'+escapeHtml(t.color)+'"></div><span style="flex:1">'+escapeHtml(t.label)+'</span><button onclick="removeCustomType('+i+')" style="background:#ff6584;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer">Supprimer</button></div>').join('') + '</div>';
     }
   }
   refreshCongeSelect();
@@ -7149,111 +7031,22 @@ function refreshCongeSelect() {
   if (!sel) return;
   const prev = sel.value;
   const emojis = {cp:'🟣',rtt:'🟢',css:'🟡',csp:'🔴'};
-  let opts = ['cp','rtt','css','csp'].map(t => '<option value="'+t+'">'+(emojis[t]||'⚪')+' '+escapeHtml(CONGE_LABELS[t]||t.toUpperCase())+'</option>').join('');
+  let opts = ['cp','rtt'].map(t => '<option value="'+t+'">'+(emojis[t]||'⚪')+' '+escapeHtml(CONGE_LABELS[t]||t.toUpperCase())+'</option>').join('');
   customCongeTypes.forEach(t => { opts += '<option value="'+t.id+'">🔵 '+escapeHtml(t.label)+'</option>'; });
   sel.innerHTML = opts;
   if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
 }
 
-const CUSTOM_TYPE_COLOR_PALETTE = ['#a78bfa','#34d399','#fbbf24','#f87171','#60a5fa','#f472b6','#4ade80','#fb923c','#6c63ff','#3ecf8e','#f59e0b','#ff6584'];
-
-let customTypeModalEditIndex = null;
-let customTypeModalSelectedColor = CUSTOM_TYPE_COLOR_PALETTE[0];
-
 function openAddCustomType() {
-  customTypeModalEditIndex = null;
-  customTypeModalSelectedColor = CUSTOM_TYPE_COLOR_PALETTE[customCongeTypes.length % CUSTOM_TYPE_COLOR_PALETTE.length];
-  const titleEl = document.getElementById('customTypeModalTitle');
-  const nameEl = document.getElementById('customTypeNameInput');
-  const errEl = document.getElementById('customTypeModalError');
-  const saveBtn = document.querySelector('#customTypeModal .modal-btn-save');
-  if (titleEl) titleEl.textContent = 'Nouveau type de congé';
-  if (nameEl) nameEl.value = '';
-  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
-  if (saveBtn) saveBtn.textContent = 'Créer';
-  renderCustomTypeColorSwatches();
-  updateCustomTypePreview();
-  const modal = document.getElementById('customTypeModal');
-  if (modal) modal.style.display = 'flex';
-  if (nameEl) setTimeout(() => nameEl.focus(), 50);
-}
-
-function editCustomType(index) {
-  const t = customCongeTypes[index];
-  if (!t) return;
-  customTypeModalEditIndex = index;
-  customTypeModalSelectedColor = t.color;
-  const titleEl = document.getElementById('customTypeModalTitle');
-  const nameEl = document.getElementById('customTypeNameInput');
-  const errEl = document.getElementById('customTypeModalError');
-  const saveBtn = document.querySelector('#customTypeModal .modal-btn-save');
-  if (titleEl) titleEl.textContent = 'Modifier le type de congé';
-  if (nameEl) nameEl.value = t.label;
-  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
-  if (saveBtn) saveBtn.textContent = 'Enregistrer';
-  renderCustomTypeColorSwatches();
-  updateCustomTypePreview();
-  const modal = document.getElementById('customTypeModal');
-  if (modal) modal.style.display = 'flex';
-  if (nameEl) setTimeout(() => nameEl.focus(), 50);
-}
-
-function closeCustomTypeModal() {
-  const modal = document.getElementById('customTypeModal');
-  if (modal) modal.style.display = 'none';
-  customTypeModalEditIndex = null;
-}
-
-function renderCustomTypeColorSwatches() {
-  const container = document.getElementById('customTypeColorSwatches');
-  if (!container) return;
-  container.innerHTML = CUSTOM_TYPE_COLOR_PALETTE.map(c => `
-    <div onclick="selectCustomTypeColor('${c}')" style="cursor:pointer;width:100%;aspect-ratio:1;border-radius:10px;background:${c};border:3px solid ${customTypeModalSelectedColor === c ? '#fff' : 'transparent'};box-shadow:${customTypeModalSelectedColor === c ? '0 0 0 2px ' + c : 'none'};display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff">${customTypeModalSelectedColor === c ? '✓' : ''}</div>
-  `).join('');
-}
-
-function selectCustomTypeColor(color) {
-  customTypeModalSelectedColor = color;
-  renderCustomTypeColorSwatches();
-  updateCustomTypePreview();
-}
-
-function updateCustomTypePreview() {
-  const nameEl = document.getElementById('customTypeNameInput');
-  const dotEl = document.getElementById('customTypePreviewDot');
-  const labelEl = document.getElementById('customTypePreviewLabel');
-  if (dotEl) dotEl.style.background = customTypeModalSelectedColor;
-  if (labelEl) labelEl.textContent = (nameEl && nameEl.value.trim()) ? nameEl.value.trim() : 'Nom du type';
-}
-
-function submitCustomTypeModal() {
-  const nameEl = document.getElementById('customTypeNameInput');
-  const errEl = document.getElementById('customTypeModalError');
-  const label = nameEl ? nameEl.value.trim() : '';
-  if (!label) {
-    if (errEl) { errEl.textContent = 'Le nom est requis.'; errEl.style.display = 'block'; }
-    return;
-  }
-  const duplicate = customCongeTypes.some((t, i) => t.label.toLowerCase() === label.toLowerCase() && i !== customTypeModalEditIndex);
-  if (duplicate) {
-    if (errEl) { errEl.textContent = 'Ce nom est déjà utilisé par un autre type.'; errEl.style.display = 'block'; }
-    return;
-  }
-  if (customTypeModalEditIndex !== null) {
-    const t = customCongeTypes[customTypeModalEditIndex];
-    if (t) {
-      t.label = label.slice(0, 40);
-      t.color = customTypeModalSelectedColor;
-    }
-    showToast('Type modifié ✓');
-  } else {
-    const id = 'custom_' + Date.now() + '_' + Math.floor(Math.random()*100000);
-    customCongeTypes.push({id, label: label.slice(0, 40), color: customTypeModalSelectedColor});
-    showToast('Type ajouté ✓');
-  }
+  const label = prompt('Nom du nouveau type de congé :');
+  if (!label || !label.trim()) return;
+  const colors = ['#a78bfa','#34d399','#fbbf24','#f87171','#60a5fa','#f472b6','#4ade80','#fb923c'];
+  const color = colors[customCongeTypes.length % colors.length];
+  const id = 'custom_' + Date.now() + '_' + Math.floor(Math.random()*100000);
+  customCongeTypes.push({id, label: label.trim().slice(0, 40), color});
   saveConges();
-  closeCustomTypeModal();
   renderReglages();
+  showToast('Type ajouté ✓');
 }
 
 function removeCustomType(index) {
@@ -8171,12 +7964,6 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
-    { version: '1.9.2', date: '2026-07-19', items: ['Correction : le badge de statut de synchronisation (en haut à gauche) était masqué sous la barre d\u2019état de l\u2019iPhone (heure, batterie) ; il est désormais décalé pour tenir compte de l\u2019encoche/Dynamic Island.'] },
-    { version: '1.9.1', date: '2026-07-19', items: ['Correction : cliquer sur un jour du calendrier pour ajouter un congé ne basculait plus correctement sur l\u2019onglet Congés (sélecteurs obsolètes).', 'Correction : l\u2019export Excel dédié aux congés utilisait un nom de fonction incorrect et pouvait échouer au téléchargement.'] },
-    { version: '1.9.0', date: '2026-07-19', items: ['Bouton \u2018Annuler\u2019 après suppression d\u2019un congé : un toast de 5 secondes permet désormais de restaurer un congé supprimé par erreur, comme c\u2019était déjà le cas pour les sessions.', 'Export dédié pour les congés : nouveaux boutons CSV et Excel qui exportent uniquement les congés (type, dates, jours, note), séparément des sessions de travail.'] },
-    { version: '1.8.0', date: '2026-07-19', items: ['Calendrier des congés mis en avant : la légende s\u2019adapte désormais automatiquement aux types de congés personnalisés créés (nom et couleur).', 'La liste textuelle des congés enregistrés est repliée par défaut sous le calendrier visuel, pour mettre en avant la vue mensuelle colorée.'] },
-    { version: '1.7.0', date: '2026-07-19', items: ['Types de congés personnalisables : nouvelle modale complète pour créer un type avec un nom et une couleur au choix (palette de 12 couleurs), avec aperçu en temps réel.', 'Ajout d\u2019un bouton \u2018Modifier\u2019 sur les types de congés personnalisés pour changer leur nom ou leur couleur après création.', 'Détection des doublons de nom lors de la création ou modification d\u2019un type de congé personnalisé.'] },
-    { version: '1.6.0', date: '2026-07-19', items: ['Réduction des notifications de synchronisation répétées : un seul toast affiché toutes les 30 secondes maximum, même en cas de synchronisation fréquente entre plusieurs appareils.', 'Correction du badge de statut de synchronisation qui pouvait être masqué par la barre d\u2019état sur iPhone (encoche/Dynamic Island).', 'Ajustement de la vérification du code de connexion par email.'] },
     { version: '1.0.0', date: '2026-07-17', items: ['Nouveau bloc Comparaisons dans Historique : graphique mois par mois (12 derniers mois) ou année par année, export du graphique en image PNG, et carte de moyenne du temps de pause par jour travaillé.'] },
     { version: '0.9.0', date: '2026-07-17', items: ['Le graphique de tendance (Historique) compte désormais les jours fériés dans les barres, tout en les distinguant clairement des congés et des jours normaux : un repère coloré en haut de la colonne, une légende dédiée, et un détail dans l\u2019info-bulle au clic (type de jour affiché explicitement).'] },
     { version: '0.8.0', date: '2026-07-17', items: ['Nouveau réglage \u2018Inclure les congés\u2019 dans Exporter les données : ajoute une section congés (type, dates, jours, note) aux exports CSV, Excel et PDF, en plus des sessions.'] },
