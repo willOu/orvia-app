@@ -1336,10 +1336,21 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
         <button onclick="onSendMagicLinkClick()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Envoyer le code</button>
       </div>
       <div id="cloudSyncStep2" style="display:none;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Code envoyé à <strong id="cloudSyncEmailSent" style="color:var(--text)"></strong></div>
-        <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" id="cloudSyncCode" placeholder="123456" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:20px;letter-spacing:6px;text-align:center;margin-bottom:10px;">
-        <button onclick="onVerifyCodeClick()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">Valider le code</button>
-        <button onclick="onResendCodeClick()" style="width:100%;background:transparent;border:none;color:var(--muted);padding:6px;font-size:12px;cursor:pointer;">Renvoyer le code / changer d'email</button>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Email envoyé à <strong id="cloudSyncEmailSent" style="color:var(--text)"></strong></div>
+        <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" id="cloudSyncCode" placeholder="Code à 6 chiffres (si affiché)" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:20px;letter-spacing:4px;text-align:center;margin-bottom:10px;">
+        <button onclick="onVerifyCodeClick()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:14px;">Valider le code</button>
+
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">ou</div>
+          <div style="flex:1;height:1px;background:var(--border);"></div>
+        </div>
+
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Dans l'email, appui long sur "Sign in" → <strong style="color:var(--text)">Copier le lien</strong> (ne pas cliquer dessus), puis collez-le ici :</div>
+        <input type="text" id="cloudSyncPastedLink" placeholder="Coller le lien ici" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:12px;margin-bottom:10px;">
+        <button onclick="onVerifyPastedLinkClick()" style="width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">Valider le lien collé</button>
+
+        <button onclick="onResendCodeClick()" style="width:100%;background:transparent;border:none;color:var(--muted);padding:6px;font-size:12px;cursor:pointer;">Renvoyer / changer d'email</button>
       </div>
     </div>
   </div>
@@ -7370,6 +7381,41 @@ async function onVerifyCodeClick() {
   const ok = await verifyLoginCode(codeInput.value);
   if (ok) {
     // onAuthStateChange (SIGNED_IN) prend le relais : conflit cloud, badge, etc.
+    document.getElementById('cloudSyncStep1').style.display = 'block';
+    document.getElementById('cloudSyncStep2').style.display = 'none';
+  }
+}
+
+async function verifyPastedLink(pastedText) {
+  if (!sb) { showToast('Client cloud indisponible'); return false; }
+  let url;
+  try {
+    url = new URL((pastedText || '').trim());
+  } catch (e) {
+    showToast("Ça ne ressemble pas à un lien valide");
+    return false;
+  }
+  const tokenHash = url.searchParams.get('token_hash') || url.searchParams.get('token');
+  const type = url.searchParams.get('type') || 'email';
+  if (!tokenHash) {
+    showToast("Aucun jeton trouvé dans ce lien");
+    return false;
+  }
+  try {
+    const { error } = await sb.auth.verifyOtp({ token_hash: tokenHash, type });
+    if (error) { showToast('Lien invalide ou expiré : ' + error.message); return false; }
+    return true;
+  } catch (e) {
+    showToast('Erreur réseau lors de la vérification');
+    return false;
+  }
+}
+
+async function onVerifyPastedLinkClick() {
+  const input = document.getElementById('cloudSyncPastedLink');
+  if (!input) return;
+  const ok = await verifyPastedLink(input.value);
+  if (ok) {
     document.getElementById('cloudSyncStep1').style.display = 'block';
     document.getElementById('cloudSyncStep2').style.display = 'none';
   }
