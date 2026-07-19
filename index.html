@@ -1009,7 +1009,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <div class="settings-row" style="cursor:pointer;" onclick="openCloudSyncSettings()">
       <label style="font-weight:800;color:var(--accent);">Synchronisation cloud</label>
     </div>
-    <div class="settings-desc-box" id="cloudSyncSummary">Connexion par lien magique, sauvegarde automatique</div>
+    <div class="settings-desc-box" id="cloudSyncSummary">Connexion par code email, sauvegarde automatique</div>
   </div>
 
   <div class="section-title" style="margin-top:20px;">ℹ️ Autres</div>
@@ -1329,10 +1329,18 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div id="cloudSyncLoggedOutBox" style="display:none;">
     <div class="settings-card" style="margin-bottom:10px;padding:14px;">
       <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:14px;">
-        Connectez-vous pour sauvegarder vos données dans le cloud et les retrouver sur un autre appareil. Pas de mot de passe : un lien vous est envoyé par email.
+        Connectez-vous pour sauvegarder vos données dans le cloud et les retrouver sur un autre appareil. Pas de mot de passe : un code à 6 chiffres vous est envoyé par email, à saisir ci-dessous.
       </div>
-      <input type="email" id="cloudSyncEmail" placeholder="votre@email.com" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;margin-bottom:10px;">
-      <button onclick="onSendMagicLinkClick()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Envoyer le lien magique</button>
+      <div id="cloudSyncStep1">
+        <input type="email" id="cloudSyncEmail" placeholder="votre@email.com" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;margin-bottom:10px;">
+        <button onclick="onSendMagicLinkClick()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Envoyer le code</button>
+      </div>
+      <div id="cloudSyncStep2" style="display:none;">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Code envoyé à <strong id="cloudSyncEmailSent" style="color:var(--text)"></strong></div>
+        <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" id="cloudSyncCode" placeholder="123456" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:20px;letter-spacing:6px;text-align:center;margin-bottom:10px;">
+        <button onclick="onVerifyCodeClick()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">Valider le code</button>
+        <button onclick="onResendCodeClick()" style="width:100%;background:transparent;border:none;color:var(--muted);padding:6px;font-size:12px;cursor:pointer;">Renvoyer le code / changer d'email</button>
+      </div>
     </div>
   </div>
 
@@ -2306,7 +2314,7 @@ function maybeShowWeeklyReport() {
   modal.id = 'weeklyReportModal';
   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Bilan ${now.getDay()===1?'de la semaine dernière':'de la semaine'}</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Du ${periodStart.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${periodEnd.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''} · pause moy. ${fmtHM(avgPauseMs)}</div>${alertsHtml}<div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
   document.body.appendChild(modal);
-}  const APP_VERSION = '1.2.0';
+}  const APP_VERSION = '1.3.0';
 
 
 // ── STORAGE ──
@@ -2450,18 +2458,39 @@ async function refreshCloudUser() {
   return _cloudUser;
 }
 
+let _pendingLoginEmail = null;
+
 async function sendMagicLink(email) {
   if (!sb) { showToast('Client cloud indisponible'); return false; }
   const clean = (email || '').trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean)) { showToast('Adresse email invalide'); return false; }
   const redirectTo = window.location.origin + window.location.pathname;
   try {
+    // shouldCreateUser: true par défaut ; on garde emailRedirectTo pour que le lien
+    // fonctionne aussi en secours, mais le flux principal est le code à 6 chiffres
+    // (le lien seul ne suffit pas dans une PWA : Safari/Mail ont un stockage séparé
+    // de celui de l'app installée sur l'écran d'accueil).
     const { error } = await sb.auth.signInWithOtp({ email: clean, options: { emailRedirectTo: redirectTo } });
     if (error) { showToast('Erreur : ' + error.message); return false; }
-    showToast('📧 Lien envoyé — vérifiez vos emails');
+    _pendingLoginEmail = clean;
+    showToast('📧 Code envoyé — vérifiez vos emails');
     return true;
   } catch (e) {
-    showToast('Erreur réseau lors de l\'envoi du lien');
+    showToast('Erreur réseau lors de l\'envoi du code');
+    return false;
+  }
+}
+
+async function verifyLoginCode(code) {
+  if (!sb || !_pendingLoginEmail) { showToast('Redemandez un code'); return false; }
+  const clean = (code || '').trim();
+  if (!/^\d{6}$/.test(clean)) { showToast('Le code doit contenir 6 chiffres'); return false; }
+  try {
+    const { data, error } = await sb.auth.verifyOtp({ email: _pendingLoginEmail, token: clean, type: 'email' });
+    if (error) { showToast('Code invalide ou expiré'); return false; }
+    return true;
+  } catch (e) {
+    showToast('Erreur réseau lors de la vérification');
     return false;
   }
 }
@@ -7318,14 +7347,38 @@ async function renderCloudSyncSettings() {
   } else {
     loggedOutBox.style.display = 'block';
     loggedInBox.style.display = 'none';
-    if (summaryEl) summaryEl.textContent = 'Connexion par lien magique, sauvegarde automatique';
+    if (summaryEl) summaryEl.textContent = 'Connexion par code email, sauvegarde automatique';
   }
 }
 
 async function onSendMagicLinkClick() {
   const input = document.getElementById('cloudSyncEmail');
   if (!input) return;
-  await sendMagicLink(input.value);
+  const ok = await sendMagicLink(input.value);
+  if (ok) {
+    document.getElementById('cloudSyncStep1').style.display = 'none';
+    document.getElementById('cloudSyncStep2').style.display = 'block';
+    document.getElementById('cloudSyncEmailSent').textContent = input.value.trim();
+    const codeInput = document.getElementById('cloudSyncCode');
+    if (codeInput) { codeInput.value = ''; codeInput.focus(); }
+  }
+}
+
+async function onVerifyCodeClick() {
+  const codeInput = document.getElementById('cloudSyncCode');
+  if (!codeInput) return;
+  const ok = await verifyLoginCode(codeInput.value);
+  if (ok) {
+    // onAuthStateChange (SIGNED_IN) prend le relais : conflit cloud, badge, etc.
+    document.getElementById('cloudSyncStep1').style.display = 'block';
+    document.getElementById('cloudSyncStep2').style.display = 'none';
+  }
+}
+
+function onResendCodeClick() {
+  _pendingLoginEmail = null;
+  document.getElementById('cloudSyncStep1').style.display = 'block';
+  document.getElementById('cloudSyncStep2').style.display = 'none';
 }
 
 async function manualPushToCloud() {
