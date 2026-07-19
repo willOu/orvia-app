@@ -2187,6 +2187,20 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       <div class="settings-summary">Résumé hebdomadaire à copier</div>
     </div>
   </div>
+
+  <div class="section-title" style="margin-top:20px;">🏖 Export dédié congés</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="exportCongesCSV()">
+      <label style="font-weight:800;color:var(--accent);">Télécharger le CSV (congés seuls)</label>
+      <div class="settings-summary">Uniquement les congés enregistrés, sans les sessions</div>
+    </div>
+  </div>
+  <div class="settings-card">
+    <div class="settings-row" style="cursor:pointer;" onclick="exportCongesXLSX()">
+      <label style="font-weight:800;color:var(--accent);">Télécharger l'Excel (congés seuls)</label>
+      <div class="settings-summary">Fichier Excel dédié : type, dates, jours, note</div>
+    </div>
+  </div>
 </div>
 
 <div class="page" id="page-clear-settings">
@@ -2325,7 +2339,7 @@ function maybeShowWeeklyReport() {
   modal.id = 'weeklyReportModal';
   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Bilan ${now.getDay()===1?'de la semaine dernière':'de la semaine'}</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Du ${periodStart.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${periodEnd.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''} · pause moy. ${fmtHM(avgPauseMs)}</div>${alertsHtml}<div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
   document.body.appendChild(modal);
-}  const APP_VERSION = '1.5.0';
+}  const APP_VERSION = '1.9.1';
 
 
 // ── STORAGE ──
@@ -4565,7 +4579,8 @@ function cancelUndo(){
   if(_undoDeleteTimer){clearTimeout(_undoDeleteTimer);_undoDeleteTimer=null;}
   const t=document.getElementById('undoToast');
   if(t){t.style.opacity='0';t.style.transform='translateX(-50%) translateY(20px)';}
-  showToast('Session restauree');
+  showToast(window._undoRestoreMsg || 'Session restauree');
+  window._undoRestoreMsg=null;
 }
 
 function getMondayOf(date) {
@@ -5870,6 +5885,34 @@ function getCongesExportRows() {
   ]);
 }
 
+function exportCongesCSV() {
+  if (!state.conges.length) { showToast('Aucun congé à exporter'); return; }
+  const rows = [['Type','Debut','Fin','Jours','Note']];
+  getCongesExportRows().forEach(r => rows.push(r));
+  const csv = rows.map(r => r.map(c => '"' + String(c).replaceAll('"','""') + '"').join(',')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'conges.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('CSV congés téléchargé');
+}
+
+function exportCongesXLSX() {
+  if (!state.conges.length) { showToast('Aucun congé à exporter'); return; }
+  const headers = ['Type','Debut','Fin','Jours','Note'];
+  const rows = getCongesExportRows();
+  const bytes = _buildXlsxBytes(headers, rows, 'Congés');
+  const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'conges.xlsx';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  showToast('Excel congés téléchargé');
+}
+
 function exportCSV() {
     const rows = [['Date','Arrivee','Depart','Pause min','Net h','Note','Localisation depart','Localisation fin']];
     (state.sessions || []).forEach(s => rows.push([
@@ -6081,13 +6124,32 @@ function addConge() {
     showToast(`${days} jour(s) enregistrés`);
   }
 
+let _undoDeleteConge = null;
+
 function deleteConge(id) {
-  if (!confirm('Supprimer ce congé ?')) return;
-  const deleted = state.conges.find(c => c.id === id);
-  state.conges = state.conges.filter(c => c.id !== id);
+  const idx = state.conges.findIndex(c => c.id === id);
+  if (idx === -1) return;
+  if (_undoDeleteTimer) { clearTimeout(_undoDeleteTimer); _undoDeleteTimer = null; }
+  _undoDeleteConge = state.conges[idx];
+  const deletedSummary = `${_undoDeleteConge.days} jour(s) de ${getCongeTypeLabel(_undoDeleteConge.type)} du ${_undoDeleteConge.start} au ${_undoDeleteConge.end}`;
+  state.conges.splice(idx, 1);
   saveConges();
-  if (deleted) logAuditEntry('conge', 'suppression', `${deleted.days} jour(s) de ${getCongeTypeLabel(deleted.type)} du ${deleted.start} au ${deleted.end}`);
   renderConges();
+  window._undoRestoreMsg = 'Congé restauré';
+  showUndoToast('Congé supprimé', () => {
+    if (_undoDeleteConge !== null) {
+      state.conges.splice(idx, 0, _undoDeleteConge);
+      state.conges.sort((a, b) => a.start.localeCompare(b.start));
+      _undoDeleteConge = null;
+      saveConges();
+      renderConges();
+    }
+  }, () => {
+    if (_undoDeleteConge !== null) {
+      logAuditEntry('conge', 'suppression', deletedSummary);
+    }
+    _undoDeleteConge = null;
+  });
 }
 
 
@@ -6943,7 +7005,7 @@ function openCalDayDetail(dateStr) {
   document.getElementById('calDayDetailModal').style.display = 'flex';
 }
 
-function openAddCongeForDate(dateStr){const s=document.getElementById('congeStart');const e=document.getElementById('congeEnd');if(s)s.value=dateStr;if(e)e.value=dateStr;document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));const tabBtn=document.querySelector('.tab-btn[data-tab="conges"]');const tabContent=document.getElementById('tab-conges');if(tabBtn)tabBtn.classList.add('active');if(tabContent)tabContent.classList.add('active');window.scrollTo({top:document.getElementById('tab-conges')?.offsetTop||0,behavior:'smooth'});showToast('Date sélectionnée: '+dateStr);}function closeCalDayDetail() {
+function openAddCongeForDate(dateStr){const s=document.getElementById('congeStart');const e=document.getElementById('congeEnd');if(s)s.value=dateStr;if(e)e.value=dateStr;switchTab('conges');const addCard=document.querySelector('#page-conges .add-conge-card');window.scrollTo({top:(addCard?.offsetTop||0),behavior:'smooth'});showToast('Date sélectionnée: '+dateStr);}function closeCalDayDetail() {
   document.getElementById('calDayDetailModal').style.display = 'none';
 }
 
@@ -7959,6 +8021,11 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '1.9.1', date: '2026-07-19', items: ['Correction : cliquer sur un jour du calendrier pour ajouter un congé ne basculait plus correctement sur l\u2019onglet Congés (sélecteurs obsolètes).', 'Correction : l\u2019export Excel dédié aux congés utilisait un nom de fonction incorrect et pouvait échouer au téléchargement.'] },
+    { version: '1.9.0', date: '2026-07-19', items: ['Bouton \u2018Annuler\u2019 après suppression d\u2019un congé : un toast de 5 secondes permet désormais de restaurer un congé supprimé par erreur, comme c\u2019était déjà le cas pour les sessions.', 'Export dédié pour les congés : nouveaux boutons CSV et Excel qui exportent uniquement les congés (type, dates, jours, note), séparément des sessions de travail.'] },
+    { version: '1.8.0', date: '2026-07-19', items: ['Calendrier des congés mis en avant : la légende s\u2019adapte désormais automatiquement aux types de congés personnalisés créés (nom et couleur).', 'La liste textuelle des congés enregistrés est repliée par défaut sous le calendrier visuel, pour mettre en avant la vue mensuelle colorée.'] },
+    { version: '1.7.0', date: '2026-07-19', items: ['Types de congés personnalisables : nouvelle modale complète pour créer un type avec un nom et une couleur au choix (palette de 12 couleurs), avec aperçu en temps réel.', 'Ajout d\u2019un bouton \u2018Modifier\u2019 sur les types de congés personnalisés pour changer leur nom ou leur couleur après création.', 'Détection des doublons de nom lors de la création ou modification d\u2019un type de congé personnalisé.'] },
+    { version: '1.6.0', date: '2026-07-19', items: ['Réduction des notifications de synchronisation répétées : un seul toast affiché toutes les 30 secondes maximum, même en cas de synchronisation fréquente entre plusieurs appareils.', 'Correction du badge de statut de synchronisation qui pouvait être masqué par la barre d\u2019état sur iPhone (encoche/Dynamic Island).', 'Ajustement de la vérification du code de connexion par email.'] },
     { version: '1.0.0', date: '2026-07-17', items: ['Nouveau bloc Comparaisons dans Historique : graphique mois par mois (12 derniers mois) ou année par année, export du graphique en image PNG, et carte de moyenne du temps de pause par jour travaillé.'] },
     { version: '0.9.0', date: '2026-07-17', items: ['Le graphique de tendance (Historique) compte désormais les jours fériés dans les barres, tout en les distinguant clairement des congés et des jours normaux : un repère coloré en haut de la colonne, une légende dédiée, et un détail dans l\u2019info-bulle au clic (type de jour affiché explicitement).'] },
     { version: '0.8.0', date: '2026-07-17', items: ['Nouveau réglage \u2018Inclure les congés\u2019 dans Exporter les données : ajoute une section congés (type, dates, jours, note) aux exports CSV, Excel et PDF, en plus des sessions.'] },
