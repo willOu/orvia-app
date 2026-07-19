@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'orvia-v0.1.53-cloudsync';
+const CACHE_VERSION = 'orvia-v1.2.0';
 const CACHE_NAME = CACHE_VERSION;
 const ASSETS_TO_CACHE = [
   '.',
