@@ -1349,7 +1349,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 
   <div class="settings-card" style="padding:14px;">
     <div style="font-size:12px;color:var(--muted);line-height:1.5;">
-      💡 Vos sessions et congés sont envoyés automatiquement au cloud dès qu'une modification est faite (si vous êtes en ligne et connecté). Les autres réglages (thème, objectifs...) restent uniquement locaux pour l'instant.
+      💡 Vos sessions et congés sont envoyés automatiquement au cloud dès qu'une modification est faite, et reçus en temps réel sur vos autres appareils connectés (si en ligne). Les autres réglages (thème, objectifs...) restent uniquement locaux pour l'instant.
     </div>
   </div>
 </div>
@@ -2417,6 +2417,7 @@ async function processSyncQueue() {
 
 function onNetworkOnline() {
   autoSyncOnOpen();
+  if (_cloudUser) { unsubscribeFromCloudChanges(); subscribeToCloudChanges(); }
   renderSyncStatusBadge();
 }
 
@@ -2467,12 +2468,56 @@ async function sendMagicLink(email) {
 
 async function signOutCloud() {
   if (!sb) return;
+  unsubscribeFromCloudChanges();
   try { await sb.auth.signOut(); } catch (e) {}
   _cloudUser = null;
   const cfg = getSyncState();
   saveSyncState({ ...cfg, cloudEnabled: false });
   renderSyncStatusBadge();
   showToast('Déconnecté du cloud');
+}
+
+// ── TEMPS RÉEL ──
+// Écoute les changements de la ligne de l'utilisateur connecté : dès qu'un
+// autre appareil pousse une mise à jour, on la récupère immédiatement, sans
+// attendre le prochain sondage périodique.
+let _realtimeChannel = null;
+
+function subscribeToCloudChanges() {
+  if (!sb || !_cloudUser || _realtimeChannel) return;
+  try {
+    _realtimeChannel = sb.channel('orvia_backups_' + _cloudUser.id)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'orvia_backups',
+        filter: 'user_id=eq.' + _cloudUser.id,
+      }, (payload) => {
+        handleRealtimeCloudChange(payload.new);
+      })
+      .subscribe();
+  } catch (e) {
+    _realtimeChannel = null;
+  }
+}
+
+function unsubscribeFromCloudChanges() {
+  if (_realtimeChannel && sb) {
+    try { sb.removeChannel(_realtimeChannel); } catch (e) {}
+  }
+  _realtimeChannel = null;
+}
+
+function handleRealtimeCloudChange(row) {
+  if (!row || !row.updated_at) return;
+  const remoteTs = new Date(row.updated_at).getTime();
+  const localTs = getSyncState().lastSyncTs || 0;
+  // Ignore l'écho de nos propres écritures (déjà appliquées localement).
+  if (remoteTs <= localTs) return;
+  applyCloudBackup(row.data, true);
+  saveSyncState({ ...getSyncState(), lastSyncTs: remoteTs });
+  renderSyncStatusBadge();
+  showToast('☁️ Données mises à jour depuis un autre appareil');
 }
 
 async function pushToCloud() {
@@ -2543,9 +2588,11 @@ if (sb) {
         saveSyncState({ ...getSyncState(), lastSyncTs: Date.now() });
         showToast('☁️ Connecté — première sauvegarde envoyée');
       }
+      subscribeToCloudChanges();
       renderSyncStatusBadge();
       renderCloudSyncSettings();
     } else if (event === 'SIGNED_OUT') {
+      unsubscribeFromCloudChanges();
       _cloudUser = null;
       renderSyncStatusBadge();
       renderCloudSyncSettings();
@@ -8915,8 +8962,8 @@ setInterval(checkForgottenSession, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkForgottenSession(); autoSyncOnOpen(); } });
 checkForgottenSession();
 checkAutoBackup();
-refreshCloudUser().then(() => { renderSyncStatusBadge(); autoSyncOnOpen(); });
-setInterval(autoSyncOnOpen, 5 * 60000);
+refreshCloudUser().then(() => { renderSyncStatusBadge(); autoSyncOnOpen(); if (_cloudUser) subscribeToCloudChanges(); });
+setInterval(autoSyncOnOpen, 30 * 60000);
 
 // ── ACTION RAPIDE VIA URL (raccourci iOS "Raccourcis"/Siri) ──
 // Ouvrir l'app avec ?action=start ou ?action=stop déclenche l'action
