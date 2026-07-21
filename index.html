@@ -1557,7 +1557,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div class="section-title">Historique des modifications</div>
   <div class="settings-card" style="margin-bottom:10px;padding:14px;">
     <div style="font-size:11px;color:var(--muted);line-height:1.5;">
-      Trace chaque création, modification ou suppression manuelle sur tes sessions, congés, taux horaires et primes. Utile pour retrouver l'origine d'une correction (300 entrées max, les plus anciennes sont retirées automatiquement).
+      Trace chaque création, modification ou suppression manuelle sur tes sessions, congés, taux horaires et primes. Utile pour retrouver l'origine d'une correction (5000 entrées max, les plus anciennes sont retirées automatiquement).
     </div>
   </div>
 
@@ -2624,15 +2624,87 @@ async function pullFromCloud() {
   }
 }
 
+// Fusionne deux tableaux d'enregistrements (sessions ou congés) possédant
+// chacun un id et un updatedAt. Pour un même id, on garde la version dont
+// updatedAt est le plus récent. Les entrées présentes d'un seul côté sont
+// conservées (ajouts non encore vus par l'autre appareil).
+function mergeRecordsById(localArr, remoteArr) {
+  const byId = {};
+  (localArr || []).forEach(rec => { if (rec && rec.id) byId[rec.id] = rec; });
+  (remoteArr || []).forEach(rec => {
+    if (!rec || !rec.id) return;
+    const existing = byId[rec.id];
+    if (!existing) {
+      byId[rec.id] = rec;
+    } else if ((rec.updatedAt || 0) > (existing.updatedAt || 0)) {
+      byId[rec.id] = rec;
+    }
+  });
+  return Object.keys(byId).map(k => byId[k]);
+}
+
+// Applique une liste de tombstones fusionnée à un tableau d'enregistrements :
+// retire toute entrée dont l'id est marqué supprimé avec un deletedAt plus
+// récent que son propre updatedAt (protège une entrée réellement modifiée
+// après coup sur un autre appareil, qui ne doit pas être supprimée).
+function applyTombstonesToRecords(records, tombstones) {
+  if (!tombstones || !tombstones.length) return records;
+  const tsById = {};
+  tombstones.forEach(t => { tsById[t.id] = t.deletedAt; });
+  return records.filter(rec => {
+    const delAt = tsById[rec.id];
+    if (delAt === undefined) return true;
+    return (rec.updatedAt || 0) > delAt;
+  });
+}
+
+// Détecte les sessions issues du merge qui se chevauchent dans le temps
+// (id différents mais horaires identiques ou quasi identiques) : signe
+// probable d'une double-saisie sur deux appareils plutôt que de deux
+// sessions distinctes. On ne les fusionne pas automatiquement (risque de
+// perte de note/détail), on prévient simplement l'utilisateur pour qu'il
+// vérifie et supprime le doublon lui-même si besoin.
+function detectPotentialDuplicateSessions(sessions) {
+  const sorted = [...sessions].sort((a, b) => a.start - b.start);
+  const duplicates = [];
+  for (let i = 1; i < sorted.length; i++) {
+    const a = sorted[i - 1], b = sorted[i];
+    if (a.id === b.id) continue;
+    const overlap = b.start < a.end && a.start < b.end;
+    if (overlap) duplicates.push([a, b]);
+  }
+  return duplicates;
+}
+
 function applyCloudBackup(remoteData, silent) {
   const clean = sanitizeBackupData(remoteData);
-  state.sessions = clean.sessions;
-  state.conges = clean.conges;
+
+  const mergedSessionTombstones = mergeTombstones(loadDeletedTombstones('orvia_deleted_sessions'), clean.deletedSessions);
+  const mergedCongeTombstones = mergeTombstones(loadDeletedTombstones('orvia_deleted_conges'), clean.deletedConges);
+  saveDeletedTombstones('orvia_deleted_sessions', mergedSessionTombstones);
+  saveDeletedTombstones('orvia_deleted_conges', mergedCongeTombstones);
+
+  let mergedSessions = mergeRecordsById(state.sessions, clean.sessions);
+  let mergedConges = mergeRecordsById(state.conges, clean.conges);
+  mergedSessions = applyTombstonesToRecords(mergedSessions, mergedSessionTombstones);
+  mergedConges = applyTombstonesToRecords(mergedConges, mergedCongeTombstones);
+
+  // Le merge par id (Object.keys) ne garantit pas l'ordre chronologique :
+  // on retrie explicitement après fusion pour que l'affichage (Aujourd'hui,
+  // Historique, calendrier des congés) reste dans le bon ordre.
+  mergedSessions.sort((a, b) => a.start - b.start);
+  mergedConges.sort((a, b) => a.start.localeCompare(b.start));
+
+  const duplicates = detectPotentialDuplicateSessions(mergedSessions);
+
+  state.sessions = mergedSessions;
+  state.conges = mergedConges;
   state.quotas = clean.quotas;
   objectifs = clean.objectifs;
   save();
   saveConges();
   saveObjectifs();
+  purgeOldTombstones();
   if (silent) {
     // Rafraîchit le contenu de tous les onglets sans changer celui affiché à l'écran.
     renderObjectifs();
@@ -2643,6 +2715,9 @@ function applyCloudBackup(remoteData, silent) {
   } else {
     switchTab('today');
     renderReglages();
+  }
+  if (duplicates.length) {
+    showToast(`⚠️ ${duplicates.length} session(s) qui se chevauchent détectée(s) après synchronisation — vérifiez l'historique`);
   }
 }
 
@@ -2743,6 +2818,11 @@ async function autoSyncOnOpen() {
       saveSyncState({ ...getSyncState(), lastSyncTs: remoteTs });
       renderSyncStatusBadge();
       showToast('☁️ Données mises à jour depuis un autre appareil');
+    } else {
+      // Même sans nouvelles données distantes, on profite de l'ouverture
+      // de l'app pour nettoyer les tombstones expirés (purge légère,
+      // n'a besoin d'être faite qu'une fois de temps en temps).
+      purgeOldTombstones();
     }
   } finally {
     _autoSyncing = false;
@@ -2779,7 +2859,10 @@ function openSyncStatusModal() {
   document.body.appendChild(modal);
 }
 
-function save() {
+// Écriture immédiate et synchrone dans localStorage. Utilisée en interne par
+// save() (via debounce) et directement avant toute sortie de page pour ne
+// jamais perdre une modification non encore écrite.
+function saveImmediate() {
   localStorage.setItem('timetracker_sessions', JSON.stringify(state.sessions));
   localStorage.setItem('timetracker_current', JSON.stringify({
     status: state.status,
@@ -2790,13 +2873,36 @@ function save() {
     workMode: state.workMode,
   }));
   if (typeof enqueueSyncChange === 'function') enqueueSyncChange('sessions', 'Sessions mises à jour');
+  _saveDebounceTimer = null;
 }
+
+// save() est appelée très souvent (chaque tick de note, chaque ajustement de
+// pause...). Réécrire tout state.sessions en JSON à chaque appel devient
+// coûteux avec un historique de plusieurs milliers de sessions. On regroupe
+// les écritures rapprochées (300ms) en une seule, tout en garantissant
+// qu'aucune modification n'est perdue si l'app se ferme entre-temps grâce
+// au flush forcé sur pagehide/visibilitychange.
+let _saveDebounceTimer = null;
+const SAVE_DEBOUNCE_MS = 300;
+function save() {
+  if (_saveDebounceTimer) clearTimeout(_saveDebounceTimer);
+  _saveDebounceTimer = setTimeout(saveImmediate, SAVE_DEBOUNCE_MS);
+}
+function flushPendingSave() {
+  if (_saveDebounceTimer) {
+    clearTimeout(_saveDebounceTimer);
+    saveImmediate();
+  }
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) flushPendingSave(); });
+window.addEventListener('pagehide', flushPendingSave);
+window.addEventListener('beforeunload', flushPendingSave);
 
 // ── AUDIT TRAIL (HISTORIQUE DES MODIFICATIONS MANUELLES) ──
 // Trace chaque modification manuelle effectuée sur les données sensibles
 // (sessions, congés, taux horaires, primes) : quoi, quand, et un résumé
 // avant/après. Utile pour retrouver l'origine d'une correction ultérieure.
-const AUDIT_LOG_MAX_ENTRIES = 300;
+const AUDIT_LOG_MAX_ENTRIES = 5000;
 let auditLog = [];
 
 function loadAuditLog() {
@@ -2897,6 +3003,25 @@ function load() {
       state.workMode = cur.workMode || null;
     }
   } catch(e) {}
+}
+
+// Migration exécutée une seule fois par ouverture d'app (idempotente) :
+// donne un id et un updatedAt à toute session/congé créé avant l'ajout de
+// la synchronisation fine par enregistrement, condition nécessaire pour
+// que la fusion cloud (mergeRecordsById) fonctionne correctement.
+function migrateRecordsToIdBasedSync() {
+  let changed = false;
+  state.sessions.forEach(s => {
+    if (!s.id) { s.id = newRecordId(); changed = true; }
+    if (!s.updatedAt) { s.updatedAt = s.end || s.start || Date.now(); changed = true; }
+  });
+  state.conges.forEach(c => {
+    if (!c.id) { c.id = Date.now() + Math.floor(Math.random()*100000); changed = true; }
+    if (!c.updatedAt) { c.updatedAt = Date.now(); changed = true; }
+  });
+  if (changed) {
+    localStorage.setItem('timetracker_sessions', JSON.stringify(state.sessions));
+  }
 }
 
 function saveObjectifs() {
@@ -3511,6 +3636,8 @@ function fixForgottenSessionEnd() {
   const net = Math.max(0, (finalEnd - finalStart) - pauseMs);
 
   state.sessions.push({
+    id: newRecordId(),
+    updatedAt: Date.now(),
     date: tsToKey(finalStart),
     start: finalStart,
     end: finalEnd,
@@ -4019,6 +4146,8 @@ async function stopSession() {
   const net = Math.max(0, (finalEnd - finalStart) - pauseMs);
 
   const newSession = {
+    id: newRecordId(),
+    updatedAt: Date.now(),
     date: tsToKey(finalStart),
     start: finalStart,
     end: finalEnd,
@@ -4575,13 +4704,74 @@ function getWeekGoalAjuste() {
 }
 
 let _undoDeleteTimer=null,_undoDeleteSession=null,_undoDeleteIdx=null;
+
+// Identifiant unique et stable pour une session/un congé (synchronisation
+// cloud par enregistrement : chaque session/congé a besoin d'un id propre
+// pour qu'une fusion cloud sache si deux entrées sont identiques ou non).
+function newRecordId() {
+  return Date.now() + '-' + Math.floor(Math.random() * 1000000);
+}
+
+// Tombstones : liste des ids supprimés localement, avec la date de
+// suppression. Permet à la synchronisation cloud de propager une
+// suppression vers les autres appareils, au lieu qu'un appareil qui n'a
+// pas encore vu la suppression ne "ressuscite" l'entrée en la repoussant.
+function loadDeletedTombstones(key) {
+  try {
+    const raw = localStorage.getItem(key);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch(e) { return []; }
+}
+function saveDeletedTombstones(key, list) {
+  localStorage.setItem(key, JSON.stringify(list));
+}
+function addTombstone(key, id) {
+  const list = loadDeletedTombstones(key).filter(t => t.id !== id);
+  list.push({ id, deletedAt: Date.now() });
+  saveDeletedTombstones(key, list);
+}
+function removeTombstone(key, id) {
+  const list = loadDeletedTombstones(key).filter(t => t.id !== id);
+  saveDeletedTombstones(key, list);
+}
+// Fusionne deux listes de tombstones (locale et distante) en gardant, pour
+// chaque id, le deletedAt le plus récent.
+function mergeTombstones(localList, remoteList) {
+  const byId = {};
+  (localList || []).forEach(t => { if (t && t.id) byId[t.id] = t; });
+  (remoteList || []).forEach(t => {
+    if (!t || !t.id) return;
+    const existing = byId[t.id];
+    if (!existing || (t.deletedAt || 0) > (existing.deletedAt || 0)) byId[t.id] = t;
+  });
+  return Object.keys(byId).map(k => byId[k]);
+}
+
+// Purge les tombstones plus vieux que 90 jours : passé ce délai, on
+// considère que tous les appareils ont déjà eu l'occasion de synchroniser
+// et de prendre en compte la suppression, donc la trace n'est plus utile
+// et peut être retirée pour ne pas faire grossir indéfiniment le blob
+// envoyé au cloud à chaque synchronisation.
+const TOMBSTONE_RETENTION_MS = 90 * 24 * 3600 * 1000;
+function purgeOldTombstones() {
+  const cutoff = Date.now() - TOMBSTONE_RETENTION_MS;
+  const sessionTs = loadDeletedTombstones('orvia_deleted_sessions').filter(t => t.deletedAt > cutoff);
+  const congeTs = loadDeletedTombstones('orvia_deleted_conges').filter(t => t.deletedAt > cutoff);
+  saveDeletedTombstones('orvia_deleted_sessions', sessionTs);
+  saveDeletedTombstones('orvia_deleted_conges', congeTs);
+}
+
 function deleteSession(idx){
   if(_undoDeleteTimer){clearTimeout(_undoDeleteTimer);_undoDeleteTimer=null;}
   _undoDeleteSession=state.sessions[idx];_undoDeleteIdx=idx;
+  if (_undoDeleteSession && !_undoDeleteSession.id) _undoDeleteSession.id = newRecordId();
   const _deletedSummary = _undoDeleteSession ? `${fmtTime(_undoDeleteSession.start)}-${fmtTime(_undoDeleteSession.end)} le ${new Date(_undoDeleteSession.start).toLocaleDateString('fr-FR')}` : '';
-  state.sessions.splice(idx,1);renderToday();renderHistory();
+  state.sessions.splice(idx,1);
+  if (_undoDeleteSession) addTombstone('orvia_deleted_sessions', _undoDeleteSession.id);
+  renderToday();renderHistory();
   showUndoToast('Session supprimee',()=>{
-    if(_undoDeleteSession!==null){state.sessions.splice(_undoDeleteIdx,0,_undoDeleteSession); state.sessions.sort((a,b)=>a.start-b.start);_undoDeleteSession=null;save();renderToday();renderHistory();}
+    if(_undoDeleteSession!==null){state.sessions.splice(_undoDeleteIdx,0,_undoDeleteSession); state.sessions.sort((a,b)=>a.start-b.start);removeTombstone('orvia_deleted_sessions', _undoDeleteSession.id);_undoDeleteSession=null;save();renderToday();renderHistory();}
   },()=>{_undoDeleteSession=null;save();logAuditEntry('session', 'suppression', _deletedSummary);});
 }
 function showUndoToast(msg,onUndo,onConfirm){
@@ -4741,6 +4931,7 @@ let currentView = 'day';
 
 function setView(v) {
   currentView = v;
+  _historyDayPageSize = 60;
   document.querySelectorAll('.view-btn:not(.trend-btn)').forEach((b, i) => {
     b.classList.toggle('active', ['day','week','month','year'][i] === v);
   });
@@ -4874,6 +5065,8 @@ function saveAddSessionModal() {
   const net = Math.max(0, duration - pauseMs);
 
   state.sessions.push({
+    id: newRecordId(),
+    updatedAt: Date.now(),
     date: tsToKey(newStart),
     start: newStart,
     end: newEnd,
@@ -5166,6 +5359,14 @@ function fmtSignedHM(ms) {
   return sign + fmtHM(Math.abs(ms));
 }
 
+// Nombre de jours (groupes) affichés initialement dans la vue "Jour" de
+// l'historique, avant pagination à la demande via loadMoreHistoryDays().
+let _historyDayPageSize = 60;
+function loadMoreHistoryDays() {
+  _historyDayPageSize += 60;
+  renderHistory();
+}
+
 function renderHistory() {
   // stats
   const totalMs = state.sessions.reduce((a, s) => a + s.net, 0);
@@ -5206,7 +5407,13 @@ function renderHistory() {
     const byDate = {};
     state.sessions.forEach(s => { if (!byDate[s.date]) byDate[s.date] = []; byDate[s.date].push(s); });
     const sorted = Object.keys(byDate).sort((a, b) => byDate[b][0].start - byDate[a][0].start);
-    list.innerHTML = sorted.map(date => {
+    // Pagination légère : avec plusieurs années d'historique, générer d'un
+    // coup des milliers de <div class="session-item"> ralentit le rendu et
+    // le défilement sur mobile. On n'affiche d'abord que les N groupes les
+    // plus récents, avec un bouton pour charger la suite à la demande.
+    const visibleDates = sorted.slice(0, _historyDayPageSize);
+    const remaining = sorted.length - visibleDates.length;
+    list.innerHTML = visibleDates.map(date => {
       const sessions = byDate[date];
       const dayNet = sessions.reduce((a, s) => a + s.net, 0);
       return `<div class="day-group">
@@ -5216,7 +5423,9 @@ function renderHistory() {
         </div>
         ${sessions.map(sessionItemHtml).join('')}
       </div>`;
-    }).join('');
+    }).join('') + (remaining > 0
+      ? `<button class="btn-primary" style="width:100%;margin-top:8px;" onclick="loadMoreHistoryDays()">Charger ${Math.min(remaining, 60)} jour(s) de plus (${remaining} restant(s))</button>`
+      : '');
 
   } else if (currentView === 'week') {
     // group by week then by day inside
@@ -6143,7 +6352,7 @@ function addConge() {
       }
       cur.setDate(cur.getDate() + 1);
     }
-    state.conges.push({ type, start: startVal, end: endFinal, note, days, id: Date.now() + Math.floor(Math.random()*100000) });
+    state.conges.push({ type, start: startVal, end: endFinal, note, days, id: Date.now() + Math.floor(Math.random()*100000), updatedAt: Date.now() });
     saveConges();
     logAuditEntry('conge', 'création', `${days} jour(s) de ${getCongeTypeLabel(type)} du ${startVal} au ${endFinal}`);
     document.getElementById('congeStart').value = '';
@@ -6162,6 +6371,7 @@ function deleteConge(id) {
   _undoDeleteConge = state.conges[idx];
   const deletedSummary = `${_undoDeleteConge.days} jour(s) de ${getCongeTypeLabel(_undoDeleteConge.type)} du ${_undoDeleteConge.start} au ${_undoDeleteConge.end}`;
   state.conges.splice(idx, 1);
+  addTombstone('orvia_deleted_conges', id);
   saveConges();
   renderConges();
   window._undoRestoreMsg = 'Congé restauré';
@@ -6169,6 +6379,7 @@ function deleteConge(id) {
     if (_undoDeleteConge !== null) {
       state.conges.splice(idx, 0, _undoDeleteConge);
       state.conges.sort((a, b) => a.start.localeCompare(b.start));
+      removeTombstone('orvia_deleted_conges', id);
       _undoDeleteConge = null;
       saveConges();
       renderConges();
@@ -7857,9 +8068,20 @@ function isInsideAnyGeofenceZone(lat, lng) {
   return zones.some(z => distanceMeters(lat, lng, z.lat, z.lng) <= z.radiusM);
 }
 
+// Vérifie qu'au moins une zone (travail ou secondaire) est réellement
+// configurée avant de démarrer le suivi GPS continu : évite de solliciter
+// la batterie pour rien si l'utilisateur a activé le géofencing sans avoir
+// encore défini de lieu de référence.
+function hasAnyGeofenceZoneConfigured() {
+  const workCfg = getWorkModeConfig();
+  const geoCfg = getGeofenceConfig();
+  return (workCfg.lat !== null && workCfg.lng !== null) || (geoCfg.zone2Lat !== null && geoCfg.zone2Lng !== null);
+}
+
 function startGeofenceWatch() {
   if (geofenceWatchId !== null) return;
   if (!navigator.geolocation) { showToast('Géolocalisation non disponible sur cet appareil'); return; }
+  if (!hasAnyGeofenceZoneConfigured()) { updateGeofenceStatusLabel(); return; }
   geofenceWatchId = navigator.geolocation.watchPosition(
     pos => handleGeofencePosition(pos.coords.latitude, pos.coords.longitude),
     () => { updateGeofenceStatusLabel(); },
@@ -7924,8 +8146,15 @@ function executeGeofenceAction(type) {
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) return;
   const cfg = getGeofenceConfig();
+  if (document.hidden) {
+    // Les navigateurs ne permettent de toute façon pas de géofencer en
+    // arrière-plan pour une app web (limitation documentée dans les
+    // réglages) : on coupe donc watchPosition explicitement pour ne pas
+    // laisser le GPS actif inutilement pendant que l'app est masquée.
+    if (geofenceWatchId !== null) stopGeofenceWatch();
+    return;
+  }
   if (cfg.enabled && geofenceWatchId === null) startGeofenceWatch();
 });
 
@@ -8312,6 +8541,19 @@ function getDayTypeInfo(dateStr) {
 
 let trendBarRects = [];
 
+// Index des sessions par date (clé 'date' déjà stockée sur chaque session),
+// recalculé une seule fois par rendu au lieu de refiltrer tout le tableau
+// state.sessions à chaque jour affiché dans le graphique de tendance.
+// Complexité O(N) une fois au lieu de O(N * nombre de jours affichés).
+function getSessionsByDateIndex() {
+  const idx = {};
+  state.sessions.forEach(s => {
+    if (!idx[s.date]) idx[s.date] = [];
+    idx[s.date].push(s);
+  });
+  return idx;
+}
+
 function renderTrendChart() {
   const canvas = document.getElementById('trendChart');
   if (!canvas) return;
@@ -8335,8 +8577,9 @@ function renderTrendChart() {
     days.push(toLocalISO(d));
   }
 
+  const sessionsByDate = getSessionsByDateIndex();
   const doneByDay = days.map(dateStr => {
-    const ss = state.sessions.filter(s => toLocalISO(new Date(s.start)) === dateStr);
+    const ss = sessionsByDate[dateStr] || [];
     return ss.reduce((a,s) => a + (s.net||0), 0) / 3600000;
   });
   const goalByDay = days.map(dateStr => getGoalForDate(dateStr) / 3600000);
@@ -8940,7 +9183,26 @@ function updateHeaderTime() {
   }
 
 function buildBackupData() {
-    return { version: APP_VERSION, sessions: state.sessions, conges: state.conges, quotas: state.quotas, objectifs: objectifs };
+    // Filet de sécurité : garantit qu'aucune session/congé sans id ne soit
+    // envoyé au cloud, ce qui le ferait ignorer silencieusement par
+    // mergeRecordsById() sur l'appareil récepteur (perte de donnée silencieuse).
+    state.sessions.forEach(s => {
+      if (!s.id) s.id = newRecordId();
+      if (!s.updatedAt) s.updatedAt = Date.now();
+    });
+    state.conges.forEach(c => {
+      if (!c.id) c.id = Date.now() + Math.floor(Math.random() * 100000);
+      if (!c.updatedAt) c.updatedAt = Date.now();
+    });
+    return {
+      version: APP_VERSION,
+      sessions: state.sessions,
+      conges: state.conges,
+      quotas: state.quotas,
+      objectifs: objectifs,
+      deletedSessions: loadDeletedTombstones('orvia_deleted_sessions'),
+      deletedConges: loadDeletedTombstones('orvia_deleted_conges')
+    };
   }
 
   function performBackupDownload(filenameSuffix) {
@@ -9100,6 +9362,8 @@ function normalizeSession(s) {
   const net = Number.isFinite(netRaw) ? Math.max(0, Math.min(netRaw, maxNet)) : maxNet;
   const date = typeof s.date === 'string' && s.date.trim() ? s.date : toLocalISO(new Date(start));
   return {
+    id: (typeof s.id === 'string' || typeof s.id === 'number') ? String(s.id) : newRecordId(),
+    updatedAt: Number.isFinite(Number(s.updatedAt)) ? Number(s.updatedAt) : Date.now(),
     date,
     start,
     end,
@@ -9138,7 +9402,8 @@ function normalizeConge(c) {
     end,
     note: typeof c.note === 'string' ? c.note.slice(0, 120) : '',
     days: workdaysBetweenSafe(start, end),
-    id: Number.isFinite(Number(c.id)) ? Number(c.id) : Date.now() + Math.floor(Math.random()*100000)
+    id: Number.isFinite(Number(c.id)) ? Number(c.id) : Date.now() + Math.floor(Math.random()*100000),
+    updatedAt: Number.isFinite(Number(c.updatedAt)) ? Number(c.updatedAt) : Date.now()
   };
 }
 
@@ -9165,6 +9430,13 @@ function normalizeObjectifs(o) {
   };
 }
 
+function sanitizeTombstoneList(list) {
+  if (!Array.isArray(list)) return [];
+  return list
+    .filter(t => t && (typeof t.id === 'string' || typeof t.id === 'number') && Number.isFinite(Number(t.deletedAt)))
+    .map(t => ({ id: String(t.id), deletedAt: Number(t.deletedAt) }));
+}
+
 function sanitizeBackupData(data) {
   if (!data || typeof data !== 'object') throw new Error('invalid_json');
   if (!Array.isArray(data.sessions) || !Array.isArray(data.conges)) throw new Error('invalid_structure');
@@ -9172,11 +9444,15 @@ function sanitizeBackupData(data) {
   const conges = data.conges.map(normalizeConge).filter(Boolean).sort((a,b) => a.start.localeCompare(b.start));
   const quotas = normalizeQuotas(data.quotas);
   const objectifsNorm = normalizeObjectifs(data.objectifs);
+  const deletedSessions = sanitizeTombstoneList(data.deletedSessions);
+  const deletedConges = sanitizeTombstoneList(data.deletedConges);
   return {
     sessions,
     conges,
     quotas,
     objectifs: objectifsNorm,
+    deletedSessions,
+    deletedConges,
     droppedSessions: data.sessions.length - sessions.length,
     droppedConges: data.conges.length - conges.length
   };
@@ -9272,7 +9548,7 @@ applyTheme(getCurrentThemeId());
 applyMode(getCurrentMode());
 initSeasonalTheme();
 load();
-loadConges(); checkLowQuotaAlerts(); checkCongeExpiryNotification(); checkBTP5eSemaineNotification(); loadAuditLog();
+loadConges(); migrateRecordsToIdBasedSync(); checkLowQuotaAlerts(); checkCongeExpiryNotification(); checkBTP5eSemaineNotification(); loadAuditLog();
 renderSyncStatusBadge();
 processSyncQueue();
 loadObjectifs();
