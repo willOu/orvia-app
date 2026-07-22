@@ -2369,7 +2369,7 @@ function maybeShowWeeklyReport() {
   modal.id = 'weeklyReportModal';
   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Bilan ${now.getDay()===1?'de la semaine dernière':'de la semaine'}</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Du ${periodStart.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${periodEnd.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''} · pause moy. ${fmtHM(avgPauseMs)}</div>${alertsHtml}<div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
   document.body.appendChild(modal);
-}  const APP_VERSION = '1.9.7';
+}  const APP_VERSION = '1.9.8';
 
 
 // ── STORAGE ──
@@ -7307,8 +7307,13 @@ function renderCal() {
     let hasConge = false;
     if (dateSets.cp.has(dateStr))  { cls += ' cp'; hasConge = true; }
     else if (dateSets.rtt.has(dateStr)) { cls += ' rtt'; hasConge = true; }
-    let customColor = null;             if (!hasConge) { for (const ct of customCongeTypes) { if (dateSets[ct.id] && dateSets[ct.id].has(dateStr)) { cls += ' has-conge'; customColor = ct.color; hasConge = true; break; } } }
-    else if (workedDays.has(dateStr)) cls += ' work';
+    let customColor = null;
+    if (!hasConge) {
+      for (const ct of customCongeTypes) {
+        if (dateSets[ct.id] && dateSets[ct.id].has(dateStr)) { cls += ' has-conge'; customColor = ct.color; hasConge = true; break; }
+      }
+    }
+    if (!hasConge && workedDays.has(dateStr)) cls += ' work';
     if (hasConge) cls += ' has-conge';
     const holidayLabel = isHoliday ? getHolidayLabel(dateStr) : null;
     const schoolHoliday = isDateInSchoolHoliday(dateStr);
@@ -8466,6 +8471,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '1.9.8', date: '2026-07-22', items: ["Correction d'un bug empêchant les jours travaillés d'apparaître en vert dans le calendrier des congés (condition mal imbriquée qui bloquait l'ajout de la classe visuelle 'work' sur les jours sans congé)."] },
     { version: '1.9.7', date: '2026-07-22', items: ["Possibilité de corriger l'heure d'arrivée d'une session en cours directement depuis l'écran principal (comme pour la pause) : toucher la pastille 'Arrivée'."] },
     { version: '1.9.6', date: '2026-07-22', items: ['Correction : le graphique \u2018Tendance vs objectifs\u2019 restait vide (mauvais format de date interne). Étiquettes du graphique de comparaison mensuelle qui se chevauchaient sur mobile, corrigées avec un espacement adaptatif.'] },
     { version: '1.9.5', date: '2026-07-19', items: ['Nettoyage complémentaire : légende du calendrier et cases à cocher de l\u2019alerte "congés à risque" affichaient encore Sans solde/Enfant malade (texte en dur, pas nettoyé la première fois).'] },
