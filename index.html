@@ -685,7 +685,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
 
   <div class="status-row">
-    <div class="status-pill">
+    <div class="status-pill" onclick="openEditCurrentStartModal()" style="cursor:pointer" title="Toucher pour ajuster l'heure d'arrivée">
       <div class="label">Arrivée</div>
       <div class="value" id="startTimeDisplay">--:--</div>
     </div>
@@ -2037,6 +2037,24 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
 </div>
 
+<div class="modal-overlay" id="editCurrentStartModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">Modifier l'heure d'arrivée</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
+      Corrige l'heure de démarrage de la session en cours (ex : chrono lancé en retard). Le temps de pause déjà accumulé n'est pas modifié.
+    </div>
+    <div class="modal-row">
+      <label>Heure de début</label>
+      <input type="time" id="editCurrentStartTime">
+    </div>
+    <div class="modal-error" id="editCurrentStartError"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="closeEditCurrentStartModal()">Annuler</button>
+      <button class="modal-btn-save" onclick="saveEditCurrentStartModal()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="editTimeModal" style="display:none;">
   <div class="modal-box">
     <div class="modal-title">Modifier les horaires</div>
@@ -2351,7 +2369,7 @@ function maybeShowWeeklyReport() {
   modal.id = 'weeklyReportModal';
   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Bilan ${now.getDay()===1?'de la semaine dernière':'de la semaine'}</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Du ${periodStart.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${periodEnd.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''} · pause moy. ${fmtHM(avgPauseMs)}</div>${alertsHtml}<div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
   document.body.appendChild(modal);
-}  const APP_VERSION = '1.9.5';
+}  const APP_VERSION = '1.9.7';
 
 
 // ── STORAGE ──
@@ -5225,6 +5243,61 @@ function saveEditCurrentPauseModal() {
   tick();
   closeEditCurrentPauseModal();
   showToast('Pause ajustée ✓');
+}
+
+function openEditCurrentStartModal() {
+  if (state.status === 'idle') { showToast('Aucune session en cours'); return; }
+  const timeEl = document.getElementById('editCurrentStartTime');
+  if (timeEl) timeEl.value = fmtTime(state.startTs);
+  const errEl = document.getElementById('editCurrentStartError');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  document.getElementById('editCurrentStartModal').style.display = 'flex';
+}
+
+function closeEditCurrentStartModal() {
+  document.getElementById('editCurrentStartModal').style.display = 'none';
+}
+
+function saveEditCurrentStartModal() {
+  if (state.status === 'idle') { closeEditCurrentStartModal(); return; }
+  const timeEl = document.getElementById('editCurrentStartTime');
+  const errEl = document.getElementById('editCurrentStartError');
+  const val = timeEl ? timeEl.value : '';
+
+  if (!/^\d{2}:\d{2}$/.test(val)) {
+    if (errEl) { errEl.textContent = 'Heure invalide.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  const [hh, mm] = val.split(':').map(Number);
+  // On garde la date d'origine du démarrage (jour où la session a été
+  // lancée) et on ne modifie que l'heure, pour ne pas déplacer la session
+  // sur un autre jour par erreur.
+  const startDate = new Date(state.startTs);
+  const newStart = new Date(startDate);
+  newStart.setHours(hh, mm, 0, 0);
+  const newStartTs = newStart.getTime();
+
+  if (newStartTs >= Date.now()) {
+    if (errEl) { errEl.textContent = "L'heure de départ ne peut pas être dans le futur." ; errEl.style.display = 'block'; }
+    return;
+  }
+
+  const currentPauseAccrued = state.totalPauseMs || 0;
+  const pauseSinceStart = state.status === 'paused' && state.pauseStart ? (Date.now() - state.pauseStart) : 0;
+  const totalElapsedIfApplied = Date.now() - newStartTs;
+
+  if (currentPauseAccrued + pauseSinceStart > totalElapsedIfApplied) {
+    if (errEl) { errEl.textContent = 'Cette heure rendrait la pause plus longue que la session elle-même.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  state.startTs = newStartTs;
+  document.getElementById('startTimeDisplay').textContent = fmtTime(state.startTs);
+  save();
+  tick();
+  closeEditCurrentStartModal();
+  showToast("Heure d'arrivée ajustée ✓");
 }
 
 function editNote(idx) {
@@ -8393,6 +8466,8 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '1.9.7', date: '2026-07-22', items: ["Possibilité de corriger l'heure d'arrivée d'une session en cours directement depuis l'écran principal (comme pour la pause) : toucher la pastille 'Arrivée'."] },
+    { version: '1.9.6', date: '2026-07-22', items: ['Correction : le graphique \u2018Tendance vs objectifs\u2019 restait vide (mauvais format de date interne). Étiquettes du graphique de comparaison mensuelle qui se chevauchaient sur mobile, corrigées avec un espacement adaptatif.'] },
     { version: '1.9.5', date: '2026-07-19', items: ['Nettoyage complémentaire : légende du calendrier et cases à cocher de l\u2019alerte "congés à risque" affichaient encore Sans solde/Enfant malade (texte en dur, pas nettoyé la première fois).'] },
     { version: '1.9.4', date: '2026-07-19', items: ['Suppression des types de congé "Congé sans solde" et "Enfant malade" (soldes annuels et sélecteur de type) — les congés déjà posés avec ces types ont été supprimés.'] },
     { version: '1.9.3', date: '2026-07-19', items: ['Correction : le code de connexion par email attendait exactement 6 chiffres alors que Supabase est configuré pour envoyer un code à 8 chiffres — le champ accepte maintenant 8 chiffres.'] },
@@ -8546,10 +8621,16 @@ let trendBarRects = [];
 // state.sessions à chaque jour affiché dans le graphique de tendance.
 // Complexité O(N) une fois au lieu de O(N * nombre de jours affichés).
 function getSessionsByDateIndex() {
+  // Index par date ISO (YYYY-MM-DD) calculée depuis s.start, et NON par
+  // s.date (qui est stocké au format français DD/MM/YYYY via tsToKey).
+  // Utiliser s.date ici cassait le graphique de tendance : les clés ne
+  // correspondaient jamais au format ISO généré par toLocalISO() pour les
+  // jours affichés, donc aucune session n'était jamais trouvée.
   const idx = {};
   state.sessions.forEach(s => {
-    if (!idx[s.date]) idx[s.date] = [];
-    idx[s.date].push(s);
+    const key = toLocalISO(new Date(s.start));
+    if (!idx[key]) idx[key] = [];
+    idx[key].push(s);
   });
   return idx;
 }
@@ -8730,6 +8811,16 @@ function renderComparisonChart() {
   }
 
   const avg = values.reduce((a, v) => a + v, 0) / n;
+  // Détermine dynamiquement combien d'étiquettes on peut afficher sans
+  // qu'elles se chevauchent, en se basant sur la largeur réelle du texte le
+  // plus long plutôt qu'une limite fixe (n <= 12). Avec 12 barres sur un
+  // écran mobile étroit, afficher les 12 libellés à chaque fois provoquait
+  // un chevauchement total du texte, rendant l'axe illisible.
+  ctx.font = '9px -apple-system, sans-serif';
+  const maxLabelWidth = Math.max(...labels.map(l => ctx.measureText(l).width));
+  const slotWidth = plotW / n;
+  const labelStep = Math.max(1, Math.ceil((maxLabelWidth + 6) / slotWidth));
+
   values.forEach((v, i) => {
     const x = padL + i * (plotW / n) + (plotW / n - barW) / 2;
     const h = (v / maxVal) * plotH;
@@ -8737,7 +8828,7 @@ function renderComparisonChart() {
     ctx.fillStyle = isCurrent ? accent : (v >= avg ? (getComputedStyle(document.body).getPropertyValue('--green') || '#3ecf8e') : muted);
     ctx.fillRect(x, padT + plotH - h, barW, h);
     comparisonBarRects.push({ x, y: padT, w: barW, h: plotH, label: labels[i], value: v });
-    if (n <= 12 || i % Math.ceil(n / 12) === 0 || i === n - 1) {
+    if (i % labelStep === 0 || i === n - 1) {
       ctx.fillStyle = muted;
       ctx.textAlign = 'center';
       ctx.fillText(labels[i], x + barW / 2, cssH - 4);
