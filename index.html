@@ -924,6 +924,13 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
 
   <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="openAnomalySettings()">
+      <label style="font-weight:800;color:var(--accent);">🔍 Détection d'anomalies</label>
+    </div>
+    <div class="settings-desc-box">Seuils de pauses et durées suspectes</div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;">
     <div class="settings-row" style="cursor:pointer;" onclick="openPlanningTools()">
       <label style="font-weight:800;color:var(--accent);">🗓️ Planning intelligent</label>
     </div>
@@ -1669,8 +1676,53 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div class="settings-card" style="margin-bottom:10px;"><div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')"><label>← Retour</label><div class="settings-summary">Revenir aux réglages</div></div></div>
   <div class="section-title">🗓️ Planning intelligent</div>
   <div class="settings-card" style="padding:14px;margin-bottom:10px;"><div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Ponts suggérés</div><div id="bridgeSuggestions" style="font-size:12px;color:var(--muted);"></div></div>
+  <div class="settings-card" style="padding:14px;margin-bottom:10px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Ponts optimisés (12 semaines)</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.4;">Meilleures opportunités classées par ratio jours gagnés / jours posés.</div>
+    <div id="advancedBridgeSuggestions"></div>
+  </div>
   <div class="settings-card" style="padding:14px;margin-bottom:10px;"><div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Règles légales</div><label class="switch"><input type="checkbox" id="dailyCapEnabled" onchange="saveDailyRules()"><span class="slider"></span></label> <span style="font-size:13px;">Alerte plafond quotidien (10h)</span><br><label class="switch" style="margin-top:12px;"><input type="checkbox" id="restRuleEnabled" onchange="saveDailyRules()"><span class="slider"></span></label> <span style="font-size:13px;">Alerte repos minimum (11h)</span></div>
   <div class="settings-card" style="padding:14px;"><div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Modèles de sessions</div><div id="sessionTemplatesList"></div><button class="btn-primary" style="width:100%;margin-top:10px" onclick="addSessionTemplate()">+ Créer un modèle</button></div>
+</div>
+
+<div class="page" id="page-anomaly-settings">
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
+      <label>← Retour</label>
+      <div class="settings-summary">Revenir aux réglages</div>
+    </div>
+  </div>
+
+  <div class="section-title">Détection d'anomalies</div>
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-size:13px;color:var(--muted);line-height:1.5;">
+      Ajuste les seuils utilisés pour repérer les sessions suspectes (durée excessive, pause anormalement courte ou disproportionnée) et recevoir une alerte de vérification.
+    </div>
+  </div>
+
+  <div id="anomalyDetectedSummary" style="margin-bottom:14px;"></div>
+
+  <div class="settings-card" style="margin-bottom:16px;padding:14px;">
+    <div class="form-field" style="margin-bottom:14px;">
+      <label>Durée maximale d'une session (heures)</label>
+      <input type="number" id="anomalyMaxSessionHours" min="8" max="24" step="1" onchange="onAnomalyThresholdsChange()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+    </div>
+    <div class="form-field" style="margin-bottom:14px;">
+      <label>Seuil de session "longue" pour vérifier la pause (heures)</label>
+      <input type="number" id="anomalyLongSessionThreshold" min="4" max="14" step="1" onchange="onAnomalyThresholdsChange()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+    </div>
+    <div class="form-field" style="margin-bottom:14px;">
+      <label>Pause minimale attendue si session longue (minutes)</label>
+      <input type="number" id="anomalyMinPauseMinutes" min="0" max="120" step="5" onchange="onAnomalyThresholdsChange()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+    </div>
+    <div class="form-field">
+      <label>Ratio pause / session maximal (%)</label>
+      <input type="number" id="anomalyMaxPauseRatio" min="20" max="90" step="5" onchange="onAnomalyThresholdsChange()" style="background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;padding:10px 12px;outline:none;width:100%;">
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.4;">
+      Ces seuils s'appliquent en plus des vérifications de cohérence de base (dates invalides, net supérieur à la durée, etc.), déjà actives automatiquement.
+    </div>
+  </div>
 </div>
 
 <div class="page" id="page-weeklycap-settings">
@@ -2503,9 +2555,7 @@ function maybeShowWeeklyReport() {
   modal.id = 'weeklyReportModal';
   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Bilan ${now.getDay()===1?'de la semaine dernière':'de la semaine'}</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Du ${periodStart.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${periodEnd.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''} · pause moy. ${fmtHM(avgPauseMs)}</div>${alertsHtml}<div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
   document.body.appendChild(modal);
-}
-
-const APP_VERSION = '1.9.5';
+}  const APP_VERSION = '2.0.1';
 
 
 // ── STORAGE ──
@@ -2667,7 +2717,7 @@ async function sendMagicLink(email) {
   const redirectTo = window.location.origin + window.location.pathname;
   try {
     // shouldCreateUser: true par défaut ; on garde emailRedirectTo pour que le lien
-    // fonctionne aussi en secours, mais le flux principal est le code à 8 chiffres
+    // fonctionne aussi en secours, mais le flux principal est le code à 6 chiffres
     // (le lien seul ne suffit pas dans une PWA : Safari/Mail ont un stockage séparé
     // de celui de l'app installée sur l'écran d'accueil).
     const { error } = await sb.auth.signInWithOtp({ email: clean, options: { emailRedirectTo: redirectTo } });
@@ -4496,12 +4546,123 @@ function dayTotal(date){return state.sessions.filter(s=>s.date===date).reduce((a
 function restViolations(){const ss=[...state.sessions].sort((a,b)=>a.start-b.start), out=[];for(let i=1;i<ss.length;i++){const gap=ss[i].start-ss[i-1].end;if(gap>=0&&gap<11*3600000&&tsToKey(ss[i].start)!==tsToKey(ss[i-1].start))out.push({gap,a:ss[i-1],b:ss[i]})}return out}
 function renderDailyCompliance(){const el=document.getElementById('dailyComplianceBanner');if(!el)return;const r=getDailyRules(), h=dayTotal(todayKey())/3600000, v=restViolations().filter(x=>tsToKey(x.b.start)===todayKey());let msgs=[];if(r.daily&&h>=10)msgs.push(`⚠️ Plafond journalier dépassé : ${h.toFixed(1)}h / 10h`);else if(r.daily&&h>=9)msgs.push(`⏰ Plafond journalier proche : ${h.toFixed(1)}h / 10h`);if(r.rest&&v.length)msgs.push(`⚠️ Repos légal insuffisant : ${Math.floor(v[0].gap/3600000)}h${String(Math.floor(v[0].gap/60000)%60).padStart(2,'0')} entre deux journées (minimum 11h)`);el.style.display=msgs.length?'block':'none';el.innerHTML=msgs.map(x=>`<div style="background:rgba(245,158,11,.12);border:1px solid var(--orange);border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:var(--orange);font-weight:700;">${x}</div>`).join('')}
 function computeBridgeSuggestions(){const now=new Date(),year=now.getFullYear(),out=[];for(let d=new Date(year,0,1);d.getFullYear()===year;d.setDate(d.getDate()+1)){const k=toLocalISO(d);if(!isDateHoliday(k))continue;const dow=d.getDay();if(dow===2||dow===4){const p=new Date(d);p.setDate(d.getDate()+(dow===2?-1:1));const pk=toLocalISO(p);if(!isDateHoliday(pk)&&p.getDay()!==0&&p.getDay()!==6)out.push({date:pk,label:getHolidayLabel(k)})}}return out.filter(x=>x.date>=toLocalISO(now)).slice(0,5)}
+
+// ══════════════════════════════════════════════════════════
+// PONTS OPTIMISÉS MULTI-SEMAINES
+// Va plus loin que la détection de ponts simple (jour isolé entre jour
+// férié et week-end) : scanne une fenêtre glissante de plusieurs semaines
+// à venir, détecte les périodes où poser peu de jours permet de gagner
+// beaucoup de jours de repos consécutifs, et calcule un ratio
+// "jours gagnés / jours posés" pour prioriser les meilleures opportunités.
+// ══════════════════════════════════════════════════════════
+
+function isNonWorkingDay(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00');
+  const dow = d.getDay();
+  return dow === 0 || dow === 6 || isDateHoliday(dateStr);
+}
+
+// Génère la liste des jours (statut travaillé/non-travaillé) sur une fenêtre glissante.
+function buildDayWindow(startDate, numDays) {
+  const days = [];
+  const cur = new Date(startDate);
+  for (let i = 0; i < numDays; i++) {
+    const key = toLocalISO(cur);
+    days.push({ date: key, nonWorking: isNonWorkingDay(key), holidayLabel: isDateHoliday(key) ? getHolidayLabel(key) : null });
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+}
+
+// Détecte, sur une fenêtre glissante (par défaut 12 semaines), tous les groupes
+// de jours travaillés isolés entre deux périodes non-travaillées, et calcule
+// le ratio jours gagnés / jours posés pour chaque opportunité de pont.
+function computeAdvancedBridgeSuggestions(windowWeeks = 12) {
+  const now = new Date();
+  const numDays = windowWeeks * 7;
+  const days = buildDayWindow(now, numDays);
+
+  const opportunities = [];
+  let i = 0;
+  while (i < days.length) {
+    if (!days[i].nonWorking) {
+      // début d'un groupe de jours travaillés consécutifs
+      let j = i;
+      while (j < days.length && !days[j].nonWorking) j++;
+      const workingBlockLen = j - i;
+      // On ne considère que les blocs courts (1 à 4 jours) comme "pontables"
+      if (workingBlockLen >= 1 && workingBlockLen <= 4 && i > 0 && j < days.length) {
+        const beforeNonWorking = days[i - 1].nonWorking;
+        const afterNonWorking = days[j] ? days[j].nonWorking : false;
+        if (beforeNonWorking && afterNonWorking) {
+          // Compte la période de repos totale obtenue en posant ce bloc
+          let startRepos = i - 1;
+          while (startRepos > 0 && days[startRepos - 1].nonWorking) startRepos--;
+          let endRepos = j;
+          while (endRepos < days.length - 1 && days[endRepos + 1] && days[endRepos + 1].nonWorking) endRepos++;
+          const joursGagnes = endRepos - startRepos + 1;
+          const joursPoses = workingBlockLen;
+          const ratio = joursGagnes / joursPoses;
+          const holidayLabels = days.slice(i - 1, j + 1).filter(d => d.holidayLabel).map(d => d.holidayLabel);
+          opportunities.push({
+            startPose: days[i].date,
+            endPose: days[j - 1].date,
+            joursPoses,
+            joursGagnes,
+            ratio,
+            repos: { start: days[startRepos].date, end: days[endRepos] ? days[endRepos].date : days[days.length - 1].date },
+            holidayContext: holidayLabels.length ? holidayLabels[0] : null
+          });
+        }
+      }
+      i = j;
+    } else {
+      i++;
+    }
+  }
+
+  return opportunities.sort((a, b) => b.ratio - a.ratio).slice(0, 6);
+}
+
+function fmtBridgeDate(dateStr) {
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+}
+
+function renderAdvancedBridgeSuggestions() {
+  const el = document.getElementById('advancedBridgeSuggestions');
+  if (!el) return;
+  const opportunities = computeAdvancedBridgeSuggestions();
+
+  if (!opportunities.length) {
+    el.innerHTML = '<div style="font-size:12px;color:var(--muted);">Aucune opportunité de pont détectée sur les 12 prochaines semaines.</div>';
+    return;
+  }
+
+  el.innerHTML = opportunities.map(o => {
+    const ratioColor = o.ratio >= 3 ? 'var(--green)' : o.ratio >= 2 ? 'var(--orange)' : 'var(--muted)';
+    const period = o.startPose === o.endPose ? fmtBridgeDate(o.startPose) : `${fmtBridgeDate(o.startPose)} → ${fmtBridgeDate(o.endPose)}`;
+    const contextLabel = o.holidayContext ? ` (autour de ${o.holidayContext})` : '';
+    return `<div class="objectif-card" style="margin-bottom:8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:700;font-size:13px;color:var(--text);">Poser le ${period}${contextLabel}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px;">Repos du ${fmtBridgeDate(o.repos.start)} au ${fmtBridgeDate(o.repos.end)}</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-weight:800;font-size:15px;color:${ratioColor};">×${o.ratio.toFixed(1)}</div>
+          <div style="font-size:10px;color:var(--muted);">${o.joursPoses}j posé${o.joursPoses > 1 ? 's' : ''} → ${o.joursGagnes}j gagnés</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function getTemplates(){try{const a=JSON.parse(localStorage.getItem('orvia_session_templates'));return Array.isArray(a)?a:[]}catch(e){return []}}
 function saveTemplates(a){localStorage.setItem('orvia_session_templates',JSON.stringify(a))}
 function addSessionTemplate(){const name=prompt('Nom du modèle (ex : Journée standard)');if(!name)return;const start=prompt('Heure de début (HH:MM)','09:00');const end=prompt('Heure de fin (HH:MM)','17:00');const pause=Number(prompt('Pause en minutes','60'));if(!/^\d{2}:\d{2}$/.test(start)||!/^\d{2}:\d{2}$/.test(end)||!Number.isFinite(pause))return showToast('Modèle invalide');const a=getTemplates();a.push({id:Date.now(),name:name.slice(0,40),start,end,pause:Math.max(0,pause)});saveTemplates(a);renderPlanningTools()}
 function applySessionTemplate(id){const t=getTemplates().find(x=>x.id===id);if(!t)return;openAddSessionModal();document.getElementById('addSessionStart').value=t.start;document.getElementById('addSessionEnd').value=t.end;document.getElementById('addSessionPause').value=t.pause;showToast(`Modèle « ${t.name} » appliqué`) }
 function deleteSessionTemplate(id){saveTemplates(getTemplates().filter(x=>x.id!==id));renderPlanningTools()}
-function renderPlanningTools(){const r=getDailyRules();const a=document.getElementById('dailyCapEnabled'),b=document.getElementById('restRuleEnabled');if(a)a.checked=r.daily;if(b)b.checked=r.rest;const br=document.getElementById('bridgeSuggestions');if(br){const x=computeBridgeSuggestions();br.innerHTML=x.length?x.map(z=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);">💡 Poser le <b>${z.date}</b> autour de ${z.label}</div>`).join(''):'Aucun pont à venir détecté.'}const el=document.getElementById('sessionTemplatesList');if(el)el.innerHTML=getTemplates().map(t=>`<div class="settings-row"><span><b>${escapeHtml(t.name)}</b><br><small>${t.start}–${t.end} · pause ${t.pause} min</small></span><span><button onclick="applySessionTemplate(${t.id})">Appliquer</button> <button onclick="deleteSessionTemplate(${t.id})">✕</button></span></div>`).join('')||'<span style="font-size:12px;color:var(--muted)">Aucun modèle enregistré.</span>'}
+function renderPlanningTools(){renderAdvancedBridgeSuggestions();const r=getDailyRules();const a=document.getElementById('dailyCapEnabled'),b=document.getElementById('restRuleEnabled');if(a)a.checked=r.daily;if(b)b.checked=r.rest;const br=document.getElementById('bridgeSuggestions');if(br){const x=computeBridgeSuggestions();br.innerHTML=x.length?x.map(z=>`<div style="padding:7px 0;border-bottom:1px solid var(--border);">💡 Poser le <b>${z.date}</b> autour de ${z.label}</div>`).join(''):'Aucun pont à venir détecté.'}const el=document.getElementById('sessionTemplatesList');if(el)el.innerHTML=getTemplates().map(t=>`<div class="settings-row"><span><b>${escapeHtml(t.name)}</b><br><small>${t.start}–${t.end} · pause ${t.pause} min</small></span><span><button onclick="applySessionTemplate(${t.id})">Appliquer</button> <button onclick="deleteSessionTemplate(${t.id})">✕</button></span></div>`).join('')||'<span style="font-size:12px;color:var(--muted)">Aucun modèle enregistré.</span>'}
 function openPlanningTools(){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.getElementById('page-planning-tools').classList.add('active');renderPlanningTools()}
 
 // ── ALERTE PLAFOND HORAIRE LÉGAL HEBDOMADAIRE ──
@@ -5227,6 +5388,110 @@ function getAllAnomalies() {
     .filter(r => r.issues.length > 0);
 }
 
+
+// ══════════════════════════════════════════════════════════
+// DÉTECTION D'ANOMALIES ENRICHIE
+// Complète les vérifications existantes (cohérence net/pause/durée) avec
+// des seuils configurables sur la durée de pause relative à la session,
+// et une détection de session "suspecte" (durée totale anormalement longue,
+// ex: 18h d'affilée) pour proposer une vérification proactive.
+// ══════════════════════════════════════════════════════════
+
+function getAnomalyThresholds() {
+  try {
+    const raw = localStorage.getItem('orvia_anomaly_thresholds');
+    const p = raw ? JSON.parse(raw) : {};
+    return {
+      maxSessionHours: Number.isFinite(Number(p.maxSessionHours)) ? clampNumber(Number(p.maxSessionHours), 8, 24, 16) : 16,
+      minPauseMinutesIfLong: Number.isFinite(Number(p.minPauseMinutesIfLong)) ? clampNumber(Number(p.minPauseMinutesIfLong), 0, 120, 20) : 20,
+      longSessionHoursForPauseCheck: Number.isFinite(Number(p.longSessionHoursForPauseCheck)) ? clampNumber(Number(p.longSessionHoursForPauseCheck), 4, 14, 6) : 6,
+      maxPauseRatioPct: Number.isFinite(Number(p.maxPauseRatioPct)) ? clampNumber(Number(p.maxPauseRatioPct), 20, 90, 60) : 60
+    };
+  } catch (e) {
+    return { maxSessionHours: 16, minPauseMinutesIfLong: 20, longSessionHoursForPauseCheck: 6, maxPauseRatioPct: 60 };
+  }
+}
+
+function saveAnomalyThresholds(cfg) {
+  localStorage.setItem('orvia_anomaly_thresholds', JSON.stringify(cfg));
+}
+
+// Étend detectSessionAnomalies avec des vérifications supplémentaires basées
+// sur les seuils configurables (pause trop courte pour une session longue,
+// pause disproportionnée par rapport au temps net, session suspecte).
+function detectSessionAnomaliesExtended(s) {
+  const issues = detectSessionAnomalies(s);
+  if (!Number.isFinite(s.start) || !Number.isFinite(s.end)) return issues;
+
+  const cfg = getAnomalyThresholds();
+  const durationH = (s.end - s.start) / 3600000;
+  const pauseMin = (s.pauseMs || 0) / 60000;
+
+  if (durationH >= cfg.maxSessionHours && !issues.some(i => i.includes('anormalement longue'))) {
+    issues.push(`session très longue (${durationH.toFixed(1)}h, ≥ ${cfg.maxSessionHours}h)`);
+  }
+
+  if (durationH >= cfg.longSessionHoursForPauseCheck && pauseMin < cfg.minPauseMinutesIfLong) {
+    issues.push(`pause suspicieusement courte (${Math.round(pauseMin)} min sur ${durationH.toFixed(1)}h)`);
+  }
+
+  if (durationH > 0) {
+    const pauseRatioPct = (pauseMin * 60000 / (s.end - s.start)) * 100;
+    if (pauseRatioPct > cfg.maxPauseRatioPct) {
+      issues.push(`pause disproportionnée (${Math.round(pauseRatioPct)}% de la session)`);
+    }
+  }
+
+  return issues;
+}
+
+function getAllAnomaliesExtended() {
+  return state.sessions
+    .map((s, idx) => ({ idx, session: s, issues: detectSessionAnomaliesExtended(s) }))
+    .filter(r => r.issues.length > 0);
+}
+
+function renderAnomalySettings() {
+  const cfg = getAnomalyThresholds();
+  const el1 = document.getElementById('anomalyMaxSessionHours');
+  const el2 = document.getElementById('anomalyMinPauseMinutes');
+  const el3 = document.getElementById('anomalyLongSessionThreshold');
+  const el4 = document.getElementById('anomalyMaxPauseRatio');
+  if (el1) el1.value = cfg.maxSessionHours;
+  if (el2) el2.value = cfg.minPauseMinutesIfLong;
+  if (el3) el3.value = cfg.longSessionHoursForPauseCheck;
+  if (el4) el4.value = cfg.maxPauseRatioPct;
+
+  const summaryEl = document.getElementById('anomalyDetectedSummary');
+  if (summaryEl) {
+    const anomalies = getAllAnomaliesExtended();
+    summaryEl.innerHTML = anomalies.length
+      ? `<div style="font-size:12px;color:var(--orange);font-weight:700;">${anomalies.length} session(s) signalée(s) avec les seuils actuels.</div>`
+      : `<div style="font-size:12px;color:var(--green);">Aucune anomalie détectée avec ces seuils.</div>`;
+  }
+}
+
+function onAnomalyThresholdsChange() {
+  const cfg = {
+    maxSessionHours: Number(document.getElementById('anomalyMaxSessionHours')?.value),
+    minPauseMinutesIfLong: Number(document.getElementById('anomalyMinPauseMinutes')?.value),
+    longSessionHoursForPauseCheck: Number(document.getElementById('anomalyLongSessionThreshold')?.value),
+    maxPauseRatioPct: Number(document.getElementById('anomalyMaxPauseRatio')?.value)
+  };
+  saveAnomalyThresholds(cfg);
+  showToast('Seuils mis à jour ✓');
+  renderAnomalySettings();
+  renderAnomalyBanner();
+  renderHistory();
+}
+
+function openAnomalySettings() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-anomaly-settings').classList.add('active');
+  renderAnomalySettings();
+}
+
 function fixSessionAnomaly(idx) {
   const s = state.sessions[idx];
   if (!s) return;
@@ -5252,7 +5517,7 @@ function sessionItemHtml(s) {
     : s.workMode === 'teletravail'
     ? `<div class="geo-badge" style="color:var(--green)">🏠 Télétravail</div>`
     : '';
-  const anomalies = detectSessionAnomalies(s);
+  const anomalies = detectSessionAnomaliesExtended(s);
   const anomalyHtml = anomalies.length
     ? `<div style="background:rgba(245,158,11,.12);border:1px solid var(--orange);border-radius:8px;padding:6px 10px;font-size:11px;color:var(--orange);display:flex;justify-content:space-between;align-items:center;gap:8px">
         <span>⚠️ ${anomalies.join(', ')}</span>
@@ -5285,7 +5550,7 @@ function sessionItemHtml(s) {
 
 function renderAnomalyBanner() {
   let banner = document.getElementById('anomalyBanner');
-  const anomalies = getAllAnomalies();
+  const anomalies = getAllAnomaliesExtended();
   if (!banner) return;
   if (!anomalies.length) {
     banner.style.display = 'none';
@@ -5741,7 +6006,7 @@ function exportPDF() {
       ss.forEach(s => {
         const dep = new Date(s.start).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
         const arr = new Date(s.end).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
-        html += `<tr><td>${dep}</td><td>${arr}</td><td>${fmtMs(s.pauseMs || 0)}</td><td>${fmtMs(s.net)}</td><td>${escapeHtml(s.note || '')}</td></tr>`;
+        html += `<tr><td>${dep}</td><td>${arr}</td><td>${fmtMs(s.pauseMs || 0)}</td><td>${fmtMs(s.net)}</td><td>${s.note || ''}</td></tr>`;
       });
       html += `<tr class="total"><td colspan="3">Total du jour</td><td>${fmtMs(total)}</td><td></td></tr>
       </table>`;
@@ -7938,14 +8203,24 @@ function getTaxBrackets() {
     const raw = localStorage.getItem('orvia_tax_brackets');
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length) return parsed;
+      if (Array.isArray(parsed) && parsed.length) {
+        // La borne Infinity ne survit pas à JSON.stringify (devenait null) :
+        // on la restaure sur la dernière tranche pour éviter un plafond
+        // artificiel du barème après une sauvegarde.
+        return parsed.map((b, idx) => idx === parsed.length - 1 && (b.max === null || !Number.isFinite(b.max))
+          ? { ...b, max: Infinity }
+          : b);
+      }
     }
   } catch (e) {}
   return DEFAULT_TAX_BRACKETS_2026;
 }
 
 function saveTaxBrackets(brackets) {
-  localStorage.setItem('orvia_tax_brackets', JSON.stringify(brackets));
+  // Remplace Infinity par un sentinel sérialisable (JSON.stringify(Infinity) === null,
+  // ce qui casserait la tranche la plus haute du barème progressif).
+  const safe = brackets.map(b => ({ ...b, max: Number.isFinite(b.max) ? b.max : null }));
+  localStorage.setItem('orvia_tax_brackets', JSON.stringify(safe));
 }
 
 function getTaxParts() {
@@ -8977,6 +9252,8 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.0.1', date: '2026-07-26', items: ['Correctif : le barème fiscal (tranche à 45%) pouvait être corrompu de façon silencieuse et permanente si sauvegardé, la valeur \u00abInfinity\u00bb n\u2019étant pas conservée par la sérialisation JSON.'] },
+    { version: '2.0.0', date: '2026-07-26', items: ['Prévision de fin d\u2019objectif mensuel basée sur le rythme actuel.', 'Courbe de progression pluriannuelle (comparaison année sur année).', 'Heatmap annuelle façon calendrier de contributions.', 'Notifications d\u2019anniversaire de travail.', 'Mode compact pour petits écrans.', 'Simulateur fiscal par tranches réelles (barème progressif).', 'Alerte de seuil de tranche fiscale.', 'Ponts optimisés multi-semaines avec ratio jours gagnés/posés.', 'Détection d\u2019anomalies enrichie (pauses suspectes, seuils configurables).'] },
     { version: '1.9.5', date: '2026-07-19', items: ['Nettoyage complémentaire : légende du calendrier et cases à cocher de l\u2019alerte "congés à risque" affichaient encore Sans solde/Enfant malade (texte en dur, pas nettoyé la première fois).'] },
     { version: '1.9.4', date: '2026-07-19', items: ['Suppression des types de congé "Congé sans solde" et "Enfant malade" (soldes annuels et sélecteur de type) — les congés déjà posés avec ces types ont été supprimés.'] },
     { version: '1.9.3', date: '2026-07-19', items: ['Correction : le code de connexion par email attendait exactement 6 chiffres alors que Supabase est configuré pour envoyer un code à 8 chiffres — le champ accepte maintenant 8 chiffres.'] },
