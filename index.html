@@ -817,10 +817,10 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 
   <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;">
     <div class="view-selector" style="margin:0;flex:1;">
-      <button class="view-btn active" onclick="setView('day')">Jour</button>
-      <button class="view-btn" onclick="setView('week')">Semaine</button>
-      <button class="view-btn" onclick="setView('month')">Mois</button>
-      <button class="view-btn" onclick="setView('year')">Année</button>
+      <button class="view-btn hist-view-btn active" onclick="setView('day')">Jour</button>
+      <button class="view-btn hist-view-btn" onclick="setView('week')">Semaine</button>
+      <button class="view-btn hist-view-btn" onclick="setView('month')">Mois</button>
+      <button class="view-btn hist-view-btn" onclick="setView('year')">Année</button>
     </div>
     <button onclick="openAddSessionModal()" title="Ajouter une session oubliée" style="background:var(--accent);color:#fff;border:none;border-radius:10px;width:38px;height:38px;font-size:20px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;">+</button>
   </div>
@@ -2555,7 +2555,7 @@ function maybeShowWeeklyReport() {
   modal.id = 'weeklyReportModal';
   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Bilan ${now.getDay()===1?'de la semaine dernière':'de la semaine'}</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Du ${periodStart.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${periodEnd.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''} · pause moy. ${fmtHM(avgPauseMs)}</div>${alertsHtml}<div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
   document.body.appendChild(modal);
-}  const APP_VERSION = '2.0.1';
+}  const APP_VERSION = '2.0.2';
 
 
 // ── STORAGE ──
@@ -5058,7 +5058,7 @@ let currentView = 'day';
 
 function setView(v) {
   currentView = v;
-  document.querySelectorAll('.view-btn:not(.trend-btn)').forEach((b, i) => {
+  document.querySelectorAll('.hist-view-btn').forEach((b, i) => {
     b.classList.toggle('active', ['day','week','month','year'][i] === v);
   });
   const listEl = document.getElementById('historyList');
@@ -5579,7 +5579,7 @@ function getMonthComparison() {
   const thisMonthMs = state.sessions.filter(s => s.start >= thisMonthStart && s.start <= now.getTime()).reduce((a, s) => a + s.net, 0);
   const prevMonthMs = state.sessions.filter(s => s.start >= prevMonthStart && s.start <= prevMonthCutoff).reduce((a, s) => a + s.net, 0);
 
-  return { thisMonthMs, prevMonthMs, diffMs: thisMonthMs - prevMonthMs, cutoffDay };
+  return { thisMonthMs, prevMonthMs, diffMs: thisMonthMs - prevMonthMs, cutoffDay, day };
 }
 
 function fmtSignedHM(ms) {
@@ -5612,7 +5612,7 @@ function renderHistory() {
     </div>
     <div class="stat-card full">
       <div class="stat-val" style="color:${cmpColor};font-size:20px;">${cmpIcon} ${fmtSignedHM(cmp.diffMs)}</div>
-      <div class="stat-lbl">vs mois dernier (sur les ${cmp.cutoffDay} 1ers jours)</div>
+      <div class="stat-lbl">vs mois dernier (sur les ${cmp.day} 1ers jours)</div>
     </div>`;
 
   renderAnomalyBanner();
@@ -9252,6 +9252,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.0.2', date: '2026-07-27', items: ['Correction de la mise en surbrillance des vues Historique (Jour/Semaine/Mois/Année) qui pouvait se désynchroniser à cause d\u2019un conflit avec les boutons de la section Comparaisons.', 'Correction du libellé de comparaison mensuelle qui pouvait rester figé sur un jour du mois incorrect au lieu d\u2019afficher le jour réel du mois en cours.'] },
     { version: '2.0.1', date: '2026-07-26', items: ['Correctif : le barème fiscal (tranche à 45%) pouvait être corrompu de façon silencieuse et permanente si sauvegardé, la valeur \u00abInfinity\u00bb n\u2019étant pas conservée par la sérialisation JSON.'] },
     { version: '2.0.0', date: '2026-07-26', items: ['Prévision de fin d\u2019objectif mensuel basée sur le rythme actuel.', 'Courbe de progression pluriannuelle (comparaison année sur année).', 'Heatmap annuelle façon calendrier de contributions.', 'Notifications d\u2019anniversaire de travail.', 'Mode compact pour petits écrans.', 'Simulateur fiscal par tranches réelles (barème progressif).', 'Alerte de seuil de tranche fiscale.', 'Ponts optimisés multi-semaines avec ratio jours gagnés/posés.', 'Détection d\u2019anomalies enrichie (pauses suspectes, seuils configurables).'] },
     { version: '1.9.5', date: '2026-07-19', items: ['Nettoyage complémentaire : légende du calendrier et cases à cocher de l\u2019alerte "congés à risque" affichaient encore Sans solde/Enfant malade (texte en dur, pas nettoyé la première fois).'] },

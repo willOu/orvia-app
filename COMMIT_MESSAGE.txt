@@ -1,0 +1,11 @@
+fix: correction surbrillance boutons Historique + libellé comparaison mensuelle (v2.0.2)
+
+- Ajout de la classe dédiée `hist-view-btn` aux 4 boutons Jour/Semaine/Mois/Année.
+- getMonthComparison() retourne désormais `day` (jour réel) en plus de `cutoffDay`.
+- Le libellé "vs mois dernier" affiche maintenant le jour réel du mois en cours.
+- Synchronisation de CACHE_VERSION (sw.js) avec APP_VERSION (index.html) : orvia-v2.0.2.
+- Ajout du workflow GitHub Actions de bump automatique de version + déploiement.
+
+Fichiers modifiés : index.html, sw.js
+Fichiers ajoutés : .github/workflows/deploy.yml, scripts/bump_version.py, CONVENTION_COMMITS.md
+Aucun impact Supabase.
