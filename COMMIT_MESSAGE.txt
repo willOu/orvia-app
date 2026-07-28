@@ -1,33 +1,20 @@
-feat: congé rapide au clic, RTT comptée comme travail effectif, vue mensuelle et raccourcis enrichis (v2.1.0)
+fix: jours travaillés non colorés au calendrier + badge de version fantôme (v2.1.2)
 
-- Ajout de congé en un clic depuis le calendrier : cliquer sur un jour libre
-  ouvre une mini-fenêtre (type + note) qui enregistre directement le congé,
-  sans passer par le formulaire complet. Nouvelle modale #quickAddCongeModal,
-  fonctions closeQuickAddCongeModal()/submitQuickAddConge()/
-  openFullCongeFormFromQuickAdd(). openAddCongeForDate() adapté.
+- Correctif : dans renderCal(), la classe CSS 'work' (jour travaillé) était
+  rattachée au mauvais bloc if/else if à cause d'un enchaînement de
+  conditions mal branché avec la détection des congés personnalisés. Un jour
+  travaillé sans congé n'était donc jamais mis en évidence visuellement dans
+  le calendrier des congés. Condition réécrite pour s'appliquer correctement
+  dès qu'un jour sans congé a une session enregistrée.
 
-- RTT comptée comme temps de travail effectif (option la plus sûre côté
-  paie) : le compteur du jour/de la semaine, le solde d'heures sup et la vue
-  mensuelle intègrent désormais les jours de RTT posés comme du temps
-  travaillé, au lieu de les laisser à 0h. Nouvelles fonctions
-  isDateOnRTT(), getGoalForDow(), getRTTGoalMsForRange(). Mise à jour de
-  getWeekGoalForMonday(), getMonthGoal(), renderObjectifs(),
-  getOvertimeBalance() et de la vue mensuelle de l'historique.
+- Correctif : le badge de version en haut de l'écran principal n'existait
+  pas dans le HTML alors que le code (openAboutSettings) essayait déjà de le
+  mettre à jour via document.getElementById('versionBadgeTop'). Ajout de
+  l'élément #versionBadgeTop dans le header (utilisant le style CSS
+  .version-badge-topright déjà présent mais orphelin), initialisé au
+  chargement de l'app et cliquable vers la page "À propos".
 
-- Vue mensuelle de l'historique enrichie : barre de progression et
-  pourcentage d'objectif atteint par mois, badge indiquant la part d'heures
-  RTT incluses dans le total.
+- Bump version : 2.1.1 → 2.1.2 (APP_VERSION + CACHE_VERSION synchronisés).
+- Entrée changelog v2.1.2 ajoutée.
 
-- Automatisations Raccourcis enrichies : nouvelle section "Arrêt
-  automatique à l'arrivée chez soi" (guide automatisation personnelle
-  native, ?action=stop, fonctionne app fermée) et nouveau réglage
-  "Notifications de confirmation" (shortcutNotifEnabled) affichant une
-  Notification native quand une action est déclenchée via URL. Nouvelles
-  fonctions getShortcutNotifEnabled()/onShortcutNotifToggle()/
-  notifyShortcutActionResult(). handleQuickAction() enrichi (notification +
-  gestion reprise après pause).
-
-- Bump version : 2.0.8 → 2.1.0 (APP_VERSION + CACHE_VERSION synchronisés).
-- Entrée changelog v2.1.0 ajoutée.
-
-Fichiers modifiés : index.html, sw.js, README.md
+Fichiers modifiés : index.html, sw.js

@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'orvia-v2.1.0';
+const CACHE_VERSION = 'orvia-v2.1.2';
 const CACHE_NAME = CACHE_VERSION;
 const ASSETS_TO_CACHE = [
   '.',

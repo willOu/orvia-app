@@ -690,6 +690,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <div class="date" id="headerTime" style="font-variant-numeric:tabular-nums;letter-spacing:.5px"></div>
   </div>
   <div id="syncStatusBadge" onclick="openSyncStatusModal()" style="position:absolute;top:calc(env(safe-area-inset-top, 0px) + 14px);left:12px;font-size:10px;font-weight:800;padding:4px 9px;border-radius:999px;display:flex;align-items:center;gap:5px;cursor:pointer;z-index:5;"></div>
+  <div id="versionBadgeTop" class="version-badge-topright" onclick="openAboutSettings()" style="cursor:pointer;top:calc(env(safe-area-inset-top, 0px) + 14px);"></div>
 </div>
 
 <div class="tabs">
@@ -711,8 +712,8 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
 
   <div class="status-row">
-    <div class="status-pill">
-      <div class="label">Arrivée</div>
+    <div class="status-pill" onclick="openEditCurrentStartModal()" style="cursor:pointer" title="Toucher pour corriger l'heure d'arrivée">
+      <div class="label">Arrivée ✏️</div>
       <div class="value" id="startTimeDisplay">--:--</div>
     </div>
     <div class="status-pill" onclick="openEditCurrentPauseModal()" style="cursor:pointer" title="Toucher pour ajuster la pause en cours">
@@ -2274,6 +2275,24 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
 </div>
 
+<div class="modal-overlay" id="editCurrentStartModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">Corriger l'heure d'arrivée</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.4;">
+      Ajuste l'heure de début de la session en cours, sans attendre la fin pour la corriger. La durée écoulée et la pause en cours restent inchangées.
+    </div>
+    <div class="modal-row">
+      <label>Heure d'arrivée</label>
+      <input type="time" id="editCurrentStartTime" step="60">
+    </div>
+    <div class="modal-error" id="editCurrentStartError"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="closeEditCurrentStartModal()">Annuler</button>
+      <button class="modal-btn-save" onclick="saveEditCurrentStartModal()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="editTimeModal" style="display:none;">
   <div class="modal-box">
     <div class="modal-title">Modifier les horaires</div>
@@ -2611,7 +2630,7 @@ function maybeShowWeeklyReport() {
   document.body.appendChild(modal);
 }
 
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.1.2';
 
 
 // ── STORAGE ──
@@ -5466,6 +5485,62 @@ function saveEditCurrentPauseModal() {
   showToast('Pause ajustée ✓');
 }
 
+// Permet de corriger l'heure d'arrivée immédiatement au démarrage d'une
+// session, sans avoir à attendre la fin pour la corriger via l'historique.
+function openEditCurrentStartModal() {
+  if (state.status === 'idle') { showToast('Aucune session en cours'); return; }
+  const timeEl = document.getElementById('editCurrentStartTime');
+  if (timeEl && state.startTs) {
+    const d = new Date(state.startTs);
+    timeEl.value = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+  const errEl = document.getElementById('editCurrentStartError');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  document.getElementById('editCurrentStartModal').style.display = 'flex';
+}
+
+function closeEditCurrentStartModal() {
+  document.getElementById('editCurrentStartModal').style.display = 'none';
+}
+
+function saveEditCurrentStartModal() {
+  if (state.status === 'idle') { closeEditCurrentStartModal(); return; }
+  const timeEl = document.getElementById('editCurrentStartTime');
+  const errEl = document.getElementById('editCurrentStartError');
+  const val = timeEl ? timeEl.value : '';
+
+  if (!val || !/^\d{2}:\d{2}$/.test(val)) {
+    if (errEl) { errEl.textContent = 'Heure invalide.'; errEl.style.display = 'block'; }
+    return;
+  }
+
+  const [hh, mm] = val.split(':').map(Number);
+  const newStart = new Date(state.startTs);
+  newStart.setHours(hh, mm, 0, 0);
+  const newStartTs = newStart.getTime();
+  const now = Date.now();
+
+  if (newStartTs > now) {
+    if (errEl) { errEl.textContent = "L'heure d'arrivée ne peut pas être dans le futur."; errEl.style.display = 'block'; }
+    return;
+  }
+
+  const totalPauseNow = state.totalPauseMs + (state.status === 'paused' && state.pauseStart ? (now - state.pauseStart) : 0);
+  if ((now - newStartTs) < totalPauseNow) {
+    if (errEl) { errEl.textContent = "Cette heure d'arrivée est trop récente par rapport à la pause déjà accumulée."; errEl.style.display = 'block'; }
+    return;
+  }
+
+  const oldLabel = fmtTime(state.startTs);
+  state.startTs = newStartTs;
+  document.getElementById('startTimeDisplay').textContent = fmtTime(state.startTs);
+  save();
+  tick();
+  closeEditCurrentStartModal();
+  if (typeof logAuditEntry === 'function') logAuditEntry('session', 'modification', `Heure d'arrivée corrigée : ${oldLabel} → ${fmtTime(state.startTs)}`);
+  showToast("Heure d'arrivée corrigée ✓");
+}
+
 function editNote(idx) {
   const s = state.sessions[idx];
   const el = document.getElementById('note-' + idx);
@@ -7569,8 +7644,9 @@ function renderCal() {
     let hasConge = false;
     if (dateSets.cp.has(dateStr))  { cls += ' cp'; hasConge = true; }
     else if (dateSets.rtt.has(dateStr)) { cls += ' rtt'; hasConge = true; }
-    let customColor = null;             if (!hasConge) { for (const ct of customCongeTypes) { if (dateSets[ct.id] && dateSets[ct.id].has(dateStr)) { cls += ' has-conge'; customColor = ct.color; hasConge = true; break; } } }
-    else if (workedDays.has(dateStr)) cls += ' work';
+    let customColor = null;
+    if (!hasConge) { for (const ct of customCongeTypes) { if (dateSets[ct.id] && dateSets[ct.id].has(dateStr)) { cls += ' has-conge'; customColor = ct.color; hasConge = true; break; } } }
+    if (!hasConge && workedDays.has(dateStr)) cls += ' work';
     if (hasConge) cls += ' has-conge';
     const holidayLabel = isHoliday ? getHolidayLabel(dateStr) : null;
     const schoolHoliday = isDateInSchoolHoliday(dateStr);
@@ -9481,6 +9557,8 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.1.2', date: '2026-07-28', items: ['Correctif : dans le calendrier des congés, les jours réellement travaillés (sans congé) n\u2019étaient jamais mis en évidence (classe visuelle manquante), à cause d\u2019un enchaînement de conditions mal branché.', 'Correctif : le badge de version en haut de l\u2019écran principal n\u2019existait pas dans la page, alors que le code essayait déjà de le mettre à jour \u2014 il est maintenant bien affiché et cliquable vers \u2019\u00c0 propos\u2019.'] },
+    { version: '2.1.1', date: '2026-07-28', items: ['Ajout : possibilité de corriger l\u2019heure d\u2019arrivée directement pendant une session en cours (pastille \u2019Arrivée\u2019 sur l\u2019écran principal), sans attendre la fin de la session pour la corriger via l\u2019historique.'] },
     { version: '2.1.0', date: '2026-07-28', items: ['Ajout : clic direct sur un jour du calendrier des congés pour l\u2019ajouter en un geste (type + note), sans passer par le formulaire complet.', 'Ajout : les RTT posées comptent désormais comme du temps de travail effectif dans le compteur hebdomadaire, les graphiques et le solde d\u2019heures supplémentaires (option la plus sûre côté paie), au lieu de laisser ces jours à 0h.', 'Amélioration : la vue mensuelle de l\u2019historique affiche maintenant une barre de progression et le pourcentage d\u2019objectif atteint, avec le détail des heures RTT incluses dans le total.', 'Ajout : automatisations Raccourcis enrichies avec un guide pour un arrêt automatique du chrono à l\u2019arrivée chez soi (déclencheur natif iOS, fonctionne app fermée), et des notifications de confirmation quand une action est déclenchée via une automatisation externe.'] },
     { version: '2.0.8', date: '2026-07-28', items: ['Correctif : dans les infobulles des graphiques Tendance et Comparaisons, la date, le réalisé et l\u2019objectif étaient quasiment invisibles (texte sombre sur fond sombre), seul l\u2019écart vs objectif ressortait.', 'Correctif : sur le graphique Comparaisons (vue Mois), les 12 étiquettes de mois se chevauchaient et devenaient illisibles (les millésimes \u201925\u2019/\u201926\u2019 de mois adjacents se superposaient). Le nombre d\u2019étiquettes affichées est maintenant limité pour rester lisible.'] },
     { version: '2.0.7', date: '2026-07-28', items: ['Correctif : l\u2019infobulle des graphiques Tendance et Comparaisons pouvait se retrouver plaquée en haut du graphique et chevaucher les barres, faute de place au-dessus du canvas. Elle s\u2019affiche désormais sous le graphique quand la place manque au-dessus.', 'Correctif (iOS) : les boutons Jour/Semaine/Mois/Année (et les autres sélecteurs de vue) pouvaient afficher le bon contenu sans que le cadre actif ne soit visuellement mis en surbrillance, à cause du style natif des boutons sur Safari iOS. Ajout de -webkit-appearance: none.'] },
@@ -10717,6 +10795,8 @@ document.addEventListener('gesturechange', e => e.preventDefault());
 setInterval(checkAutoBackup, 3600000);
 updateButtons();
 renderToday();
+const _vbtInit = document.getElementById('versionBadgeTop');
+if (_vbtInit) _vbtInit.textContent = 'v' + APP_VERSION;
 
 if (state.status !== 'idle') {
   startTimer();
