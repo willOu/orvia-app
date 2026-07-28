@@ -1,28 +1,22 @@
-fix: audit complet — géofencing, sécurité sync cloud, historique primes/taux jamais sauvegardé (v2.0.6)
+fix: infobulles illisibles (texte sombre sur fond sombre) + chevauchement des étiquettes du graphique Comparaisons (v2.0.8)
 
-- Géofencing : le timer de la confirmation "Démarrage/Fin automatique
-  de session" n'était jamais réellement annulable (clearTimeout sur un
-  ID undefined). Désactiver le géofencing pendant le compte à rebours
-  ne stoppait pas l'action, qui se déclenchait quand même 5s plus tard.
-  Corrigé en récupérant le vrai ID de timer depuis showUndoToast().
+- Infobulles des graphiques Tendance vs objectif et Comparaisons : la
+  date, le "Réalisé" et l'"Objectif" héritaient de color:var(--text),
+  qui est sombre en thème clair — quasi invisibles sur le fond sombre
+  fixe (#0b1f2a) de l'infobulle. Seule la ligne d'écart (stylée avec une
+  couleur explicite verte/orange) restait lisible, d'où l'impression que
+  "seule la durée en plus/en moins" s'affichait. Couleur de texte fixée
+  à #e8eaf6 (comme les autres éléments sombres de l'app) pour rester
+  lisible quel que soit le thème.
 
-- Sécurité de la synchro cloud : autoSyncOnOpen() et
-  handleRealtimeCloudChange() pouvaient écraser des données locales
-  avec une version distante plus ancienne, même quand des changements
-  locaux n'étaient pas encore envoyés (queue de sync non vide). Les deux
-  fonctions vérifient désormais la queue avant d'accepter un écrasement
-  local par les données distantes.
+- Graphique Comparaisons (vue Mois) : les 12 étiquettes de mois étaient
+  toutes dessinées sans espacement (condition n<=12 toujours vraie),
+  faisant se chevaucher le texte de mois adjacents — les millésimes
+  '25'/'26' de labels voisins se superposaient et donnaient l'impression
+  d'un "25" répété partout. Le nombre d'étiquettes affichées est
+  désormais limité à ~5-6 pour garder un espacement lisible.
 
-- Historique des primes et des taux horaires : primesHistory et
-  tauxHoraireHistory n'étaient inclus ni dans l'export/import local, ni
-  dans la synchronisation cloud. Un changement d'appareil (ou une
-  restauration) faisait disparaître silencieusement tout cet historique.
-  Ajouté à buildBackupData(), sanitizeBackupData() (avec compatibilité
-  ascendante pour les anciennes sauvegardes) et aux deux points de
-  restauration (importBackup, applyCloudBackup).
-
-- Bump version : 2.0.5 → 2.0.6 (APP_VERSION + CACHE_VERSION synchronisés).
+- Bump version : 2.0.7 → 2.0.8 (APP_VERSION + CACHE_VERSION synchronisés).
 
 Fichiers modifiés : index.html, sw.js
-Aucun impact schéma Supabase (la colonne data est un JSONB, les
-nouveaux champs sont additifs).
+Diagnostiqué à partir de captures d'écran fournies par l'utilisateur.

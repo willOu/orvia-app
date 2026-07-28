@@ -347,6 +347,8 @@ html.compact-mode .day-group { margin-bottom: 12px; }
     font-weight: 600;
     cursor: pointer;
     transition: all .2s;
+    -webkit-appearance: none;
+    appearance: none;
   }
   .view-btn.active { background: var(--accent); color: #fff; }
   .day-group { margin-bottom: 20px; }
@@ -766,7 +768,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
   <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:16px;position:relative;">
     <canvas id="trendChart" style="width:100%;height:160px;display:block;cursor:pointer;"></canvas>
-    <div id="trendTooltip" style="display:none;position:absolute;background:#0b1f2a;border:1px solid var(--accent);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.4);pointer-events:none;z-index:10;white-space:nowrap;"></div>
+    <div id="trendTooltip" style="display:none;position:absolute;background:#0b1f2a;border:1px solid var(--accent);border-radius:10px;padding:8px 12px;font-size:12px;color:#e8eaf6;box-shadow:0 4px 16px rgba(0,0,0,.4);pointer-events:none;z-index:10;white-space:nowrap;"></div>
     <div style="display:flex;gap:14px;margin-top:8px;justify-content:center;">
       <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);"><div style="width:10px;height:10px;border-radius:3px;background:var(--accent)"></div>Réalisé</div>
       <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);"><div style="width:14px;height:2px;background:var(--muted)"></div>Objectif</div>
@@ -784,7 +786,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   </div>
   <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:10px;position:relative;">
     <canvas id="comparisonChart" style="width:100%;height:160px;display:block;cursor:pointer;"></canvas>
-    <div id="comparisonTooltip" style="display:none;position:absolute;background:#0b1f2a;border:1px solid var(--accent);border-radius:10px;padding:8px 12px;font-size:12px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,.4);pointer-events:none;z-index:10;white-space:nowrap;"></div>
+    <div id="comparisonTooltip" style="display:none;position:absolute;background:#0b1f2a;border:1px solid var(--accent);border-radius:10px;padding:8px 12px;font-size:12px;color:#e8eaf6;box-shadow:0 4px 16px rgba(0,0,0,.4);pointer-events:none;z-index:10;white-space:nowrap;"></div>
   </div>
   <div style="display:flex;gap:10px;margin-bottom:16px;">
     <button class="btn-primary" style="flex:1;font-size:13px;" onclick="exportComparisonChartImage()">📷 Exporter en image</button>
@@ -2557,7 +2559,7 @@ function maybeShowWeeklyReport() {
   document.body.appendChild(modal);
 }
 
-const APP_VERSION = '2.0.6';
+const APP_VERSION = '2.0.8';
 
 
 // ── STORAGE ──
@@ -9280,6 +9282,8 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.0.8', date: '2026-07-28', items: ['Correctif : dans les infobulles des graphiques Tendance et Comparaisons, la date, le réalisé et l\u2019objectif étaient quasiment invisibles (texte sombre sur fond sombre), seul l\u2019écart vs objectif ressortait.', 'Correctif : sur le graphique Comparaisons (vue Mois), les 12 étiquettes de mois se chevauchaient et devenaient illisibles (les millésimes \u201925\u2019/\u201926\u2019 de mois adjacents se superposaient). Le nombre d\u2019étiquettes affichées est maintenant limité pour rester lisible.'] },
+    { version: '2.0.7', date: '2026-07-28', items: ['Correctif : l\u2019infobulle des graphiques Tendance et Comparaisons pouvait se retrouver plaquée en haut du graphique et chevaucher les barres, faute de place au-dessus du canvas. Elle s\u2019affiche désormais sous le graphique quand la place manque au-dessus.', 'Correctif (iOS) : les boutons Jour/Semaine/Mois/Année (et les autres sélecteurs de vue) pouvaient afficher le bon contenu sans que le cadre actif ne soit visuellement mis en surbrillance, à cause du style natif des boutons sur Safari iOS. Ajout de -webkit-appearance: none.'] },
     { version: '2.0.6', date: '2026-07-27', items: ['Correctif : le géofencing pouvait déclencher un démarrage/arrêt automatique de session même après avoir désactivé la fonction pendant le compte à rebours de confirmation.', 'Correctif : la synchronisation cloud pouvait, dans de rares cas (changements locaux non envoyés + écriture concurrente d\u2019un autre appareil), écraser silencieusement des données locales pas encore synchronisées.', 'Correctif : l\u2019historique des primes et des taux horaires n\u2019était jamais inclus dans les sauvegardes (export local ni synchronisation cloud), ce qui le faisait disparaître lors d\u2019un changement d\u2019appareil.'] },
     { version: '2.0.5', date: '2026-07-27', items: ['Le code de connexion par email repasse à 6 chiffres (validation, champ et placeholder), suite au changement de configuration côté Supabase (longueur d\u2019OTP).'] },
     { version: '2.0.4', date: '2026-07-27', items: ['Correctif : les notes de session pouvaient casser la mise en forme de l\u2019export imprimable (Historique) si elles contenaient des caractères < ou &.', 'Correctif : le calcul de moyenne des primes annuelles ignorait les années sans prime dans le diviseur, ce qui pouvait gonfler artificiellement l\u2019estimation affichée dans le Comparateur augmentation.'] },
@@ -9618,7 +9622,12 @@ function renderComparisonChart() {
     ctx.fillStyle = isCurrent ? accent : (v >= avg ? (getComputedStyle(document.body).getPropertyValue('--green') || '#3ecf8e') : muted);
     ctx.fillRect(x, padT + plotH - h, barW, h);
     comparisonBarRects.push({ x, y: padT, w: barW, h: plotH, label: labels[i], value: v });
-    if (n <= 12 || i % Math.ceil(n / 12) === 0 || i === n - 1) {
+    // Espace les étiquettes pour éviter qu'elles se chevauchent : avec 12
+    // barres (vue mensuelle), les afficher toutes faisait se superposer le
+    // texte de mois adjacents (ex. "août 25" et "sept. 25" fusionnaient
+    // visuellement). On limite à ~6 étiquettes visibles maximum.
+    const labelStep = Math.max(1, Math.ceil(n / 5));
+    if (i % labelStep === 0 || i === n - 1) {
       ctx.fillStyle = muted;
       ctx.textAlign = 'center';
       ctx.fillText(labels[i], x + barW / 2, cssH - 4);
@@ -9647,9 +9656,14 @@ function comparisonChartInteraction(evt) {
     let top = (canvasRect.top - containerRect.top) - 10;
     requestAnimationFrame(() => {
       const tw = tooltip.offsetWidth;
+      const th = tooltip.offsetHeight;
       left = Math.max(4, Math.min(left - tw / 2, container.clientWidth - tw - 4));
       tooltip.style.left = left + 'px';
-      tooltip.style.top = Math.max(0, top - tooltip.offsetHeight) + 'px';
+      if (top - th >= 0) {
+        tooltip.style.top = (top - th) + 'px';
+      } else {
+        tooltip.style.top = (canvasRect.bottom - containerRect.top + 8) + 'px';
+      }
     });
   } else {
     tooltip.style.display = 'none';
@@ -9879,11 +9893,20 @@ function showTrendTooltip(clientX, clientY, rect) {
 
   requestAnimationFrame(() => {
     const tw = tooltip.offsetWidth;
+    const th = tooltip.offsetHeight;
     let adjLeft = left - tw / 2;
     if (adjLeft < 4) adjLeft = 4;
     if (adjLeft + tw > containerRect.width - 4) adjLeft = containerRect.width - tw - 4;
     tooltip.style.left = adjLeft + 'px';
-    tooltip.style.top = Math.max(4, top - tooltip.offsetHeight) + 'px';
+    // S'il n'y a pas assez de place au-dessus du graphique pour afficher
+    // toute l'infobulle (cas le plus fréquent : peu de padding au-dessus du
+    // canvas), on l'affiche sous le graphique à la place, pour ne jamais la
+    // faire chevaucher les barres et masquer une partie de son contenu.
+    if (top - th >= 4) {
+      tooltip.style.top = (top - th) + 'px';
+    } else {
+      tooltip.style.top = (canvasRect.bottom - containerRect.top + 8) + 'px';
+    }
   });
 }
 

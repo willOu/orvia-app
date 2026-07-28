@@ -1,8 +1,8 @@
-# Orvia — v2.0.6 (audit complet : géofencing, sync cloud, historique primes/taux)
+# Orvia — v2.0.8 (infobulles illisibles + chevauchement étiquettes Comparaisons)
 
 ## Contenu du zip
-- index.html : v2.0.6
-- sw.js      : CACHE_VERSION synchronisé (orvia-v2.0.6)
+- index.html : v2.0.8
+- sw.js      : CACHE_VERSION synchronisé (orvia-v2.0.8)
 - COMMIT_MESSAGE.txt : message de commit prêt à l'emploi
 
 ## Déploiement
@@ -12,59 +12,36 @@ git commit -F COMMIT_MESSAGE.txt
 git push origin main
 
 Si votre workflow GitHub Actions de bump automatique est en place, ce
-commit fix: déclenchera normalement un bump supplémentaire (2.0.6 -> 2.0.7)
-au push. Si vous préférez garder exactement la version 2.0.6 telle que
+commit fix: déclenchera normalement un bump supplémentaire (2.0.8 -> 2.0.9)
+au push. Si vous préférez garder exactement la version 2.0.8 telle que
 fournie ici, committez sans le préfixe fix:, ou désactivez temporairement
 le workflow pour ce commit.
 
-## Détail des correctifs (audit complet demandé)
+## Détail des correctifs (diagnostiqués à partir de vos captures d'écran)
 
-### 1. Géofencing — timer de confirmation jamais annulé
-`triggerGeofenceAction()` créait un objet `geofencePendingAction = { type }`
-sans jamais renseigner son champ `timerId`. Résultat : quand
-`stopGeofenceWatch()` tentait d'annuler l'action en attente via
-`clearTimeout(geofencePendingAction.timerId)`, cet appel ne faisait
-rien (ID undefined). Si vous désactiviez le géofencing — ou changiez
-de zone — pendant les 5 secondes de compte à rebours affichées par le
-toast de confirmation, la session démarrait/s'arrêtait quand même,
-malgré la désactivation. Corrigé en récupérant le véritable ID de
-timer exposé par `showUndoToast()`.
+### 1. Texte des infobulles quasi invisible
+Sur les infobulles des graphiques Tendance vs objectif et Comparaisons,
+seule la ligne d'écart (ex. "+01:43 vs objectif") était réellement
+lisible. La date, "Réalisé" et "Objectif" étaient bien présents dans le
+HTML mais en couleur `var(--text)` — sombre en thème clair — sur un
+fond d'infobulle fixe très sombre (#0b1f2a). Texte quasiment invisible.
+Seule la ligne d'écart avait une couleur explicite (vert/orange), d'où
+l'illusion que "seule la durée en plus ou en moins" s'affichait. Couleur
+de texte fixée à un blanc cassé (#e8eaf6) pour rester lisible peu
+importe le thème actif.
 
-### 2. Sécurité de la synchronisation cloud
-`autoSyncOnOpen()` et `handleRealtimeCloudChange()` acceptaient
-toujours d'écraser les données locales dès que le cloud semblait plus
-récent (`remoteTs > localTs`), sans vérifier si des changements locaux
-étaient encore en attente d'envoi (file de synchronisation non vide).
-Scénario à risque : vous modifiez des sessions hors-ligne → un autre
-appareil écrit dans le cloud entre-temps → vous vous reconnectez → le
-push échoue ou n'a pas encore eu lieu → le pull suivant écrasait vos
-modifications locales non envoyées. Les deux fonctions vérifient
-désormais la file de synchronisation avant d'accepter un écrasement :
-si des changements locaux sont en attente, on ne tire pas le cloud tant
-qu'ils n'ont pas été envoyés avec succès.
+### 2. Étiquettes du graphique Comparaisons qui se chevauchent
+En vue "Mois", les 12 barres (12 derniers mois) affichaient chacune leur
+étiquette ("juil. 26", "août 25", etc.) sans aucun espacement — une
+condition de code (`n <= 12`) était toujours vraie pour ce cas précis et
+désactivait de fait le mécanisme d'espacement des étiquettes. Sur un
+écran de mobile, le texte de mois adjacents se chevauchait complètement,
+donnant l'impression d'un "25" répété partout (en réalité les millésimes
+2025/2026 de plusieurs étiquettes superposées). Le nombre d'étiquettes
+affichées est maintenant limité à ~5-6, réparties uniformément, pour
+rester lisible quel que soit le nombre de barres.
 
-### 3. Historique des primes et taux horaires jamais sauvegardé
-`primesHistory` et `tauxHoraireHistory` n'apparaissaient dans aucune
-sauvegarde : ni dans l'export/import JSON manuel, ni dans la
-synchronisation cloud. Ces deux historiques restaient donc strictement
-locaux à chaque appareil/navigateur — un changement d'appareil, une
-réinstallation, ou une restauration à partir d'une sauvegarde cloud les
-faisait silencieusement disparaître, faussant ensuite les calculs qui
-en dépendent (comparateur d'augmentation, moyenne des primes, taux
-rétroactif par date). Ajoutés à `buildBackupData()`,
-`sanitizeBackupData()` (avec repli sur l'historique local actuel si le
-champ est absent d'une ancienne sauvegarde, pour ne rien casser en
-rétrocompatibilité) et restaurés dans `importBackup()` et
-`applyCloudBackup()`.
-
-## Aucun impact schéma Supabase
-La colonne `data` de `orvia_backups` est un JSONB : ajouter des clés
-supplémentaires (`primesHistory`, `tauxHoraireHistory`) est purement
-additif, aucune migration de schéma ou de policy n'est nécessaire.
-
-## Zones auditées sans anomalie trouvée
-Simulateur fiscal par tranches (`calcTrancheGainForRange`,
-`calcGainsMois`), historique des taux horaires par date
-(`getTauxHoraireForDate`), notifications (pause, objectifs, congés,
-plafond légal, anniversaire de travail), badge d'icône, intégration
-Raccourcis iOS (démarrage/pause/fin via URL).
+## Aucun impact Supabase
+Ces deux correctifs sont purement visuels (CSS + logique de dessin
+canvas côté client). Aucun impact sur le schéma ou les policies
+Supabase.
