@@ -1417,7 +1417,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       </div>
       <div id="cloudSyncStep2" style="display:none;">
         <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Email envoyé à <strong id="cloudSyncEmailSent" style="color:var(--text)"></strong></div>
-        <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" id="cloudSyncCode" placeholder="Code à 8 chiffres" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:20px;letter-spacing:4px;text-align:center;margin-bottom:10px;">
+        <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" id="cloudSyncCode" placeholder="Code à 6 chiffres" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:20px;letter-spacing:4px;text-align:center;margin-bottom:10px;">
         <button onclick="onVerifyCodeClick()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:14px;">Valider le code</button>
 
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
@@ -2555,7 +2555,9 @@ function maybeShowWeeklyReport() {
   modal.id = 'weeklyReportModal';
   modal.innerHTML = `<div class="modal-box"><div class="modal-title">${emoji} Bilan ${now.getDay()===1?'de la semaine dernière':'de la semaine'}</div><div style="font-size:13px;color:var(--muted);margin-bottom:16px;">Du ${periodStart.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})} au ${periodEnd.toLocaleDateString('fr-FR',{day:'2-digit',month:'long'})}</div><div class="objectif-card"><div class="objectif-header"><span class="objectif-label">Total</span><span class="objectif-values" style="color:var(--${pct>=100?'green':'accent'})">${totalH}h${String(totalM).padStart(2,'0')} / ${Math.floor(goalMs/3600000)}h</span></div><div class="objectif-bar-bg"><div class="objectif-bar-fill ${pct>=100?'done':'progress'}" style="width:${pct}%"></div></div></div><div style="font-size:13px;color:var(--muted);margin-top:12px;">${joursActifs} jour${joursActifs>1?'s':''} travaillé${joursActifs>1?'s':''} · ${sessions.length} session${sessions.length>1?'s':''} · pause moy. ${fmtHM(avgPauseMs)}</div>${alertsHtml}<div class="modal-actions"><button class="modal-btn-save" onclick="document.getElementById('weeklyReportModal').remove()">Fermer</button></div></div>`;
   document.body.appendChild(modal);
-}  const APP_VERSION = '2.0.2';
+}
+
+const APP_VERSION = '2.0.6';
 
 
 // ── STORAGE ──
@@ -2734,7 +2736,7 @@ async function sendMagicLink(email) {
 async function verifyLoginCode(code) {
   if (!sb || !_pendingLoginEmail) { showToast('Redemandez un code'); return false; }
   const clean = (code || '').trim();
-  if (!/^\d{8}$/.test(clean)) { showToast('Le code doit contenir 8 chiffres'); return false; }
+  if (!/^\d{6}$/.test(clean)) { showToast('Le code doit contenir 6 chiffres'); return false; }
   try {
     const { data, error } = await sb.auth.verifyOtp({ email: _pendingLoginEmail, token: clean, type: 'email' });
     if (error) { showToast('Code invalide ou expiré'); return false; }
@@ -2789,6 +2791,7 @@ function unsubscribeFromCloudChanges() {
 
 function handleRealtimeCloudChange(row) {
   if (!row || !row.updated_at) return;
+  if (getSyncQueue().length > 0) return; // des changements locaux non envoyés existent : on n'écrase pas avec le distant
   const remoteTs = new Date(row.updated_at).getTime();
   const localTs = getSyncState().lastSyncTs || 0;
   // Ignore l'écho de nos propres écritures (déjà appliquées localement).
@@ -2834,9 +2837,13 @@ function applyCloudBackup(remoteData, silent) {
   state.conges = clean.conges;
   state.quotas = clean.quotas;
   objectifs = clean.objectifs;
+  primesHistory = clean.primesHistory;
+  tauxHoraireHistory = clean.tauxHoraireHistory;
   save();
   saveConges();
   saveObjectifs();
+  savePrimesHistory();
+  saveTauxHoraireHistory();
   if (silent) {
     // Rafraîchit le contenu de tous les onglets sans changer celui affiché à l'écran.
     renderObjectifs();
@@ -2844,6 +2851,8 @@ function applyCloudBackup(remoteData, silent) {
     renderTrendChart();
     renderConges();
     renderReglages();
+    renderPrimesHistoList();
+    renderTauxHoraireHistoList();
   } else {
     switchTab('today');
     renderReglages();
@@ -2937,6 +2946,13 @@ async function autoSyncOnOpen() {
   try {
     if (getSyncQueue().length > 0) {
       await processSyncQueue();
+      if (getSyncQueue().length > 0) {
+        // Le push a échoué : des changements locaux ne sont toujours pas
+        // envoyés. On ne tire pas le cloud pour ne pas risquer d'écraser
+        // ces changements avec une version distante plus ancienne.
+        renderSyncStatusBadge();
+        return;
+      }
     }
     const remote = await pullFromCloud();
     if (!remote) return;
@@ -3401,7 +3417,16 @@ function projectAnnualIncome(taux, avgWeeklyNetMs, seuil1, seuil2, maj1, maj2, a
 function getAnnualPrimesAverage() {
   if (!primesHistory.length) return 0;
   const now = new Date();
-  return getPrimesForYear(now.getFullYear()) || getPrimesForYear(now.getFullYear() - 1) || 0;
+  const currentYear = now.getFullYear();
+  const primeYears = primesHistory
+    .map(p => new Date(p.date + 'T00:00:00').getFullYear())
+    .filter(y => y <= currentYear);
+  if (!primeYears.length) return 0;
+  const minYear = Math.min(...primeYears);
+  const span = currentYear - minYear + 1;
+  let total = 0;
+  for (let y = minYear; y <= currentYear; y++) total += getPrimesForYear(y);
+  return total / span;
 }
 
 function openComparateurSettings() {
@@ -6006,7 +6031,7 @@ function exportPDF() {
       ss.forEach(s => {
         const dep = new Date(s.start).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
         const arr = new Date(s.end).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
-        html += `<tr><td>${dep}</td><td>${arr}</td><td>${fmtMs(s.pauseMs || 0)}</td><td>${fmtMs(s.net)}</td><td>${s.note || ''}</td></tr>`;
+        html += `<tr><td>${dep}</td><td>${arr}</td><td>${fmtMs(s.pauseMs || 0)}</td><td>${fmtMs(s.net)}</td><td>${escapeHtml(s.note || '')}</td></tr>`;
       });
       html += `<tr class="total"><td colspan="3">Total du jour</td><td>${fmtMs(total)}</td><td></td></tr>
       </table>`;
@@ -8997,7 +9022,10 @@ function triggerGeofenceAction(type) {
     () => { geofencePendingAction = null; showToast('Action annulée'); },
     () => { executeGeofenceAction(type); }
   );
-  geofencePendingAction = { type };
+  // showUndoToast() assigne son propre timer à _undoDeleteTimer de façon
+  // synchrone : on le récupère ici pour pouvoir vraiment l'annuler depuis
+  // stopGeofenceWatch() si le géofencing est désactivé pendant le compte à rebours.
+  geofencePendingAction = { type, timerId: _undoDeleteTimer };
 }
 
 function executeGeofenceAction(type) {
@@ -9252,6 +9280,10 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.0.6', date: '2026-07-27', items: ['Correctif : le géofencing pouvait déclencher un démarrage/arrêt automatique de session même après avoir désactivé la fonction pendant le compte à rebours de confirmation.', 'Correctif : la synchronisation cloud pouvait, dans de rares cas (changements locaux non envoyés + écriture concurrente d\u2019un autre appareil), écraser silencieusement des données locales pas encore synchronisées.', 'Correctif : l\u2019historique des primes et des taux horaires n\u2019était jamais inclus dans les sauvegardes (export local ni synchronisation cloud), ce qui le faisait disparaître lors d\u2019un changement d\u2019appareil.'] },
+    { version: '2.0.5', date: '2026-07-27', items: ['Le code de connexion par email repasse à 6 chiffres (validation, champ et placeholder), suite au changement de configuration côté Supabase (longueur d\u2019OTP).'] },
+    { version: '2.0.4', date: '2026-07-27', items: ['Correctif : les notes de session pouvaient casser la mise en forme de l\u2019export imprimable (Historique) si elles contenaient des caractères < ou &.', 'Correctif : le calcul de moyenne des primes annuelles ignorait les années sans prime dans le diviseur, ce qui pouvait gonfler artificiellement l\u2019estimation affichée dans le Comparateur augmentation.'] },
+    { version: '2.0.3', date: '2026-07-27', items: ['Correctif : le comparateur d\u2019augmentation utilisait le total des primes d\u2019une seule année (au lieu d\u2019une vraie moyenne sur plusieurs années), ce qui pouvait fausser l\u2019estimation du revenu annuel projeté.'] },
     { version: '2.0.2', date: '2026-07-27', items: ['Correction de la mise en surbrillance des vues Historique (Jour/Semaine/Mois/Année) qui pouvait se désynchroniser à cause d\u2019un conflit avec les boutons de la section Comparaisons.', 'Correction du libellé de comparaison mensuelle qui pouvait rester figé sur un jour du mois incorrect au lieu d\u2019afficher le jour réel du mois en cours.'] },
     { version: '2.0.1', date: '2026-07-26', items: ['Correctif : le barème fiscal (tranche à 45%) pouvait être corrompu de façon silencieuse et permanente si sauvegardé, la valeur \u00abInfinity\u00bb n\u2019étant pas conservée par la sérialisation JSON.'] },
     { version: '2.0.0', date: '2026-07-26', items: ['Prévision de fin d\u2019objectif mensuel basée sur le rythme actuel.', 'Courbe de progression pluriannuelle (comparaison année sur année).', 'Heatmap annuelle façon calendrier de contributions.', 'Notifications d\u2019anniversaire de travail.', 'Mode compact pour petits écrans.', 'Simulateur fiscal par tranches réelles (barème progressif).', 'Alerte de seuil de tranche fiscale.', 'Ponts optimisés multi-semaines avec ratio jours gagnés/posés.', 'Détection d\u2019anomalies enrichie (pauses suspectes, seuils configurables).'] },
@@ -10032,7 +10064,7 @@ function updateHeaderTime() {
   }
 
 function buildBackupData() {
-    return { version: APP_VERSION, sessions: state.sessions, conges: state.conges, quotas: state.quotas, objectifs: objectifs };
+    return { version: APP_VERSION, sessions: state.sessions, conges: state.conges, quotas: state.quotas, objectifs: objectifs, primesHistory: primesHistory, tauxHoraireHistory: tauxHoraireHistory };
   }
 
   function performBackupDownload(filenameSuffix) {
@@ -10257,6 +10289,27 @@ function normalizeObjectifs(o) {
   };
 }
 
+function normalizePrimeEntry(e) {
+  if (!e || typeof e.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(e.date) || !Number.isFinite(Number(e.montant))) return null;
+  return {
+    id: Number.isFinite(e.id) ? e.id : (Date.now() + Math.floor(Math.random() * 100000)),
+    date: e.date,
+    montant: clampNumber(Number(e.montant), 0, 1000000, 0),
+    type: PRIME_TYPES.some(t => t.id === e.type) ? e.type : 'autre',
+    note: typeof e.note === 'string' ? e.note.slice(0, 60) : ''
+  };
+}
+
+function normalizeTauxEntry(e) {
+  if (!e || typeof e.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(e.date) || !Number.isFinite(Number(e.taux))) return null;
+  return {
+    id: Number.isFinite(e.id) ? e.id : (Date.now() + Math.floor(Math.random() * 100000)),
+    date: e.date,
+    taux: clampNumber(Number(e.taux), 0, 1000, 0),
+    note: typeof e.note === 'string' ? e.note.slice(0, 60) : ''
+  };
+}
+
 function sanitizeBackupData(data) {
   if (!data || typeof data !== 'object') throw new Error('invalid_json');
   if (!Array.isArray(data.sessions) || !Array.isArray(data.conges)) throw new Error('invalid_structure');
@@ -10264,11 +10317,22 @@ function sanitizeBackupData(data) {
   const conges = data.conges.map(normalizeConge).filter(Boolean).sort((a,b) => a.start.localeCompare(b.start));
   const quotas = normalizeQuotas(data.quotas);
   const objectifsNorm = normalizeObjectifs(data.objectifs);
+  // Compatibilité ascendante : une sauvegarde/un backup cloud plus ancien
+  // n'a pas ces deux champs — dans ce cas on conserve l'historique local
+  // actuel plutôt que de le vider silencieusement.
+  const primesHist = Array.isArray(data.primesHistory)
+    ? data.primesHistory.map(normalizePrimeEntry).filter(Boolean).sort((a,b) => b.date.localeCompare(a.date))
+    : primesHistory.slice();
+  const tauxHist = Array.isArray(data.tauxHoraireHistory)
+    ? data.tauxHoraireHistory.map(normalizeTauxEntry).filter(Boolean).sort((a,b) => a.date.localeCompare(b.date))
+    : tauxHoraireHistory.slice();
   return {
     sessions,
     conges,
     quotas,
     objectifs: objectifsNorm,
+    primesHistory: primesHist,
+    tauxHoraireHistory: tauxHist,
     droppedSessions: data.sessions.length - sessions.length,
     droppedConges: data.conges.length - conges.length
   };
@@ -10296,12 +10360,18 @@ function importBackup(event) {
         state.conges = clean.conges;
         state.quotas = clean.quotas;
         objectifs = clean.objectifs;
+        primesHistory = clean.primesHistory;
+        tauxHoraireHistory = clean.tauxHoraireHistory;
         save();
         saveConges();
         saveObjectifs();
+        savePrimesHistory();
+        saveTauxHoraireHistory();
         renderToday();
         renderHistory();
         renderConges();
+        renderPrimesHistoList();
+        renderTauxHoraireHistoList();
         switchTab('today');
         if (clean.droppedSessions || clean.droppedConges) {
           showToast(`Import partiel : ${clean.droppedSessions} session(s), ${clean.droppedConges} congé(s) ignoré(s)`);

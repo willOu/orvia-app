@@ -1,11 +1,28 @@
-fix: correction surbrillance boutons Historique + libellé comparaison mensuelle (v2.0.2)
+fix: audit complet — géofencing, sécurité sync cloud, historique primes/taux jamais sauvegardé (v2.0.6)
 
-- Ajout de la classe dédiée `hist-view-btn` aux 4 boutons Jour/Semaine/Mois/Année.
-- getMonthComparison() retourne désormais `day` (jour réel) en plus de `cutoffDay`.
-- Le libellé "vs mois dernier" affiche maintenant le jour réel du mois en cours.
-- Synchronisation de CACHE_VERSION (sw.js) avec APP_VERSION (index.html) : orvia-v2.0.2.
-- Ajout du workflow GitHub Actions de bump automatique de version + déploiement.
+- Géofencing : le timer de la confirmation "Démarrage/Fin automatique
+  de session" n'était jamais réellement annulable (clearTimeout sur un
+  ID undefined). Désactiver le géofencing pendant le compte à rebours
+  ne stoppait pas l'action, qui se déclenchait quand même 5s plus tard.
+  Corrigé en récupérant le vrai ID de timer depuis showUndoToast().
+
+- Sécurité de la synchro cloud : autoSyncOnOpen() et
+  handleRealtimeCloudChange() pouvaient écraser des données locales
+  avec une version distante plus ancienne, même quand des changements
+  locaux n'étaient pas encore envoyés (queue de sync non vide). Les deux
+  fonctions vérifient désormais la queue avant d'accepter un écrasement
+  local par les données distantes.
+
+- Historique des primes et des taux horaires : primesHistory et
+  tauxHoraireHistory n'étaient inclus ni dans l'export/import local, ni
+  dans la synchronisation cloud. Un changement d'appareil (ou une
+  restauration) faisait disparaître silencieusement tout cet historique.
+  Ajouté à buildBackupData(), sanitizeBackupData() (avec compatibilité
+  ascendante pour les anciennes sauvegardes) et aux deux points de
+  restauration (importBackup, applyCloudBackup).
+
+- Bump version : 2.0.5 → 2.0.6 (APP_VERSION + CACHE_VERSION synchronisés).
 
 Fichiers modifiés : index.html, sw.js
-Fichiers ajoutés : .github/workflows/deploy.yml, scripts/bump_version.py, CONVENTION_COMMITS.md
-Aucun impact Supabase.
+Aucun impact schéma Supabase (la colonne data est un JSONB, les
+nouveaux champs sont additifs).
