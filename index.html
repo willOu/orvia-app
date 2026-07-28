@@ -1588,6 +1588,37 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <button onclick="copyShortcutUrl('stop')" style="width:100%;background:var(--accent2);color:#fff;border:none;padding:10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Copier l'URL</button>
   </div>
 
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent2);margin-bottom:8px;">🏠 Arrêt automatique à l'arrivée chez soi</div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px;">
+      Le géofencing intégré à Orvia ne fonctionne que lorsque l'app est ouverte au premier plan. Pour un arrêt automatique en arrière-plan quand vous rentrez chez vous, utilisez une <strong style="color:var(--text)">automatisation personnelle</strong> de l'app Raccourcis, qui elle peut se déclencher sans ouvrir Orvia.
+    </div>
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;margin-top:12px;">Marche à suivre</div>
+    <ol style="font-size:13px;color:var(--muted);line-height:1.8;margin:0;padding-left:18px;">
+      <li>Ouvrez l'app <strong style="color:var(--text)">Raccourcis</strong> → onglet <strong style="color:var(--text)">Automatisation</strong></li>
+      <li>Appuyez sur <strong>+</strong> puis <strong style="color:var(--text)">Créer une automatisation personnelle</strong></li>
+      <li>Choisissez le déclencheur <strong style="color:var(--text)">Arrivée</strong>, puis sélectionnez votre domicile comme lieu</li>
+      <li>Ajoutez l'action <strong style="color:var(--text)">Ouvrir les URL</strong> et collez le lien ci-dessous</li>
+      <li>Dans les réglages de l'automatisation, désactivez <strong style="color:var(--text)">Demander avant d'exécuter</strong> pour un déclenchement totalement silencieux, sans notification à confirmer</li>
+    </ol>
+    <input type="text" readonly id="shortcutUrlStopHome" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;margin-top:12px;margin-bottom:8px;">
+    <button onclick="copyShortcutUrl('stop')" style="width:100%;background:var(--accent2);color:#fff;border:none;padding:10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Copier l'URL</button>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.4;">
+      Vous pouvez créer la même automatisation avec un déclencheur <strong style="color:var(--text)">Départ</strong> de votre lieu de travail plutôt que "Arrivée à domicile", selon ce qui correspond le mieux à votre trajet.
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">🔔 Confirmation par notification</div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:10px;">
+      Quand une action est déclenchée via une automatisation (app fermée ou en arrière-plan), Orvia affiche une notification locale de confirmation dès que l'action est traitée, en plus du message affiché à l'écran.
+    </div>
+    <div class="settings-row" style="padding:0;">
+      <label style="font-weight:700;">Activer les notifications de confirmation</label>
+      <label class="switch"><input type="checkbox" id="shortcutNotifEnabled" onchange="onShortcutNotifToggle()"><span class="slider"></span></label>
+    </div>
+  </div>
+
   <div class="settings-card" style="padding:14px;">
     <div style="font-size:12px;color:var(--muted);line-height:1.5;">
       💡 Le raccourci "Pause" bascule pause/reprise selon l'état en cours. Si aucune session n'est en cours, "Terminer" et "Pause" n'auront aucun effet.
@@ -2278,6 +2309,27 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div class="modal-box" id="calDayDetailBox"></div>
 </div>
 
+<div class="modal-overlay" id="quickAddCongeModal" style="display:none;">
+  <div class="modal-box">
+    <div class="modal-title">Ajouter un congé</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:14px;" id="quickAddCongeDateLabel"></div>
+    <div class="modal-row">
+      <label>Type de congé</label>
+      <select id="quickAddCongeType" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text)"></select>
+    </div>
+    <div class="modal-row">
+      <label>Note (optionnel)</label>
+      <input type="text" id="quickAddCongeNote" maxlength="60" placeholder="optionnelle">
+    </div>
+    <div class="modal-error" id="quickAddCongeError"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="closeQuickAddCongeModal()">Annuler</button>
+      <button class="modal-btn-cancel" onclick="openFullCongeFormFromQuickAdd()" style="background:transparent;border:1px solid var(--border);">Formulaire complet</button>
+      <button class="modal-btn-save" onclick="submitQuickAddConge()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="dailySummaryModal" style="display:none;">
   <div class="modal-box">
     <div class="modal-title">👋 Résumé de ta journée d'hier</div>
@@ -2559,7 +2611,7 @@ function maybeShowWeeklyReport() {
   document.body.appendChild(modal);
 }
 
-const APP_VERSION = '2.0.8';
+const APP_VERSION = '2.1.0';
 
 
 // ── STORAGE ──
@@ -4804,9 +4856,10 @@ function onWeeklyCapSettingsChange() {
 
 function renderObjectifs() {
   const today = todayKey();
+  const todayISO = toLocalISO(new Date());
   // Heures du jour (sessions terminées)
   const todaySessions = state.sessions.filter(s => s.date === today);
-  const dayDone = todaySessions.reduce((a, s) => a + s.net, 0);
+  let dayDone = todaySessions.reduce((a, s) => a + s.net, 0);
   // Ajouter la session en cours si running/paused
   let liveMs = 0;
   if (state.status !== 'idle' && state.startTs) {
@@ -4815,11 +4868,17 @@ function renderObjectifs() {
     if (state.status === 'paused' && state.pauseStart) pause += now - state.pauseStart;
     liveMs = Math.max(0, now - state.startTs - pause);
   }
+  // RTT comptée comme temps de travail effectif : ajoute l'objectif du jour
+  // au réalisé si aujourd'hui est un jour de RTT posé (aucune session requise).
+  if (isDateOnRTT(todayISO)) dayDone += getGoalForDow(new Date().getDay());
   const dayTotal = dayDone + liveMs;
 
   // Heures de la semaine (sessions terminées + live)
   const weekSessions = getWeekSessions();
-  const weekDone = weekSessions.reduce((a, s) => a + s.net, 0);
+  let weekDone = weekSessions.reduce((a, s) => a + s.net, 0);
+  const mondayThisWeek = getMondayOf(new Date());
+  const weekEndThisWeek = new Date(mondayThisWeek); weekEndThisWeek.setDate(mondayThisWeek.getDate() + 7);
+  weekDone += getRTTGoalMsForRange(mondayThisWeek, weekEndThisWeek);
   const weekTotal = weekDone + liveMs;
 
   const block = document.getElementById('objectifsBlock');
@@ -4881,6 +4940,29 @@ function isDateOnConge(dateStr) {
   return state.conges.some(c => dateStr >= c.start && dateStr <= (c.end || c.start));
 }
 
+// Les RTT sont traitées comme du temps de travail effectif (option la plus sûre
+// côté paie) : contrairement aux CP, elles ne réduisent pas l'objectif du jour
+// et sont comptabilisées comme "réalisées" à hauteur de l'objectif du jour,
+// pour que compteur hebdo et graphiques ne tombent pas à 0h ces jours-là.
+function isDateOnRTT(dateStr) {
+  return state.conges.some(c => c.type === 'rtt' && dateStr >= c.start && dateStr <= (c.end || c.start));
+}
+
+function getGoalForDow(dow) {
+  return (objectifs.parJour && typeof objectifs.parJour[dow] !== 'undefined') ? objectifs.parJour[dow] : objectifs.jour;
+}
+
+function getRTTGoalMsForRange(startDate, endDateExclusive) {
+  let total = 0;
+  let cur = new Date(startDate);
+  while (cur < endDateExclusive) {
+    const dateStr = toLocalISO(cur);
+    if (isDateOnRTT(dateStr)) total += getGoalForDow(cur.getDay());
+    cur.setDate(cur.getDate() + 1);
+  }
+  return total;
+}
+
 function getWeekGoalBase() {
   const order = [1,2,3,4,5,6,0];
   return order.reduce((sum, d) => sum + ((objectifs.parJour && typeof objectifs.parJour[d] !== 'undefined') ? objectifs.parJour[d] : (d === 0 || d === 6 ? 0 : objectifs.jour)), 0);
@@ -4892,7 +4974,10 @@ function getWeekGoalForMonday(monday) {
     const d = new Date(monday); d.setDate(monday.getDate() + i);
     const dow = d.getDay();
     const dateStr = toLocalISO(d);
-    const goalDay = (objectifs.parJour && typeof objectifs.parJour[dow] !== 'undefined') ? objectifs.parJour[dow] : objectifs.jour;
+    const goalDay = getGoalForDow(dow);
+    // Les RTT restent comptées dans l'objectif (contrairement aux CP qui le réduisent),
+    // car elles sont traitées comme du temps de travail effectif.
+    if (isDateOnRTT(dateStr)) { total += goalDay; continue; }
     if (!isDateOnConge(dateStr) && !isDateHoliday(dateStr)) total += goalDay;
   }
   return total;
@@ -4905,7 +4990,8 @@ function getMonthGoal(year, month) {
     const d = new Date(year, month, day);
     const dow = d.getDay();
     const dateStr = toLocalISO(d);
-    const goalDay = (objectifs.parJour && typeof objectifs.parJour[dow] !== 'undefined') ? objectifs.parJour[dow] : objectifs.jour;
+    const goalDay = getGoalForDow(dow);
+    if (isDateOnRTT(dateStr)) { total += goalDay; continue; }
     if (!isDateOnConge(dateStr) && !isDateHoliday(dateStr)) total += goalDay;
   }
   return total;
@@ -4989,6 +5075,8 @@ function getOvertimeBalance() {
 
   const weekSessions = state.sessions.filter(s => s.start >= monday.getTime() && s.start < weekEnd.getTime());
   let weekDone = weekSessions.reduce((a, s) => a + (s.net || 0), 0);
+  // RTT comptée comme temps de travail effectif dans le solde d'heures sup.
+  weekDone += getRTTGoalMsForRange(monday, weekEnd);
 
   if (state.status !== 'idle' && state.startTs) {
     const now = Date.now();
@@ -5764,11 +5852,18 @@ function renderHistory() {
     const sortedMonths = Object.keys(byMonth).sort((a,b) => b - a);
     list.innerHTML = sortedMonths.map(mk => {
       const {label: ml, sessions, year, month} = byMonth[mk];
-      const monthNet = sessions.reduce((a,s) => a+s.net, 0);
+      const monthStart = new Date(year, month, 1);
+      const monthEnd = new Date(year, month + 1, 1);
+      // RTT comptée comme temps de travail effectif dans le total mensuel affiché.
+      const monthRTTMs = getRTTGoalMsForRange(monthStart, monthEnd);
+      const monthNet = sessions.reduce((a,s) => a+s.net, 0) + monthRTTMs;
       const monthGoal = getMonthGoal(year, month);
       const diff = monthNet - monthGoal;
       const diffColor = diff >= 0 ? 'var(--green)' : 'var(--accent2)';
       const diffSign = diff >= 0 ? '+' : '-';
+      const monthPct = monthGoal > 0 ? Math.min(100, Math.round((monthNet / monthGoal) * 100)) : 0;
+      const monthBarClass = monthPct >= 100 ? 'done' : monthPct >= 75 ? 'warning' : 'progress';
+      const rttBadge = monthRTTMs > 0 ? ` <span style="color:var(--green);font-weight:600;font-size:11px;">(dont ${fmtHM(monthRTTMs)} RTT)</span>` : '';
 
       const byWeek = {};
       sessions.forEach(s => {
@@ -5781,10 +5876,13 @@ function renderHistory() {
       return `<div class="day-group">
         <div class="group-header">
           <span class="group-label" style="text-transform:capitalize">🗓 ${ml}</span>
-          <span class="group-total">${fmtHM(monthNet)}</span>
+          <span class="group-total">${fmtHM(monthNet)}${rttBadge}</span>
         </div>
-        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin:-4px 0 4px 0;">
-          <span>Objectif: ${fmtHM(monthGoal)}</span>
+        <div class="objectif-bar-bg" style="margin:2px 0 6px 0;">
+          <div class="objectif-bar-fill ${monthBarClass}" style="width:${monthPct}%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin:-2px 0 4px 0;">
+          <span>Objectif: ${fmtHM(monthGoal)} (${monthPct}%)</span>
           <span style="color:${diffColor};font-weight:700">${diffSign}${fmtHM(Math.abs(diff))} h.sup</span>
         </div>
         ${remuneration.enabled && remuneration.tauxHoraire ? (() => {
@@ -7507,7 +7605,75 @@ function openCalDayDetail(dateStr) {
   document.getElementById('calDayDetailModal').style.display = 'flex';
 }
 
-function openAddCongeForDate(dateStr){const s=document.getElementById('congeStart');const e=document.getElementById('congeEnd');if(s)s.value=dateStr;if(e)e.value=dateStr;switchTab('conges');const addCard=document.querySelector('#page-conges .add-conge-card');window.scrollTo({top:(addCard?.offsetTop||0),behavior:'smooth'});showToast('Date sélectionnée: '+dateStr);}function closeCalDayDetail() {
+function openAddCongeForDate(dateStr){
+  window._quickAddCongeDate = dateStr;
+  const typeSel = document.getElementById('quickAddCongeType');
+  if (typeSel) {
+    const emojis = {cp:'🟣', rtt:'🟢'};
+    let opts = ['cp','rtt'].map(t => `<option value="${t}">${emojis[t]||''} ${escapeHtml(CONGE_LABELS[t])}</option>`).join('');
+    customCongeTypes.forEach(t => { opts += `<option value="${t.id}">${escapeHtml(t.label)}</option>`; });
+    typeSel.innerHTML = opts;
+  }
+  const noteEl = document.getElementById('quickAddCongeNote');
+  if (noteEl) noteEl.value = '';
+  const errEl = document.getElementById('quickAddCongeError');
+  if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+  const labelEl = document.getElementById('quickAddCongeDateLabel');
+  if (labelEl) {
+    const d = new Date(dateStr + 'T00:00:00');
+    labelEl.textContent = d.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+  }
+  const modal = document.getElementById('quickAddCongeModal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function closeQuickAddCongeModal() {
+  const modal = document.getElementById('quickAddCongeModal');
+  if (modal) modal.style.display = 'none';
+  window._quickAddCongeDate = null;
+}
+
+function submitQuickAddConge() {
+  const dateStr = window._quickAddCongeDate;
+  const errEl = document.getElementById('quickAddCongeError');
+  if (!dateStr) { closeQuickAddCongeModal(); return; }
+  const typeSel = document.getElementById('quickAddCongeType');
+  const noteEl = document.getElementById('quickAddCongeNote');
+  const type = typeSel ? typeSel.value : 'cp';
+  const note = noteEl ? noteEl.value.trim() : '';
+  const isCustomType = customCongeTypes.some(t => t.id === type);
+  const days = workdaysBetween(dateStr, dateStr);
+  if (!isCustomType) {
+    const congeYear = Number(dateStr.slice(0, 4));
+    const taken = getCongesTakenForYear(type, congeYear);
+    const quota = getEffectiveQuotaForYear(type, congeYear);
+    if (taken + days > quota) {
+      if (errEl) { errEl.textContent = `Quota dépassé pour ${type.toUpperCase()} (${taken}/${quota} jours utilisés, report inclus)`; errEl.style.display = 'block'; }
+      return;
+    }
+  }
+  const overlap = findCongeForDate(dateStr);
+  if (overlap) {
+    if (errEl) { errEl.textContent = `Le ${dateStr} est déjà pris (${getCongeTypeLabel(overlap.type)})`; errEl.style.display = 'block'; }
+    return;
+  }
+  state.conges.push({ type, start: dateStr, end: dateStr, note, days, id: Date.now() + Math.floor(Math.random()*100000) });
+  saveConges();
+  logAuditEntry('conge', 'création', `${days} jour(s) de ${getCongeTypeLabel(type)} le ${dateStr}`);
+  closeQuickAddCongeModal();
+  renderConges();
+  showToast(`${days} jour(s) enregistré(s) ✓`);
+}
+
+function openFullCongeFormFromQuickAdd() {
+  const dateStr = window._quickAddCongeDate;
+  closeQuickAddCongeModal();
+  const s = document.getElementById('congeStart'); const e = document.getElementById('congeEnd');
+  if (s) s.value = dateStr; if (e) e.value = dateStr;
+  switchTab('conges');
+  const addCard = document.querySelector('#page-conges .add-conge-card');
+  window.scrollTo({top:(addCard?.offsetTop||0),behavior:'smooth'});
+}function closeCalDayDetail() {
   document.getElementById('calDayDetailModal').style.display = 'none';
 }
 
@@ -9055,6 +9221,39 @@ function openShortcutsSettings() {
   document.getElementById('shortcutUrlStart').value = base + '?action=start';
   document.getElementById('shortcutUrlPause').value = base + '?action=pause';
   document.getElementById('shortcutUrlStop').value = base + '?action=stop';
+  const stopHomeEl = document.getElementById('shortcutUrlStopHome');
+  if (stopHomeEl) stopHomeEl.value = base + '?action=stop';
+  const notifEl = document.getElementById('shortcutNotifEnabled');
+  if (notifEl) notifEl.checked = getShortcutNotifEnabled();
+}
+
+// Préférence "Notifications de confirmation" pour les actions déclenchées
+// via URL (?action=start/stop/pause), utile quand l'app est fermée/arrière-plan
+// au moment du déclenchement par une automatisation externe.
+function getShortcutNotifEnabled() {
+  return localStorage.getItem('orvia_shortcut_notif') === '1';
+}
+
+function onShortcutNotifToggle() {
+  const el = document.getElementById('shortcutNotifEnabled');
+  const enabled = el ? el.checked : false;
+  localStorage.setItem('orvia_shortcut_notif', enabled ? '1' : '0');
+  if (enabled && 'Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+  showToast(enabled ? 'Notifications de confirmation activées ✓' : 'Notifications de confirmation désactivées');
+}
+
+// Affiche une notification native confirmant qu'une action déclenchée par URL
+// (automatisation/raccourci) a bien été traitée. Échoue silencieusement si la
+// permission n'est pas accordée ou si le réglage est désactivé, sans jamais
+// bloquer l'action elle-même.
+function notifyShortcutActionResult(message) {
+  try {
+    if (!getShortcutNotifEnabled()) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    new Notification('Orvia', { body: message });
+  } catch (e) {}
 }
 
 function copyShortcutUrl(action) {
@@ -9282,6 +9481,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.1.0', date: '2026-07-28', items: ['Ajout : clic direct sur un jour du calendrier des congés pour l\u2019ajouter en un geste (type + note), sans passer par le formulaire complet.', 'Ajout : les RTT posées comptent désormais comme du temps de travail effectif dans le compteur hebdomadaire, les graphiques et le solde d\u2019heures supplémentaires (option la plus sûre côté paie), au lieu de laisser ces jours à 0h.', 'Amélioration : la vue mensuelle de l\u2019historique affiche maintenant une barre de progression et le pourcentage d\u2019objectif atteint, avec le détail des heures RTT incluses dans le total.', 'Ajout : automatisations Raccourcis enrichies avec un guide pour un arrêt automatique du chrono à l\u2019arrivée chez soi (déclencheur natif iOS, fonctionne app fermée), et des notifications de confirmation quand une action est déclenchée via une automatisation externe.'] },
     { version: '2.0.8', date: '2026-07-28', items: ['Correctif : dans les infobulles des graphiques Tendance et Comparaisons, la date, le réalisé et l\u2019objectif étaient quasiment invisibles (texte sombre sur fond sombre), seul l\u2019écart vs objectif ressortait.', 'Correctif : sur le graphique Comparaisons (vue Mois), les 12 étiquettes de mois se chevauchaient et devenaient illisibles (les millésimes \u201925\u2019/\u201926\u2019 de mois adjacents se superposaient). Le nombre d\u2019étiquettes affichées est maintenant limité pour rester lisible.'] },
     { version: '2.0.7', date: '2026-07-28', items: ['Correctif : l\u2019infobulle des graphiques Tendance et Comparaisons pouvait se retrouver plaquée en haut du graphique et chevaucher les barres, faute de place au-dessus du canvas. Elle s\u2019affiche désormais sous le graphique quand la place manque au-dessus.', 'Correctif (iOS) : les boutons Jour/Semaine/Mois/Année (et les autres sélecteurs de vue) pouvaient afficher le bon contenu sans que le cadre actif ne soit visuellement mis en surbrillance, à cause du style natif des boutons sur Safari iOS. Ajout de -webkit-appearance: none.'] },
     { version: '2.0.6', date: '2026-07-27', items: ['Correctif : le géofencing pouvait déclencher un démarrage/arrêt automatique de session même après avoir désactivé la fonction pendant le compte à rebours de confirmation.', 'Correctif : la synchronisation cloud pouvait, dans de rares cas (changements locaux non envoyés + écriture concurrente d\u2019un autre appareil), écraser silencieusement des données locales pas encore synchronisées.', 'Correctif : l\u2019historique des primes et des taux horaires n\u2019était jamais inclus dans les sauvegardes (export local ni synchronisation cloud), ce qui le faisait disparaître lors d\u2019un changement d\u2019appareil.'] },
@@ -10493,12 +10693,20 @@ checkTaxThresholdProximity();
   if (!action) return;
   // Nettoie l'URL pour ne pas redéclencher l'action à un futur rechargement.
   history.replaceState(null, '', window.location.pathname);
+  const nowLabel = () => new Date().toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
   if (action === 'start' && state.status === 'idle') {
     handleMainBtn();
+    notifyShortcutActionResult(`Session démarrée à ${nowLabel()} ✓`);
   } else if (action === 'stop' && state.status !== 'idle') {
     stopSession();
+    notifyShortcutActionResult(`Session terminée à ${nowLabel()} ✓`);
   } else if (action === 'pause' && state.status === 'running') {
     handleMainBtn();
+    notifyShortcutActionResult(`Pause démarrée à ${nowLabel()} ⏸️`);
+  } else if (action === 'pause' && state.status === 'paused') {
+    // Le raccourci "Pause" bascule aussi la reprise si une pause est déjà en cours.
+    handleMainBtn();
+    notifyShortcutActionResult(`Reprise du travail à ${nowLabel()} ▶️`);
   }
 })();
 

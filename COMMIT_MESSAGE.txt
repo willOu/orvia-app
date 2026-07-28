@@ -1,22 +1,33 @@
-fix: infobulles illisibles (texte sombre sur fond sombre) + chevauchement des étiquettes du graphique Comparaisons (v2.0.8)
+feat: congé rapide au clic, RTT comptée comme travail effectif, vue mensuelle et raccourcis enrichis (v2.1.0)
 
-- Infobulles des graphiques Tendance vs objectif et Comparaisons : la
-  date, le "Réalisé" et l'"Objectif" héritaient de color:var(--text),
-  qui est sombre en thème clair — quasi invisibles sur le fond sombre
-  fixe (#0b1f2a) de l'infobulle. Seule la ligne d'écart (stylée avec une
-  couleur explicite verte/orange) restait lisible, d'où l'impression que
-  "seule la durée en plus/en moins" s'affichait. Couleur de texte fixée
-  à #e8eaf6 (comme les autres éléments sombres de l'app) pour rester
-  lisible quel que soit le thème.
+- Ajout de congé en un clic depuis le calendrier : cliquer sur un jour libre
+  ouvre une mini-fenêtre (type + note) qui enregistre directement le congé,
+  sans passer par le formulaire complet. Nouvelle modale #quickAddCongeModal,
+  fonctions closeQuickAddCongeModal()/submitQuickAddConge()/
+  openFullCongeFormFromQuickAdd(). openAddCongeForDate() adapté.
 
-- Graphique Comparaisons (vue Mois) : les 12 étiquettes de mois étaient
-  toutes dessinées sans espacement (condition n<=12 toujours vraie),
-  faisant se chevaucher le texte de mois adjacents — les millésimes
-  '25'/'26' de labels voisins se superposaient et donnaient l'impression
-  d'un "25" répété partout. Le nombre d'étiquettes affichées est
-  désormais limité à ~5-6 pour garder un espacement lisible.
+- RTT comptée comme temps de travail effectif (option la plus sûre côté
+  paie) : le compteur du jour/de la semaine, le solde d'heures sup et la vue
+  mensuelle intègrent désormais les jours de RTT posés comme du temps
+  travaillé, au lieu de les laisser à 0h. Nouvelles fonctions
+  isDateOnRTT(), getGoalForDow(), getRTTGoalMsForRange(). Mise à jour de
+  getWeekGoalForMonday(), getMonthGoal(), renderObjectifs(),
+  getOvertimeBalance() et de la vue mensuelle de l'historique.
 
-- Bump version : 2.0.7 → 2.0.8 (APP_VERSION + CACHE_VERSION synchronisés).
+- Vue mensuelle de l'historique enrichie : barre de progression et
+  pourcentage d'objectif atteint par mois, badge indiquant la part d'heures
+  RTT incluses dans le total.
 
-Fichiers modifiés : index.html, sw.js
-Diagnostiqué à partir de captures d'écran fournies par l'utilisateur.
+- Automatisations Raccourcis enrichies : nouvelle section "Arrêt
+  automatique à l'arrivée chez soi" (guide automatisation personnelle
+  native, ?action=stop, fonctionne app fermée) et nouveau réglage
+  "Notifications de confirmation" (shortcutNotifEnabled) affichant une
+  Notification native quand une action est déclenchée via URL. Nouvelles
+  fonctions getShortcutNotifEnabled()/onShortcutNotifToggle()/
+  notifyShortcutActionResult(). handleQuickAction() enrichi (notification +
+  gestion reprise après pause).
+
+- Bump version : 2.0.8 → 2.1.0 (APP_VERSION + CACHE_VERSION synchronisés).
+- Entrée changelog v2.1.0 ajoutée.
+
+Fichiers modifiés : index.html, sw.js, README.md
