@@ -1,20 +1,27 @@
-fix: jours travaillés non colorés au calendrier + badge de version fantôme (v2.1.2)
+v2.1.3 — Support Apple Watch / Wear OS via Raccourcis
 
-- Correctif : dans renderCal(), la classe CSS 'work' (jour travaillé) était
-  rattachée au mauvais bloc if/else if à cause d'un enchaînement de
-  conditions mal branché avec la détection des congés personnalisés. Un jour
-  travaillé sans congé n'était donc jamais mis en évidence visuellement dans
-  le calendrier des congés. Condition réécrite pour s'appliquer correctement
-  dès qu'un jour sans congé a une session enregistrée.
+Contexte
+Une véritable app compagnon Watch native (Swift/WatchKit ou Kotlin/Wear OS) n'est
+pas réalisable depuis une PWA HTML/JS : cela nécessiterait un projet natif séparé,
+Xcode/Android Studio et une soumission App Store/Play Store dédiée.
 
-- Correctif : le badge de version en haut de l'écran principal n'existait
-  pas dans le HTML alors que le code (openAboutSettings) essayait déjà de le
-  mettre à jour via document.getElementById('versionBadgeTop'). Ajout de
-  l'élément #versionBadgeTop dans le header (utilisant le style CSS
-  .version-badge-topright déjà présent mais orphelin), initialisé au
-  chargement de l'app et cliquable vers la page "À propos".
+Solution retenue
+Extension de la page "Raccourcis iOS" (renommée "Raccourcis iOS & Watch") en
+s'appuyant sur la synchronisation automatique de l'app Raccourcis d'Apple entre
+iPhone et Apple Watch :
+- Nouvelle section expliquant comment retrouver les raccourcis Orvia sur la Watch
+  et comment les ajouter en complication de cadran.
+- Nouvelle section Wear OS expliquant l'absence d'équivalent système et la
+  solution de contournement via une app tierce d'automatisation (ex. Tasker).
+- Nouveau raccourci dédié "Basculer pause/reprise" (réutilise l'action existante
+  ?action=pause), présenté sous un intitulé pensé pour un usage au poignet.
+- Libellés mis à jour dans le menu Réglages et le titre de page.
 
-- Bump version : 2.1.1 → 2.1.2 (APP_VERSION + CACHE_VERSION synchronisés).
-- Entrée changelog v2.1.2 ajoutée.
+Fichiers modifiés
+- index.html : nouvelle section HTML dans #page-shortcuts-settings, mise à jour de
+  openShortcutsSettings(), APP_VERSION 2.1.2 → 2.1.3, entrée changelog ajoutée.
+- sw.js : CACHE_VERSION 'orvia-v2.1.2' → 'orvia-v2.1.3'.
 
-Fichiers modifiés : index.html, sw.js
+Limite documentée dans l'app
+Une complication Watch ne peut pas afficher le temps écoulé en direct (pas d'accès
+aux données Orvia depuis la montre) : elle déclenche uniquement l'action.

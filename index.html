@@ -1039,9 +1039,9 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 
   <div class="settings-card" style="margin-bottom:10px;">
     <div class="settings-row" style="cursor:pointer;" onclick="openShortcutsSettings()">
-      <label style="font-weight:800;color:var(--accent);">Raccourcis iOS</label>
+      <label style="font-weight:800;color:var(--accent);">Raccourcis iOS &amp; Watch</label>
     </div>
-    <div class="settings-desc-box">Démarrer/pauser/terminer sans ouvrir l'app</div>
+    <div class="settings-desc-box">Démarrer/pauser/terminer sans ouvrir l'app, y compris depuis l'Apple Watch</div>
   </div>
 
   <div class="settings-card" style="margin-bottom:10px;">
@@ -1544,7 +1544,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 </div>
 
 <div class="page" id="page-shortcuts-settings">
-  <div class="section-title">Raccourcis iOS</div>
+  <div class="section-title">Raccourcis iOS &amp; Watch</div>
   <div class="settings-card" style="margin-bottom:10px;">
     <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
       <label>← Retour</label>
@@ -1569,6 +1569,39 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       <li>Dans les réglages du raccourci (icône ⓘ) : activez <strong style="color:var(--text)">"Ajouter à l'écran d'accueil"</strong></li>
       <li>Vous pouvez aussi le déclencher directement à la voix via Siri, sans toucher l'écran</li>
     </ol>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">⌚ Utiliser au poignet (Apple Watch)</div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:10px;">
+      Orvia n'a pas d'application Watch native, mais l'app <strong style="color:var(--text)">Raccourcis</strong> se synchronise automatiquement sur l'Apple Watch : une fois créés sur l'iPhone, ces raccourcis apparaissent directement sur la montre, sans ouvrir Orvia.
+    </div>
+    <ol style="font-size:13px;color:var(--muted);line-height:1.8;margin:0 0 10px 0;padding-left:18px;">
+      <li>Créez les raccourcis "Démarrer", "Pause" et "Terminer" ci-dessous sur votre iPhone</li>
+      <li>Sur l'Watch, ouvrez l'app <strong style="color:var(--text)">Raccourcis</strong> (installée par défaut avec watchOS)</li>
+      <li>Les raccourcis créés sur iPhone y apparaissent automatiquement — appuyez pour lancer l'action au poignet</li>
+      <li>Pour un accès encore plus rapide, ajoutez un raccourci en <strong style="color:var(--text)">complication</strong> sur un cadran compatible (réglages du cadran → complication → Raccourcis)</li>
+      <li>Vous pouvez aussi dire "Dis Siri, Démarrer Orvia" directement à la montre</li>
+    </ol>
+    <div style="font-size:11px;color:var(--muted);line-height:1.4;">
+      Limite watchOS : une complication ne peut pas afficher le temps écoulé en direct (pas d'accès aux données Orvia depuis la montre), elle se contente de déclencher l'action. Pour voir le chrono en cours, ouvrez l'app sur iPhone.
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">🤖 Utiliser sur Wear OS (Android)</div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.6;">
+      Il n'existe pas d'équivalent système à l'app Raccourcis sur Wear OS. Pour déclencher les mêmes URL depuis une montre Android, une app tierce d'automatisation installée sur le téléphone et compatible Wear OS (ex: Tasker avec son app compagnon Wear OS) est nécessaire : elle peut afficher un bouton ou une tuile sur la montre qui ouvre l'URL ci-dessous sur le téléphone.
+    </div>
+  </div>
+
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--orange);margin-bottom:6px;">⏸️▶️ Basculer pause/reprise (raccourci unique)</div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px;">
+      Identique au raccourci "Pause" ci-dessous, proposé ici sous un nom dédié pour un tap plus rapide au poignet (bascule pause ↔ reprise selon l'état en cours).
+    </div>
+    <input type="text" readonly id="shortcutUrlToggle" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-size:12px;margin-bottom:8px;">
+    <button onclick="copyShortcutUrl('pause')" style="width:100%;background:var(--orange);color:#3a2400;border:none;padding:10px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Copier l'URL</button>
   </div>
 
   <div class="settings-card" style="margin-bottom:10px;padding:14px;">
@@ -2630,7 +2663,7 @@ function maybeShowWeeklyReport() {
   document.body.appendChild(modal);
 }
 
-const APP_VERSION = '2.1.2';
+const APP_VERSION = '2.1.3';
 
 
 // ── STORAGE ──
@@ -9299,6 +9332,8 @@ function openShortcutsSettings() {
   document.getElementById('shortcutUrlStop').value = base + '?action=stop';
   const stopHomeEl = document.getElementById('shortcutUrlStopHome');
   if (stopHomeEl) stopHomeEl.value = base + '?action=stop';
+  const toggleEl = document.getElementById('shortcutUrlToggle');
+  if (toggleEl) toggleEl.value = base + '?action=pause';
   const notifEl = document.getElementById('shortcutNotifEnabled');
   if (notifEl) notifEl.checked = getShortcutNotifEnabled();
 }
@@ -9557,6 +9592,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.1.3', date: '2026-07-29', items: ['Ajout d\u2019instructions dédiées dans Raccourcis pour utiliser Orvia depuis l\u2019Apple Watch (synchronisation automatique des raccourcis iPhone → Watch, complications, Wear OS via app tierce), et raccourci dédié \u2018Basculer pause/reprise\u2019 pensé pour un tap rapide au poignet.'] },
     { version: '2.1.2', date: '2026-07-28', items: ['Correctif : dans le calendrier des congés, les jours réellement travaillés (sans congé) n\u2019étaient jamais mis en évidence (classe visuelle manquante), à cause d\u2019un enchaînement de conditions mal branché.', 'Correctif : le badge de version en haut de l\u2019écran principal n\u2019existait pas dans la page, alors que le code essayait déjà de le mettre à jour \u2014 il est maintenant bien affiché et cliquable vers \u2019\u00c0 propos\u2019.'] },
     { version: '2.1.1', date: '2026-07-28', items: ['Ajout : possibilité de corriger l\u2019heure d\u2019arrivée directement pendant une session en cours (pastille \u2019Arrivée\u2019 sur l\u2019écran principal), sans attendre la fin de la session pour la corriger via l\u2019historique.'] },
     { version: '2.1.0', date: '2026-07-28', items: ['Ajout : clic direct sur un jour du calendrier des congés pour l\u2019ajouter en un geste (type + note), sans passer par le formulaire complet.', 'Ajout : les RTT posées comptent désormais comme du temps de travail effectif dans le compteur hebdomadaire, les graphiques et le solde d\u2019heures supplémentaires (option la plus sûre côté paie), au lieu de laisser ces jours à 0h.', 'Amélioration : la vue mensuelle de l\u2019historique affiche maintenant une barre de progression et le pourcentage d\u2019objectif atteint, avec le détail des heures RTT incluses dans le total.', 'Ajout : automatisations Raccourcis enrichies avec un guide pour un arrêt automatique du chrono à l\u2019arrivée chez soi (déclencheur natif iOS, fonctionne app fermée), et des notifications de confirmation quand une action est déclenchée via une automatisation externe.'] },
