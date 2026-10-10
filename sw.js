@@ -1,11 +1,13 @@
-const CACHE_VERSION = 'orvia-v2.1.3';
+const CACHE_VERSION = 'orvia-v2.1.4';
 const CACHE_NAME = CACHE_VERSION;
 const ASSETS_TO_CACHE = [
 '.',
 './index.html',
 './manifest.webmanifest',
 './icon-192.png',
-'./icon-512.png'
+'./icon-512.png',
+'./icon-maskable-192.png',
+'./icon-maskable-512.png'
 ];
 
 self.addEventListener('install', event => {

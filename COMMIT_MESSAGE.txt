@@ -1,27 +1,14 @@
-v2.1.3 — Support Apple Watch / Wear OS via Raccourcis
+fix: correctifs de l'audit (congés par année, sauvegardes, notifications iOS, IR 2026)
 
-Contexte
-Une véritable app compagnon Watch native (Swift/WatchKit ou Kotlin/Wear OS) n'est
-pas réalisable depuis une PWA HTML/JS : cela nécessiterait un projet natif séparé,
-Xcode/Android Studio et une soumission App Store/Play Store dédiée.
+- alertes congés/quota calculées par année avec report
+- sauvegardes, import, cloud et restauration conservent types, libellés et quotas personnalisés
+- état de l'alerte plafond hebdo persistant
+- minuteur sans double intervalle, rendu objectifs allégé
+- notifications via service worker (iOS PWA)
+- annulation de suppression : confirmation de la précédente
+- sync cloud avec debounce, export Excel en nombres
+- barème IR 2026 mis à jour
+- icônes maskable dédiées, deploy.html durci (sessionStorage, textContent)
 
-Solution retenue
-Extension de la page "Raccourcis iOS" (renommée "Raccourcis iOS & Watch") en
-s'appuyant sur la synchronisation automatique de l'app Raccourcis d'Apple entre
-iPhone et Apple Watch :
-- Nouvelle section expliquant comment retrouver les raccourcis Orvia sur la Watch
-  et comment les ajouter en complication de cadran.
-- Nouvelle section Wear OS expliquant l'absence d'équivalent système et la
-  solution de contournement via une app tierce d'automatisation (ex. Tasker).
-- Nouveau raccourci dédié "Basculer pause/reprise" (réutilise l'action existante
-  ?action=pause), présenté sous un intitulé pensé pour un usage au poignet.
-- Libellés mis à jour dans le menu Réglages et le titre de page.
-
-Fichiers modifiés
-- index.html : nouvelle section HTML dans #page-shortcuts-settings, mise à jour de
-  openShortcutsSettings(), APP_VERSION 2.1.2 → 2.1.3, entrée changelog ajoutée.
-- sw.js : CACHE_VERSION 'orvia-v2.1.2' → 'orvia-v2.1.3'.
-
-Limite documentée dans l'app
-Une complication Watch ne peut pas afficher le temps écoulé en direct (pas d'accès
-aux données Orvia depuis la montre) : elle déclenche uniquement l'action.
+Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01ThuwzB4EDAfiWTRi8R6bbT

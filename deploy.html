@@ -18,7 +18,7 @@ label{color:#8b8fa8;font-size:12px;align-self:flex-start;margin-left:calc(50% - 
 <body>
 <h1>Orvia Deploy</h1>
 <p>Declenche le workflow de deploiement<br>via GitHub Actions.</p>
-<label>GitHub Token (stocke localement)</label>
+<label>GitHub Token (garde le temps de la session)</label>
 <input id="tok" type="password" placeholder="ghp_... ou github_pat_..." />
 <button id="btn" onclick="deploy()">Deployer sur Orvia</button>
 <div id="log"></div>
@@ -28,18 +28,18 @@ const BASE='https://api.github.com/repos/'+REPO;
 const WORKFLOW='deploy-manual.yml';
 
 window.onload=function(){
-  const saved=localStorage.getItem('orvia_token');
+  const saved=sessionStorage.getItem('orvia_token');
   if(saved) document.getElementById('tok').value=saved;
 };
 
 async function deploy(){
   const tok=document.getElementById('tok').value.trim();
   if(!tok){log('Veuillez saisir un token GitHub.','err');return;}
-  localStorage.setItem('orvia_token',tok);
+  sessionStorage.setItem('orvia_token',tok);
   document.getElementById('btn').disabled=true;
   const logEl=document.getElementById('log');
   logEl.innerHTML='';
-  function log(msg,cls='info'){logEl.innerHTML+='<div class="'+cls+'">'+msg+'</div>';}
+  function log(msg,cls='info'){const dv=document.createElement('div');dv.className=cls;dv.textContent=msg;logEl.appendChild(dv);}
   log('Declenchement du workflow...');
   try{
     const r=await fetch(BASE+'/actions/workflows/'+WORKFLOW+'/dispatches',{

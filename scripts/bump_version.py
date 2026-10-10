@@ -20,7 +20,7 @@ def get_last_commit_message():
     try:
         return subprocess.check_output(
             ["git", "log", "-1", "--pretty=%B"], text=True
-        ).strip().lower()
+        ).strip()
     except Exception:
         return ""
 
@@ -40,6 +40,7 @@ def bump(version, kind):
     return f"{major}.{minor}.{patch+1}"
 
 def detect_kind(message):
+    message = message.lower()
     if message.startswith("breaking:") or "breaking change" in message:
         return "major"
     if message.startswith("feat:"):
@@ -72,24 +73,24 @@ def add_changelog_entry(content, new_version, kind, message):
         "minor": "Nouveauté",
         "patch": "Correctif",
     }[kind]
-    summary = message.split(":", 1)[-1].strip().capitalize() or "Mise à jour."
-    entry = (
-        f"    {{ version: '{new_version}', date: '{today}', "
-        f"items: ['{label} : {summary}'] }},\n    {{ version: '{{OLD}}'"
-    )
-    marker = "const CHANGELOG = [\n    { version: '{OLD}'"
-    old_marker = marker.replace("{OLD}", re.search(
-        r"const CHANGELOG = \[\n    \{ version: '([\d.]+)'", content
-    ).group(1))
-    new_block = entry.replace("{{OLD}}", re.search(
-        r"const CHANGELOG = \[\n    \{ version: '([\d.]+)'", content
-    ).group(1))
-    content = content.replace(old_marker, new_block, 1)
-    return content
+    # Première ligne uniquement (sans trailers), échappée pour une chaîne JS entre apostrophes.
+    first_line = message.strip().splitlines()[0] if message.strip() else ""
+    summary = first_line.split(":", 1)[-1].strip()
+    summary = (summary[:1].upper() + summary[1:]) if summary else "Mise à jour."
+    summary = summary.replace("\\", "\\\\").replace("'", "\\u2019")
+    entry = f"{{ version: '{new_version}', date: '{today}', items: ['{label} : {summary}'] }},\n    "
+    pattern = r"(const CHANGELOG = \[\n    )(\{ version: ')"
+    if not re.search(pattern, content):
+        print("CHANGELOG introuvable : entrée non ajoutée")
+        return content
+    return re.sub(pattern, lambda m: m.group(1) + entry + m.group(2), content, count=1)
 
 def main():
     version, content = get_current_version()
     message = get_last_commit_message() or "fix: correctif automatique"
+    if "[skip-bump]" in message:
+        print("[skip-bump] : rien à faire")
+        return
     kind = detect_kind(message)
     new_version = bump(version, kind)
 
@@ -100,7 +101,7 @@ def main():
 
     print(f"Version bumpée : {version} -> {new_version} ({kind})")
     # Expose pour les étapes suivantes du workflow GitHub Actions
-    gh_output = subprocess.os.environ.get("GITHUB_OUTPUT")
+    gh_output = __import__('os').environ.get("GITHUB_OUTPUT")
     if gh_output:
         with open(gh_output, "a") as f:
             f.write(f"new_version={new_version}\n")
