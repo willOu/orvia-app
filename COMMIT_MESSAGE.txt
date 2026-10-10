@@ -1,14 +1,12 @@
-fix: correctifs de l'audit (congés par année, sauvegardes, notifications iOS, IR 2026)
+feat: fusion de synchro entre appareils et découpage du code
 
-- alertes congés/quota calculées par année avec report
-- sauvegardes, import, cloud et restauration conservent types, libellés et quotas personnalisés
-- état de l'alerte plafond hebdo persistant
-- minuteur sans double intervalle, rendu objectifs allégé
-- notifications via service worker (iOS PWA)
-- annulation de suppression : confirmation de la précédente
-- sync cloud avec debounce, export Excel en nombres
-- barème IR 2026 mis à jour
-- icônes maskable dédiées, deploy.html durci (sessionStorage, textContent)
+- synchro cloud : fusion des sessions (clé = heure de début) et des congés (clé = id)
+  au lieu de "le dernier qui écrit gagne" ; suppressions suivies par pierres tombales
+- écriture conditionnelle côté Supabase (pas d'écrasement si un autre appareil a écrit)
+- file de synchro : ne retire que ce qui a été envoyé
+- choix "Fusionner" à la première connexion cloud
+- index.html découpé : css/app.css + 10 fichiers js/ (portée globale conservée)
+- sw.js : nouveaux fichiers en cache ; bump_version.py adapté au découpage
 
 Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01ThuwzB4EDAfiWTRi8R6bbT

@@ -24,11 +24,18 @@ def get_last_commit_message():
     except Exception:
         return ""
 
+def find_file(pattern):
+    """Retourne le fichier (index.html ou js/*.js) contenant le motif."""
+    candidates = [INDEX_PATH] + sorted(Path("js").glob("*.js"))
+    for f in candidates:
+        if f.exists() and re.search(pattern, f.read_text(encoding="utf-8")):
+            return f
+    sys.exit(f"Motif introuvable : {pattern}")
+
 def get_current_version():
-    content = INDEX_PATH.read_text(encoding="utf-8")
+    f = find_file(r"const APP_VERSION\s*=\s*'[\d.]+'")
+    content = f.read_text(encoding="utf-8")
     m = re.search(r"const APP_VERSION\s*=\s*'([\d.]+)'", content)
-    if not m:
-        sys.exit("APP_VERSION introuvable dans index.html")
     return m.group(1), content
 
 def bump(version, kind):
@@ -94,9 +101,13 @@ def main():
     kind = detect_kind(message)
     new_version = bump(version, kind)
 
-    content = update_index(content, version, new_version)
-    content = add_changelog_entry(content, new_version, kind, message)
-    INDEX_PATH.write_text(content, encoding="utf-8")
+    version_file = find_file(r"const APP_VERSION\s*=\s*'[\d.]+'")
+    version_file.write_text(update_index(content, version, new_version), encoding="utf-8")
+    changelog_file = find_file(r"const CHANGELOG = \[\n    \{ version: '")
+    changelog_file.write_text(
+        add_changelog_entry(changelog_file.read_text(encoding="utf-8"), new_version, kind, message),
+        encoding="utf-8",
+    )
     update_sw(new_version)
 
     print(f"Version bumpée : {version} -> {new_version} ({kind})")

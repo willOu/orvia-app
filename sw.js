@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'orvia-v2.1.4';
+const CACHE_VERSION = 'orvia-v2.2.0';
 const CACHE_NAME = CACHE_VERSION;
 const ASSETS_TO_CACHE = [
 '.',
@@ -7,7 +7,18 @@ const ASSETS_TO_CACHE = [
 './icon-192.png',
 './icon-512.png',
 './icon-maskable-192.png',
-'./icon-maskable-512.png'
+'./icon-maskable-512.png',
+'./css/app.css',
+'./js/01-etat-sync.js',
+'./js/02-audit-remuneration.js',
+'./js/03-aides-minuteur.js',
+'./js/04-alertes-planning.js',
+'./js/05-historique.js',
+'./js/06-export.js',
+'./js/07-conges.js',
+'./js/08-reglages.js',
+'./js/09-geofence-stats.js',
+'./js/10-interface-init.js'
 ];
 
 self.addEventListener('install', event => {

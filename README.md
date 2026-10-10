@@ -1,32 +1,21 @@
-# Orvia — correctifs v2.1.4 (audit complet)
+# Orvia
 
-## Contenu
-- index.html, sw.js, manifest.webmanifest, deploy.html
-- icon-maskable-192.png / icon-maskable-512.png (nouveaux)
-- COMMIT_MESSAGE.txt : message prêt à l'emploi (préfixe `fix:` = bump PATCH auto)
+PWA de suivi du temps de travail (sans framework, scripts classiques).
 
-La version (APP_VERSION / CACHE_VERSION) n'est PAS modifiée à la main : le workflow GitHub Actions s'en charge.
+## Structure
+- `index.html` : balisage et écran de démarrage
+- `css/app.css` : styles
+- `js/01…10-*.js` : code, chargé dans l'ordre (portée globale partagée)
+  - 01 état, synchro cloud et fusion · 02 audit, rémunération · 03 aides, minuteur
+  - 04 alertes, planning · 05 historique · 06 export · 07 congés
+  - 08 réglages · 09 géofence, statistiques · 10 interface, initialisation
+- `sw.js` : cache hors ligne (liste des fichiers à tenir à jour si on en ajoute)
+- `manifest.webmanifest`, icônes, `deploy.html`
+- `scripts/bump_version.py` : bump de version (APP_VERSION, CACHE_VERSION, changelog)
 
-## Déploiement
-git add index.html sw.js manifest.webmanifest deploy.html icon-maskable-192.png icon-maskable-512.png
-git commit -F COMMIT_MESSAGE.txt
-git push origin main
+## Synchronisation
+Fusion session par session (clé = heure de début) et congé par congé (clé = id).
+Les suppressions sont suivies 90 jours. Les réglages viennent de l'appareil modifié en dernier.
 
-## Correctifs
-- Alertes de congés (solde à risque, quota bas) : calculées par année, avec report, comme l'écran Congés.
-- Sauvegardes / import / cloud / restauration : types de congés personnalisés, libellés et quotas désormais conservés.
-- Alerte plafond hebdo : l'état n'est plus perdu au rechargement (plus de notification en double).
-- Minuteur : plus de double intervalle possible ; objectifs rafraîchis toutes les 15 s au lieu de chaque seconde.
-- Notifications : passage par le service worker (fiable sur iPhone en PWA), repli sur l'API classique.
-- Suppression rapide de deux éléments à la suite : la première suppression est validée au lieu d'être perdue.
-- Synchronisation cloud regroupée (anti-rafale d'envois).
-- Export Excel : durées et jours en vrais nombres.
-- Barème IR 2026 mis à jour (revenus 2025 : 11 600 / 29 579 / 84 577 / 181 917).
-- Icônes maskable dédiées, manifest et cache SW mis à jour.
-- deploy.html : jeton gardé en sessionStorage, journal sans innerHTML.
-- Divers : titre iOS « Orvia », splash plus court, changelog 0.7.0 → 0.2.0 corrigé, libellé Raccourcis.
-
-## Non traité
-- workdaysBetween compte lundi–vendredi alors que l'aide BTP parle de lundi–samedi.
-- user-scalable=no (accessibilité), structure monolithique d'index.html.
-- Politiques RLS Supabase à vérifier côté projet.
+## Publier
+git add -A && git commit -F COMMIT_MESSAGE.txt && python3 scripts/bump_version.py && git add -A && git commit --amend --no-edit && git push origin main
