@@ -315,6 +315,18 @@ function normalizeSession(s) {
   };
 }
 
+function ouvrablesBetweenSafe(startVal, endVal) {
+  let cur = new Date(startVal + 'T00:00:00');
+  const end = new Date(endVal + 'T00:00:00');
+  if (Number.isNaN(cur.getTime()) || Number.isNaN(end.getTime()) || end < cur) return 0;
+  let days = 0;
+  while (cur <= end) {
+    if (cur.getDay() !== 0 && !isDateHoliday(toLocalISO(cur))) days++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return days;
+}
+
 function workdaysBetweenSafe(startVal, endVal) {
   let cur = new Date(startVal + 'T00:00:00');
   const end = new Date(endVal + 'T00:00:00');
@@ -340,7 +352,8 @@ function normalizeConge(c, extraTypeIds) {
     start,
     end,
     note: typeof c.note === 'string' ? c.note.slice(0, 120) : '',
-    days: workdaysBetweenSafe(start, end),
+    days: c.unit === 'ouv' ? ouvrablesBetweenSafe(start, end) : workdaysBetweenSafe(start, end),
+    ...(c.unit === 'ouv' ? { unit: 'ouv' } : {}),
     id: Number.isFinite(Number(c.id)) ? Number(c.id) : Date.now() + Math.floor(Math.random()*100000)
   };
 }

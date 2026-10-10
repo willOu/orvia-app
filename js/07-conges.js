@@ -43,6 +43,28 @@ function workdaysBetween(d1, d2) {
   return count;
 }
 
+// Jours ouvrables (lundi–samedi, hors jours fériés) : mode de décompte des congés payés du BTP.
+function ouvrablesBetween(d1, d2) {
+  let count = 0, cur = new Date(d1);
+  cur.setHours(0,0,0,0);
+  const end = new Date(d2); end.setHours(0,0,0,0);
+  while (cur <= end) {
+    if (cur.getDay() !== 0 && !isDateHoliday(toLocalISO(cur))) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+
+// Un congé payé est compté en jours ouvrables quand le mode BTP l'impose.
+function congeUnitFor(type) {
+  const cfg = getBTPConfig();
+  return (type === 'cp' && cfg.enabled && cfg.ouvrables) ? 'ouv' : undefined;
+}
+
+function computeCongeDays(start, end, unit) {
+  return unit === 'ouv' ? ouvrablesBetween(start, end) : workdaysBetween(start, end);
+}
+
 function addConge() {
     const type = document.getElementById('congeType').value;
     const startVal = document.getElementById('congeStart').value;
@@ -51,7 +73,8 @@ function addConge() {
     if (!startVal) return showToast('Choisis une date de début');
     const endFinal = endVal || startVal;
     if (endFinal < startVal) return showToast('La date de fin doit être après le début');
-    const days = workdaysBetween(startVal, endFinal);
+    const unit = congeUnitFor(type);
+    const days = computeCongeDays(startVal, endFinal, unit);
     // check quota (les types personnalisés n'ont pas de notion de quota : illimités)
     const isCustomType = customCongeTypes.some(t => t.id === type);
     if (!isCustomType) {
@@ -67,7 +90,7 @@ function addConge() {
     const endDate = new Date(endFinal + 'T00:00:00');
     while (cur <= endDate) {
       const dow = cur.getDay();
-      if (dow !== 0 && dow !== 6) {
+      if (dow !== 0 && (dow !== 6 || unit === 'ouv')) {
         const dateStr = toLocalISO(cur);
         const overlap = state.conges.find(c => {
           let d = new Date(c.start + 'T00:00:00');
@@ -85,7 +108,7 @@ function addConge() {
       }
       cur.setDate(cur.getDate() + 1);
     }
-    state.conges.push({ type, start: startVal, end: endFinal, note, days, id: Date.now() + Math.floor(Math.random()*100000) });
+    state.conges.push({ type, start: startVal, end: endFinal, note, days, ...(unit ? { unit } : {}), id: Date.now() + Math.floor(Math.random()*100000) });
     saveConges();
     logAuditEntry('conge', 'création', `${days} jour(s) de ${getCongeTypeLabel(type)} du ${startVal} au ${endFinal}`);
     document.getElementById('congeStart').value = '';
@@ -400,18 +423,20 @@ function getEffectiveQuotaForYear(type, year) {
 function getBTPConfig() {
   try {
     const raw = localStorage.getItem('orvia_btp_config');
-    if (!raw) return { enabled: false, statut: 'ouvrier', embaucheDate: '', anciennete: [], alertEnabled: true, alertWarningDays: 30 };
+    if (!raw) return { enabled: false, statut: 'ouvrier', embaucheDate: '', debutProfessionDate: '', ouvrables: true, anciennete: [], alertEnabled: true, alertWarningDays: 30 };
     const p = JSON.parse(raw);
     return {
       enabled: p.enabled === true,
       statut: (p.statut === 'etam_cadre') ? 'etam_cadre' : 'ouvrier',
       embaucheDate: typeof p.embaucheDate === 'string' ? p.embaucheDate : '',
+      debutProfessionDate: typeof p.debutProfessionDate === 'string' ? p.debutProfessionDate : '',
+      ouvrables: p.ouvrables !== false,
       anciennete: Array.isArray(p.anciennete) ? p.anciennete.filter(x => Number.isFinite(Number(x.years)) && Number.isFinite(Number(x.days))) : [],
       alertEnabled: p.alertEnabled !== false,
       alertWarningDays: Number.isFinite(Number(p.alertWarningDays)) ? clampNumber(Number(p.alertWarningDays), 1, 180, 30) : 30
     };
   } catch (e) {
-    return { enabled: false, statut: 'ouvrier', embaucheDate: '', anciennete: [], alertEnabled: true, alertWarningDays: 30 };
+    return { enabled: false, statut: 'ouvrier', embaucheDate: '', debutProfessionDate: '', ouvrables: true, anciennete: [], alertEnabled: true, alertWarningDays: 30 };
   }
 }
 
@@ -430,7 +455,65 @@ function getBTPAncienneteYears(cfg) {
   return Math.max(0, years);
 }
 
+// Période de prise en cours : du 1er mai de l'année Y au 30 avril de Y+1
+// (l'acquisition correspondante s'est terminée le 31 mars Y).
+function getBTPPriseYear(ref) {
+  const d = ref || new Date();
+  return d.getMonth() >= 4 ? d.getFullYear() : d.getFullYear() - 1;
+}
+
+function btpAddYears(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return null;
+  d.setFullYear(d.getFullYear() + n);
+  return d;
+}
+
+// ETAM / cadres (CIBTP) : le critère le plus favorable entre l'ancienneté dans
+// l'entreprise (> 5 ans : 2 j, > 10 ans : 3 j) et dans la profession
+// (> 10 ans : 2 j, 20 ans et plus : 3 j), appréciée au 31 mars.
+function getBTPAncienneteInfo(cfg, priseYear) {
+  cfg = cfg || getBTPConfig();
+  const y = priseYear ?? getBTPPriseYear();
+  const ref = new Date(`${y}-03-31T23:59:59`);
+  if (cfg.statut !== 'etam_cadre') {
+    return { mode: 'grille', days: getBTPAncienneteDaysGrid(cfg), ref };
+  }
+  const ent = cfg.embaucheDate ? btpAddYears(cfg.embaucheDate, 0) : null;
+  const prof = cfg.debutProfessionDate || cfg.embaucheDate;
+  const yearsBetween = (from) => {
+    if (!from) return 0;
+    const d = new Date(from + 'T00:00:00');
+    if (Number.isNaN(d.getTime())) return 0;
+    let n = ref.getFullYear() - d.getFullYear();
+    const anniv = new Date(d); anniv.setFullYear(ref.getFullYear());
+    if (ref < anniv) n--;
+    return Math.max(0, n);
+  };
+  const afterYears = (from, n, inclusive) => {
+    const t = from ? btpAddYears(from, n) : null;
+    return !!t && (inclusive ? t <= ref : t < ref);
+  };
+  let daysEnt = 0;
+  if (afterYears(cfg.embaucheDate, 10, false)) daysEnt = 3;
+  else if (afterYears(cfg.embaucheDate, 5, false)) daysEnt = 2;
+  let daysProf = 0;
+  if (afterYears(prof, 20, true)) daysProf = 3;
+  else if (afterYears(prof, 10, false)) daysProf = 2;
+  return {
+    mode: 'etam', ref,
+    yearsEnt: yearsBetween(cfg.embaucheDate), yearsProf: yearsBetween(prof),
+    daysEnt, daysProf, days: Math.max(daysEnt, daysProf),
+    basis: daysProf > daysEnt ? 'profession' : 'entreprise'
+  };
+}
+
 function getBTPAncienneteDays(cfg) {
+  cfg = cfg || getBTPConfig();
+  return getBTPAncienneteInfo(cfg).days;
+}
+
+function getBTPAncienneteDaysGrid(cfg) {
   cfg = cfg || getBTPConfig();
   const years = getBTPAncienneteYears(cfg);
   const sorted = [...cfg.anciennete].sort((a, b) => Number(a.years) - Number(b.years));
@@ -439,24 +522,47 @@ function getBTPAncienneteDays(cfg) {
   return days;
 }
 
-// Fractionnement légal : jours de CP pris hors période 1er mai-31 octobre,
-// dans la limite des 12 jours restant du congé principal (24j max, 12j
-// obligatoirement posés en mai-octobre). 2j si >= 6j hors période, 1j si
-// 3 à 5j hors période, sinon 0.
-function getBTPFractionnementInfo(year) {
-  const periodStart = `${year}-05-01`;
-  const periodEnd = `${year}-10-31`;
-  const cpDaysThisYear = state.conges.filter(c => c.type === 'cp' && c.start.slice(0, 4) === String(year));
-  let insidePeriod = 0, outsidePeriod = 0;
-  cpDaysThisYear.forEach(c => {
-    const inside = c.start >= periodStart && c.end <= periodEnd;
-    if (inside) insidePeriod += c.days;
-    else outsidePeriod += c.days;
+// Fractionnement (CIBTP) — sur la période de prise du 1er mai Y au 30 avril Y+1 :
+//  - conditions : 12 jours ouvrables continus pris avant le 1er novembre, et au moins 15 jours acquis ;
+//  - jours pris du 1er novembre au 30 avril sur les 24 premiers jours (hors 5e semaine) :
+//    3 à 5 jours → 1 jour supplémentaire, 6 jours ou plus → 2 jours.
+// Les jours de la 5e semaine (6 jours ouvrables) sont retirés des jours hors période : estimation.
+function getBTPFractionnementInfo(priseYear) {
+  const cfg = getBTPConfig();
+  const y = priseYear ?? getBTPPriseYear();
+  const inStart = `${y}-05-01`, inEnd = `${y}-10-31`;
+  const outStart = `${y}-11-01`, outEnd = `${y + 1}-04-30`;
+  let insidePeriod = 0, outsidePeriod = 0, continuous = false;
+  state.conges.filter(c => c.type === 'cp').forEach(c => {
+    const ouv = c.unit === 'ouv';
+    const d = new Date(c.start + 'T00:00:00');
+    const e = new Date(c.end + 'T00:00:00');
+    let blockSpan = 0; // jours de la période, fériés compris : ils n'interrompent pas les 12 jours
+    while (d <= e) {
+      const dow = d.getDay();
+      const iso = toLocalISO(d);
+      const worked = dow !== 0 && (ouv || dow !== 6);
+      if (worked) {
+        const inside = iso >= inStart && iso <= inEnd;
+        if (inside) blockSpan++;
+        if (!isDateHoliday(iso)) {
+          if (inside) insidePeriod++;
+          else if (iso >= outStart && iso <= outEnd) outsidePeriod++;
+        }
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    if (blockSpan >= (ouv ? 12 : 10)) continuous = true;
   });
+  const fifthWeek = cfg.ouvrables ? 6 : 5;
+  const relevantOutside = Math.max(0, outsidePeriod - fifthWeek);
+  const enoughAcquired = Number(state.quotas.cp || 0) >= 15;
   let bonusDays = 0;
-  if (outsidePeriod >= 6) bonusDays = 2;
-  else if (outsidePeriod >= 3) bonusDays = 1;
-  return { insidePeriod, outsidePeriod, bonusDays };
+  if (continuous && enoughAcquired) {
+    if (relevantOutside >= 6) bonusDays = 2;
+    else if (relevantOutside >= 3) bonusDays = 1;
+  }
+  return { insidePeriod, outsidePeriod, relevantOutside, continuous, enoughAcquired, bonusDays, priseYear: y };
 }
 
 function getBTPDeadlines(cfg) {
@@ -494,9 +600,10 @@ function getBTP5eSemaineRisk() {
   const daysLeft = Math.ceil((effectiveDeadline.getTime() - now.getTime()) / 86400000);
   if (daysLeft < 0 || daysLeft > cfg.alertWarningDays) return null;
 
-  const acquisitionYear = getBTPAcquisitionYearStart(new Date(effectiveDeadline.getFullYear(), effectiveDeadline.getMonth() - 4, 1));
-  const periodStart = `${acquisitionYear}-04-01`;
-  const periodEnd = `${acquisitionYear + 1}-03-31`;
+  // Les congés se prennent du 1er mai Y au 30 avril Y+1 (acquisition terminée le 31 mars Y).
+  const priseYear = getBTPPriseYear(new Date(effectiveDeadline.getFullYear(), effectiveDeadline.getMonth() - 4, 1));
+  const periodStart = `${priseYear}-05-01`;
+  const periodEnd = `${priseYear + 1}-04-30`;
   const cpTaken = state.conges
     .filter(c => c.type === 'cp' && c.start >= periodStart && c.start <= periodEnd)
     .reduce((a, c) => a + (c.days || 0), 0);
@@ -566,6 +673,10 @@ function onBTPSettingsChange() {
   cfg.enabled = enabledEl ? enabledEl.checked : false;
   cfg.statut = statutEl ? statutEl.value : 'ouvrier';
   cfg.embaucheDate = dateEl ? dateEl.value : '';
+  const profEl = document.getElementById('btpProfessionDate');
+  const ouvEl = document.getElementById('btpOuvrables');
+  cfg.debutProfessionDate = profEl ? profEl.value : '';
+  cfg.ouvrables = ouvEl ? ouvEl.checked : true;
   saveBTPConfig(cfg);
   renderConges();
   showToast(cfg.enabled ? 'Mode BTP activé' : 'Mode BTP désactivé');
@@ -605,6 +716,14 @@ function renderBTPSettings() {
   if (enabledEl) enabledEl.checked = cfg.enabled;
   if (statutEl) statutEl.value = cfg.statut;
   if (dateEl) dateEl.value = cfg.embaucheDate;
+  const profEl = document.getElementById('btpProfessionDate');
+  const ouvEl = document.getElementById('btpOuvrables');
+  if (profEl) profEl.value = cfg.debutProfessionDate;
+  if (ouvEl) ouvEl.checked = cfg.ouvrables;
+  const profBox = document.getElementById('btpProfessionBox');
+  if (profBox) profBox.style.display = cfg.statut === 'etam_cadre' ? 'block' : 'none';
+  const gridBox = document.getElementById('btpGridBox');
+  if (gridBox) gridBox.style.display = cfg.statut === 'etam_cadre' ? 'none' : 'block';
   if (alertEnabledEl) alertEnabledEl.checked = cfg.alertEnabled;
   if (alertWarningEl) alertWarningEl.value = String(cfg.alertWarningDays);
   renderBTPAlertPreview();
@@ -643,18 +762,23 @@ function renderBTPSummaryCard() {
   if (!el) return;
   const cfg = getBTPConfig();
   if (!cfg.enabled) { el.style.display = 'none'; el.innerHTML = ''; return; }
-  const year = new Date().getFullYear();
-  const anciennete = getBTPAncienneteDays(cfg);
+  const year = getBTPPriseYear();
+  const anc = getBTPAncienneteInfo(cfg, year);
+  const anciennete = anc.days;
   const frac = getBTPFractionnementInfo(year);
   const deadlines = getBTPDeadlines(cfg);
   const years = getBTPAncienneteYears(cfg);
+  const ancLine = anc.mode === 'etam'
+    ? `Ancienneté au 31 mars : <b style="color:var(--text);">${anc.yearsEnt} an${anc.yearsEnt > 1 ? 's' : ''}</b> entreprise, <b style="color:var(--text);">${anc.yearsProf} an${anc.yearsProf > 1 ? 's' : ''}</b> profession → <b style="color:var(--text);">${anciennete} jour${anciennete > 1 ? 's' : ''}</b> supplémentaire${anciennete > 1 ? 's' : ''}${anciennete ? ` (critère ${anc.basis})` : ''}<br>`
+    : `Ancienneté : <b style="color:var(--text);">${years} an${years > 1 ? 's' : ''}</b> → <b style="color:var(--text);">${anciennete} jour${anciennete > 1 ? 's' : ''}</b> supplémentaire${anciennete > 1 ? 's' : ''}<br>`;
+  const fracNote = !frac.continuous ? ' — il manque 12 jours continus pris avant le 1er novembre' : (!frac.enoughAcquired ? ' — moins de 15 jours acquis' : '');
   el.style.display = 'block';
   el.innerHTML = `
     <div class="settings-card" style="margin-bottom:16px;padding:14px;">
-      <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">🏗️ Droits BTP (${year})</div>
+      <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">🏗️ Droits BTP (prise du 1er mai ${year} au 30 avril ${year + 1})</div>
       <div style="font-size:12px;color:var(--muted);line-height:1.7;">
-        Ancienneté : <b style="color:var(--text);">${years} an${years > 1 ? 's' : ''}</b> → <b style="color:var(--text);">${anciennete} jour${anciennete > 1 ? 's' : ''}</b> supplémentaire${anciennete > 1 ? 's' : ''}<br>
-        Jours de fractionnement acquis : <b style="color:var(--text);">${frac.bonusDays}</b> (${frac.outsidePeriod}j de CP pris hors mai-octobre)<br>
+        ${ancLine}
+        Jours de fractionnement acquis : <b style="color:var(--text);">${frac.bonusDays}</b> (${frac.relevantOutside}j de CP pris du 1er novembre au 30 avril, hors 5e semaine)${fracNote}<br>
         5e semaine à prendre avant le <b style="color:var(--text);">${new Date(deadlines.cinquiemeSemaineEnd + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'long' })}</b>
       </div>
     </div>`;
@@ -1041,7 +1165,8 @@ function submitQuickAddConge() {
   const type = typeSel ? typeSel.value : 'cp';
   const note = noteEl ? noteEl.value.trim() : '';
   const isCustomType = customCongeTypes.some(t => t.id === type);
-  const days = workdaysBetween(dateStr, dateStr);
+  const unit = congeUnitFor(type);
+  const days = computeCongeDays(dateStr, dateStr, unit);
   if (!isCustomType) {
     const congeYear = Number(dateStr.slice(0, 4));
     const taken = getCongesTakenForYear(type, congeYear);
@@ -1056,7 +1181,7 @@ function submitQuickAddConge() {
     if (errEl) { errEl.textContent = `Le ${dateStr} est déjà pris (${getCongeTypeLabel(overlap.type)})`; errEl.style.display = 'block'; }
     return;
   }
-  state.conges.push({ type, start: dateStr, end: dateStr, note, days, id: Date.now() + Math.floor(Math.random()*100000) });
+  state.conges.push({ type, start: dateStr, end: dateStr, note, days, ...(unit ? { unit } : {}), id: Date.now() + Math.floor(Math.random()*100000) });
   saveConges();
   logAuditEntry('conge', 'création', `${days} jour(s) de ${getCongeTypeLabel(type)} le ${dateStr}`);
   closeQuickAddCongeModal();
@@ -1092,3 +1217,29 @@ function calNext() {
   renderCal();
 }
 
+
+
+// Convertit les congés payés déjà saisis (comptés en jours ouvrés) en jours ouvrables.
+function convertCpToOuvrables() {
+  const todo = state.conges.filter(c => c.type === 'cp' && c.unit !== 'ouv');
+  if (!todo.length) { showToast('Rien à convertir'); return; }
+  if (!confirm(`Convertir ${todo.length} congé(s) payé(s) en jours ouvrables (lundi–samedi) ?\n\nLes durées seront recalculées : une semaine complète posée du lundi au vendredi inclura le samedi et passera de 5 à 6 jours. Pense à passer ton quota de CP à 30.`)) return;
+  let extended = 0;
+  todo.forEach(c => {
+    // Une semaine complète posée du lundi au vendredi se compte 6 jours ouvrables : on inclut le samedi.
+    const endD = new Date(c.end + 'T00:00:00');
+    if (endD.getDay() === 5 && workdaysBetween(c.start, c.end) >= 5) {
+      const sat = new Date(endD); sat.setDate(sat.getDate() + 1);
+      const satIso = toLocalISO(sat);
+      const taken = state.conges.some(o => o !== c && o.start <= satIso && o.end >= satIso);
+      if (!isDateHoliday(satIso) && !taken) { c.end = satIso; extended++; }
+    }
+    c.unit = 'ouv';
+    c.days = ouvrablesBetween(c.start, c.end);
+  });
+  saveConges();
+  logAuditEntry('conge', 'modification', `Conversion de ${todo.length} congé(s) payé(s) en jours ouvrables`);
+  renderConges();
+  renderBTPSettings();
+  showToast(`${todo.length} congé(s) converti(s)${extended ? `, ${extended} étendu(s) au samedi` : ''} ✓`);
+}

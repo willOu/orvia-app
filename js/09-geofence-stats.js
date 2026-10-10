@@ -455,6 +455,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.2.1', date: '2026-10-10', items: ['Correctif : Congés BTP alignés sur les règles CIBTP (ETAM)'] },
     { version: '2.2.0', date: '2026-10-10', items: ['Nouveauté : Fusion de synchro entre appareils et découpage du code'] },
     { version: '2.1.4', date: '2026-10-10', items: ['Correctif : Correctifs de l\u2019audit (congés par année, sauvegardes, notifications iOS, IR 2026)'] },
     { version: '2.1.3', date: '2026-07-29', items: ['Ajout d\u2019instructions dédiées dans Raccourcis pour utiliser Orvia depuis l\u2019Apple Watch (synchronisation automatique des raccourcis iPhone → Watch, complications, Wear OS via app tierce), et raccourci dédié \u2018Basculer pause/reprise\u2019 pensé pour un tap rapide au poignet.'] },

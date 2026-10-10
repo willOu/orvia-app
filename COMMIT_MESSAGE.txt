@@ -1,12 +1,9 @@
-feat: fusion de synchro entre appareils et découpage du code
+fix: congés BTP alignés sur les règles CIBTP (ETAM)
 
-- synchro cloud : fusion des sessions (clé = heure de début) et des congés (clé = id)
-  au lieu de "le dernier qui écrit gagne" ; suppressions suivies par pierres tombales
-- écriture conditionnelle côté Supabase (pas d'écrasement si un autre appareil a écrit)
-- file de synchro : ne retire que ce qui a été envoyé
-- choix "Fusionner" à la première connexion cloud
-- index.html découpé : css/app.css + 10 fichiers js/ (portée globale conservée)
-- sw.js : nouveaux fichiers en cache ; bump_version.py adapté au découpage
+- congés payés comptés en jours ouvrables (lundi-samedi) en mode BTP, avec bouton de conversion des CP existants
+- ancienneté ETAM/cadres : meilleur critère entreprise / profession, appréciée au 31 mars
+- fractionnement : jours pris du 1er novembre au 30 avril hors 5e semaine, 12 jours continus requis avant le 1er novembre
+- alerte 5e semaine : fenêtre de prise du 1er mai au 30 avril
 
 Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01ThuwzB4EDAfiWTRi8R6bbT

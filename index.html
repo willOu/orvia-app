@@ -539,7 +539,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div class="section-title">🏗️ Mode BTP (CIBTP)</div>
   <div class="settings-card" style="margin-bottom:10px;padding:14px;">
     <div style="font-size:11px;color:var(--muted);line-height:1.5;">
-      Active le calcul spécifique au secteur du BTP (caisse CIBTP) : congé principal (jusqu'à 24j), 5e semaine, jours d'ancienneté selon ta grille, et jours de fractionnement calculés selon les règles légales. Le décompte se fait en jours ouvrables (lundi–samedi, hors jours fériés), sur une période d'acquisition du 1er avril au 31 mars.
+      Active le calcul spécifique au secteur du BTP (caisse CIBTP) : congé principal (jusqu'à 24j), 5e semaine, jours d'ancienneté (règles CIBTP pour les ETAM/cadres, grille pour les ouvriers) et jours de fractionnement. Les congés payés se décomptent en jours ouvrables (lundi–samedi, hors jours fériés), sur une période d'acquisition du 1er avril au 31 mars. Pense à régler ton quota de CP à 30 jours.
     </div>
   </div>
 
@@ -558,7 +558,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       <div style="font-weight:800;color:var(--text);margin:12px 0 4px;">🗓️ Quand prendre ses congés</div>
       Le <b>congé principal</b> (12 à 24 jours) doit inclure une fraction continue de 12 jours prise entre le <b>1er mai et le 31 octobre</b>. Le solde au-delà du 24e jour, appelé <b>5e semaine</b>, doit être pris avant le <b>31 mars</b> (ouvriers) ou le <b>30 avril</b> (ETAM/cadres) de l'année suivante — sinon ces jours sont définitivement perdus. Les jours d'ancienneté ne doivent en principe pas être accolés au congé principal, sauf accord de l'employeur.
       <div style="font-weight:800;color:var(--text);margin:12px 0 4px;">✂️ Le fractionnement</div>
-      Si tu poses une partie de ton congé principal <b>hors</b> de la période mai-octobre, tu gagnes des jours supplémentaires : <b>1 jour</b> si tu poses 3 à 5 jours hors période, <b>2 jours</b> si tu en poses 6 ou plus.
+      Conditions : avoir pris <b>12 jours ouvrables continus avant le 1er novembre</b> et avoir acquis au moins 15 jours. Alors, si tu poses des jours <b>du 1er novembre au 30 avril</b> (sur les 24 premiers jours, la 5e semaine ne compte pas) : <b>1 jour</b> supplémentaire pour 3 à 5 jours, <b>2 jours</b> pour 6 jours ou plus.
       <div style="font-weight:800;color:var(--text);margin:12px 0 4px;">💰 Paiement et prime de vacances</div>
       L'employeur remet un <b>certificat de congés</b> qui te permet de faire valoir tes droits auprès de la caisse. L'indemnité est versée environ 10 jours avant ton départ, à condition que ta demande soit faite à temps et ton RIB à jour dans ton espace CIBTP. Une <b>prime de vacances de 30%</b> s'ajoute au congé principal et aux jours de fractionnement/ancienneté, mais pas à la 5e semaine.
       <div style="font-size:11px;color:var(--muted);margin-top:12px;font-style:italic;">Source : CIBTP Rhône-Alpes Auvergne — ces règles peuvent évoluer, vérifie toujours ton mémento congés ou ton espace sécurisé CIBTP en cas de doute.</div>
@@ -586,11 +586,29 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div class="settings-card" style="margin-bottom:10px;padding:14px;">
     <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Date d'embauche</div>
     <input type="date" id="btpEmbaucheDate" onchange="onBTPSettingsChange()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);">
-    <div style="font-size:11px;color:var(--muted);margin-top:6px;">Utilisée pour calculer ton ancienneté et tes droits acquis.</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;">Ancienneté dans l'entreprise, appréciée au 31 mars.</div>
+  </div>
+
+  <div class="settings-card" id="btpProfessionBox" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:8px;">Début dans la profession (BTP)</div>
+    <input type="date" id="btpProfessionDate" onchange="onBTPSettingsChange()" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);">
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;">ETAM/cadres : la caisse retient le critère le plus favorable entre ancienneté entreprise (plus de 5 ans : 2 j, plus de 10 ans : 3 j) et profession (plus de 10 ans : 2 j, 20 ans et plus : 3 j). Laisse vide si c'est la même date.</div>
   </div>
 
   <div class="settings-card" style="margin-bottom:10px;padding:14px;">
-    <div style="font-weight:800;color:var(--accent);margin-bottom:10px;">Grille de jours d'ancienneté</div>
+    <div class="settings-row">
+      <label style="font-weight:800;color:var(--accent);">Compter les CP en jours ouvrables</label>
+      <label class="switch">
+        <input type="checkbox" id="btpOuvrables" onchange="onBTPSettingsChange()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;">Lundi–samedi, hors jours fériés : 30 jours par an. Pour une semaine complète (6 jours), termine ton congé le samedi. S'applique aux nouveaux congés payés.</div>
+    <button class="btn-primary" style="width:100%;margin-top:10px;" onclick="convertCpToOuvrables()">Convertir mes CP déjà saisis</button>
+  </div>
+
+  <div class="settings-card" id="btpGridBox" style="margin-bottom:10px;padding:14px;">
+    <div style="font-weight:800;color:var(--accent);margin-bottom:10px;">Grille d'ancienneté (ouvriers)</div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:10px;">Ajoute un palier pour chaque nombre d'années d'ancienneté ouvrant droit à des jours supplémentaires. Cette grille dépend de ta convention collective : ajuste-la librement.</div>
     <div id="btpAncienneteGrid" style="display:flex;flex-direction:column;gap:8px;"></div>
     <button class="btn-primary" style="width:100%;margin-top:10px;" onclick="addAncienneteRow()">+ Ajouter un palier</button>
