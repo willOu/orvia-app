@@ -964,12 +964,15 @@ function applyMode(mode) {
   localStorage.setItem('orvia_mode', m);
 }
 
-function applyTheme(themeId) {
+function applyTheme(themeId, keepSeasonal) {
   const theme = THEME_PALETTES.find(t => t.id === themeId) || THEME_PALETTES[0];
   document.documentElement.style.setProperty('--accent', theme.accent);
   document.documentElement.style.setProperty('--accent2', theme.accent2);
+  // « Base » garde le Liquid Glass bleu/turquoise ; les autres teintent le fond.
+  document.documentElement.classList.toggle('themed', theme.id !== 'violet');
   localStorage.setItem('orvia_theme', theme.id);
   // Choisir une couleur solide désactive le dégradé saisonnier actif.
+  if (keepSeasonal) return; // démarrage : le thème saisonnier mémorisé sera réappliqué ensuite
   document.documentElement.classList.remove('has-seasonal');
   localStorage.removeItem('orvia_seasonal_theme');
 }
@@ -981,6 +984,7 @@ function applySeasonalTheme(seasonalId) {
   document.documentElement.style.setProperty('--accent2', theme.accent2);
   document.documentElement.style.setProperty('--seasonal-gradient', theme.gradient);
   document.documentElement.classList.add('has-seasonal');
+  document.documentElement.classList.remove('themed');
   localStorage.setItem('orvia_seasonal_theme', theme.id);
 }
 
@@ -1000,6 +1004,7 @@ function initSeasonalTheme() {
       document.documentElement.style.setProperty('--accent2', theme.accent2);
       document.documentElement.style.setProperty('--seasonal-gradient', theme.gradient);
       document.documentElement.classList.add('has-seasonal');
+      document.documentElement.classList.remove('themed');
     }
   }
 }

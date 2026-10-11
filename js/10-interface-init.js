@@ -592,7 +592,7 @@ function importBackup(event) {
   }
 
 // ── INIT ──
-applyTheme(getCurrentThemeId());
+applyTheme(getCurrentThemeId(), true);
 applyMode(getCurrentMode());
 initSeasonalTheme();
 load();

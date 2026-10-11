@@ -456,6 +456,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.5.1', date: '2026-10-11', items: ['Correctif : Les thèmes de couleur et saisonniers fonctionnent de nouveau avec le Liquid Glass'] },
     { version: '2.5.0', date: '2026-10-11', items: ['Nouveauté : Rappel de fin de journée, correction rapide d\u2019une journée, simulateur de congés, sauvegarde hebdomadaire'] },
     { version: '2.4.0', date: '2026-10-11', items: ['Nouveauté : Nouveau logo Liquid Glass (icône d\u2019appli, en-tête, écran de démarrage)'] },
     { version: '2.3.2', date: '2026-10-11', items: ['Correctif : Barre d\u2019onglets opaque, plus de texte qui transparaît'] },

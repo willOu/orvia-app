@@ -39,8 +39,7 @@
   --g-orb1: #B7A4FF; --g-orb2: #FFC2A3; --g-orb3: #9BEBD8;
 }
 
-html { background: #17497A; min-height: 100%; }
-:root.light-mode { background-color: #DCE8F7; }
+html { background: var(--bg); min-height: 100%; }
 html::before { content: ''; position: fixed; left: 0; right: 0; top: -120px; bottom: -120px; z-index: -2; pointer-events: none; background: var(--g-bg); }
 body { background: transparent; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Figtree', sans-serif; }
 body::before {
@@ -194,3 +193,29 @@ html.compact-mode .page { padding: 6px 12px calc(100px + var(--safe-bottom)); }
 :root.light-mode #topSplashLogo circle[stroke^="rgba"] { stroke: rgba(18,32,58,.15); }
 :root.light-mode #lgH stop:first-child { stop-color: #0B8F68; }
 :root.light-mode #lgH stop:last-child { stop-color: #2BB89A; }
+
+/* ── Thèmes de couleur : le fond en verre prend la teinte choisie ── */
+:root.themed {
+  --g-bg: linear-gradient(165deg, color-mix(in srgb, var(--accent) 40%, #0A1020) 0%, color-mix(in srgb, var(--accent) 22%, #0B1830) 50%, color-mix(in srgb, var(--accent2) 32%, #0A1C22) 100%);
+  --g-orb1: var(--accent); --g-orb2: var(--accent2); --g-orb3: color-mix(in srgb, var(--accent) 50%, var(--accent2));
+  --bg: color-mix(in srgb, var(--accent) 22%, #0B1830);
+}
+:root.themed.light-mode {
+  --g-bg: linear-gradient(165deg, color-mix(in srgb, var(--accent) 22%, #ffffff) 0%, color-mix(in srgb, var(--accent) 12%, #f3f7fc) 50%, color-mix(in srgb, var(--accent2) 20%, #ffffff) 100%);
+  --bg: color-mix(in srgb, var(--accent) 12%, #f3f7fc);
+}
+/* Dégradés saisonniers : en fond, assombris (ou éclaircis) pour garder le texte lisible */
+:root.has-seasonal {
+  --g-bg: linear-gradient(rgba(8,12,32,.42), rgba(8,12,32,.42)), var(--seasonal-gradient);
+  --g-orb1: var(--accent); --g-orb2: var(--accent2); --g-orb3: color-mix(in srgb, var(--accent) 50%, var(--accent2));
+  --bg: color-mix(in srgb, var(--accent) 25%, #0B1830);
+}
+:root.has-seasonal.light-mode {
+  --g-bg: linear-gradient(rgba(255,255,255,.5), rgba(255,255,255,.5)), var(--seasonal-gradient);
+  --bg: color-mix(in srgb, var(--accent) 15%, #f3f7fc);
+}
+:root.themed .switch input:checked + .slider, :root.has-seasonal .switch input:checked + .slider { background: var(--accent); }
+:root.themed .btn-start, :root.has-seasonal .btn-start { background: color-mix(in srgb, var(--accent) 55%, transparent); }
+.btn-resume { background: color-mix(in srgb, var(--accent) 55%, transparent); }
+:root.themed .tabs, :root.has-seasonal .tabs { background: color-mix(in srgb, var(--accent) 28%, #0B1830 72%); }
+:root.themed.light-mode .tabs, :root.has-seasonal.light-mode .tabs { background: rgba(255,255,255,.96); }
