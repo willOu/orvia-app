@@ -455,6 +455,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.4.0', date: '2026-10-11', items: ['Nouveauté : Nouveau logo Liquid Glass (icône d\u2019appli, en-tête, écran de démarrage)'] },
     { version: '2.3.2', date: '2026-10-11', items: ['Correctif : Barre d\u2019onglets opaque, plus de texte qui transparaît'] },
     { version: '2.3.1', date: '2026-10-11', items: ['Correctif : Suppression du flou en haut et en bas de l\u2019écran (Liquid Glass)'] },
     { version: '2.3.0', date: '2026-10-11', items: ['Nouveauté : Refonte du design en Liquid Glass (verre dépoli, barre d\u2019onglets flottante)'] },

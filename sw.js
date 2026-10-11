@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'orvia-v2.3.2';
+const CACHE_VERSION = 'orvia-v2.4.0';
 const CACHE_NAME = CACHE_VERSION;
 const ASSETS_TO_CACHE = [
 '.',
@@ -8,6 +8,7 @@ const ASSETS_TO_CACHE = [
 './icon-512.png',
 './icon-maskable-192.png',
 './icon-maskable-512.png',
+'./apple-touch-icon.png',
 './css/app.css',
 './css/glass.css',
 './js/01-etat-sync.js',

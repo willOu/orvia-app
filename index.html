@@ -8,9 +8,9 @@
 <meta name="apple-mobile-web-app-title" content="Orvia">
 <title>Orvia</title>
 
-<meta name="theme-color" content="#0b1f2a">
+<meta name="theme-color" content="#17497A">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/glass.css">
@@ -18,19 +18,13 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
 </head>
-<body><div id='topSplashLogo' style='position:absolute;left:50%;top:calc(env(safe-area-inset-top, 0px) + 12px);transform:translateX(-50%);width:120px;height:50px;display:flex;justify-content:center;align-items:center;overflow:auto;pointer-events:auto;z-index:9999'><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 340 140' width='120' height='50' role='img' aria-label='Orvia' style='display:block;margin:0 auto'><g fill='none' stroke='var(--text)' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'><circle cx='82' cy='58' r='30'></circle><path d='M82 38v20l16 11'></path></g><text x='170' y='100' text-anchor='middle' dominant-baseline='middle' fill='var(--text)' font-family='Inter, Arial, sans-serif' font-size='42' font-weight='800' letter-spacing='6'>ORVIA</text></svg></div><div class="tabs-guard"></div>
-<div id="orvia-splash" style="position:fixed;inset:0;z-index:99999;background:#0b1f2a;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;transition:opacity .8s ease, transform .8s ease;text-align:center">
+<body><div id='topSplashLogo' style='position:absolute;left:50%;top:calc(env(safe-area-inset-top, 0px) + 12px);transform:translateX(-50%);width:120px;height:50px;display:flex;justify-content:center;align-items:center;overflow:auto;pointer-events:auto;z-index:9999'><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 190 80' width='114' height='48' role='img' aria-label='Orvia' style='display:block;margin:0 auto'><defs><linearGradient id='lgH' x1='0' y1='1' x2='1' y2='0'><stop offset='0' stop-color='#8CF5D2'/><stop offset='1' stop-color='#ffffff'/></linearGradient></defs><circle cx='40' cy='40' r='28' fill='none' stroke='rgba(255,255,255,.28)' stroke-width='9'/><circle cx='40' cy='40' r='28' fill='none' stroke='url(#lgH)' stroke-width='9' stroke-linecap='round' stroke-dasharray='132 176' transform='rotate(-90 40 40)'/><path d='M40 24v17l10 7' fill='none' stroke='#fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/><circle cx='40' cy='41' r='3.5' fill='#FF8A5B'/><text x='86' y='54' fill='#fff' font-family='-apple-system,BlinkMacSystemFont,SF Pro Display,Figtree,Arial,sans-serif' font-size='38' font-weight='700' letter-spacing='-1'>Orvia</text></svg></div><div class="tabs-guard"></div>
+<div id="orvia-splash" style="position:fixed;inset:0;z-index:99999;background:linear-gradient(165deg,#1B2B6B 0%,#17497A 45%,#0F6B6E 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;transition:opacity .8s ease, transform .8s ease;text-align:center">
   <div style="display:flex;align-items:center;justify-content:center;width:100%">
-    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 340 140' width='280' height='118' role='img' aria-label='' style='display:block;margin:0 auto'>
-      <g fill='none' stroke='#f8fafc' stroke-width='8' stroke-linecap='round' stroke-linejoin='round'>
-        <circle cx='82' cy='58' r='30'/>
-        <path d='M82 38v20l16 11'/>
-      </g>
-      <text x='170' y='100' text-anchor='middle' dominant-baseline='middle' fill='#f8fafc' font-family='Inter, Arial, sans-serif' font-size='42' font-weight='800' letter-spacing='6'>ORVIA</text>
-    </svg>
+    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 190 80' width='285' height='120' role='img' aria-label='Orvia' style='display:block;margin:0 auto'><defs><linearGradient id='lgA' x1='0' y1='1' x2='1' y2='0'><stop offset='0' stop-color='#8CF5D2'/><stop offset='1' stop-color='#ffffff'/></linearGradient></defs><circle cx='40' cy='40' r='28' fill='none' stroke='rgba(255,255,255,.28)' stroke-width='9'/><circle cx='40' cy='40' r='28' fill='none' stroke='url(#lgA)' stroke-width='9' stroke-linecap='round' stroke-dasharray='132 176' transform='rotate(-90 40 40)'/><path d='M40 24v17l10 7' fill='none' stroke='#fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/><circle cx='40' cy='41' r='3.5' fill='#FF8A5B'/><text x='86' y='54' fill='#fff' font-family='-apple-system,BlinkMacSystemFont,SF Pro Display,Figtree,Arial,sans-serif' font-size='38' font-weight='700' letter-spacing='-1'>Orvia</text></svg>
   </div>
   <div style="width:140px;height:4px;border-radius:4px;background:rgba(248,250,252,.15);overflow:hidden;">
-    <div style="width:100%;height:100%;border-radius:4px;background:#6c63ff;transform-origin:left;animation:orviaSplashLoad 1.6s ease-in-out forwards;"></div>
+    <div style="width:100%;height:100%;border-radius:4px;background:linear-gradient(90deg,#8CF5D2,#fff);transform-origin:left;animation:orviaSplashLoad 1.6s ease-in-out forwards;"></div>
   </div>
   <div style='color:#b3c3c8;font-family:Inter,Arial,sans-serif;font-size:14px;letter-spacing:2px;text-transform:uppercase;text-align:center'>Chargement de l'application</div>
 </div>
