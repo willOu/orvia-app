@@ -455,6 +455,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.3.0', date: '2026-10-11', items: ['Nouveauté : Refonte du design en Liquid Glass (verre dépoli, barre d\u2019onglets flottante)'] },
     { version: '2.2.1', date: '2026-10-10', items: ['Correctif : Congés BTP alignés sur les règles CIBTP (ETAM)'] },
     { version: '2.2.0', date: '2026-10-10', items: ['Nouveauté : Fusion de synchro entre appareils et découpage du code'] },
     { version: '2.1.4', date: '2026-10-10', items: ['Correctif : Correctifs de l\u2019audit (congés par année, sauvegardes, notifications iOS, IR 2026)'] },

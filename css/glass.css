@@ -1,0 +1,186 @@
+/* ═══════════════════════════════════════════════════════════
+   ORVIA — thème « Liquid Glass » (v2.3)
+   Surcouche chargée après app.css : verre dépoli, surfaces
+   flottantes, barre d'onglets en capsule.
+   ═══════════════════════════════════════════════════════════ */
+:root {
+  --bg: #17497A;
+  --surface: rgba(255,255,255,.14);
+  --card: rgba(255,255,255,.14);
+  --border: rgba(255,255,255,.26);
+  --text: #ffffff;
+  --muted: rgba(255,255,255,.72);
+  --green: #8CF5D2;
+  --orange: #FFC38F;
+  --g-fill: rgba(255,255,255,.14);
+  --g-fill-strong: rgba(255,255,255,.26);
+  --g-edge: rgba(255,255,255,.30);
+  --g-hi: rgba(255,255,255,.55);
+  --g-shadow: rgba(5,10,40,.28);
+  --g-bg: linear-gradient(165deg,#1B2B6B 0%,#17497A 45%,#0F6B6E 100%);
+  --g-orb1: #7C5CFF; --g-orb2: #FF8A5B; --g-orb3: #2FE0C2;
+  --g-blur: blur(26px) saturate(180%);
+}
+:root.light-mode {
+  --bg: #DCE8F7;
+  --surface: rgba(255,255,255,.55);
+  --card: rgba(255,255,255,.55);
+  --border: rgba(255,255,255,.8);
+  --text: #12203A;
+  --muted: rgba(18,32,58,.62);
+  --green: #0B8F68;
+  --orange: #C26A12;
+  --g-fill: rgba(255,255,255,.55);
+  --g-fill-strong: rgba(255,255,255,.8);
+  --g-edge: rgba(255,255,255,.85);
+  --g-hi: rgba(255,255,255,.95);
+  --g-shadow: rgba(40,70,130,.18);
+  --g-bg: linear-gradient(165deg,#DCE8F7 0%,#CFE3F5 45%,#D3F0EA 100%);
+  --g-orb1: #B7A4FF; --g-orb2: #FFC2A3; --g-orb3: #9BEBD8;
+}
+
+html { background: var(--g-bg); background-attachment: fixed; min-height: 100%; }
+body { background: transparent; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Figtree', sans-serif; }
+body::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background:
+    radial-gradient(circle 170px at 4% 22%, var(--g-orb1) 0%, transparent 100%),
+    radial-gradient(circle 160px at 98% 48%, var(--g-orb2) 0%, transparent 100%),
+    radial-gradient(circle 150px at 28% 92%, var(--g-orb3) 0%, transparent 100%);
+  opacity: .6;
+}
+
+/* ── En-tête : léger, sans cadre ── */
+.header, :root.has-seasonal .header {
+  background: transparent; border-bottom: none; backdrop-filter: none; -webkit-backdrop-filter: none;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px) 20px 6px;
+}
+.header h1 { font-weight: 700; }
+.header .date { color: var(--muted); }
+:root.has-seasonal .header .date, :root.has-seasonal .header h1 { text-shadow: none; color: var(--text); }
+.version-badge-topright {
+  background: var(--g-fill); color: var(--text); border: 1px solid var(--g-edge);
+  box-shadow: inset 0 1px 0 var(--g-hi); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+}
+
+/* ── Barre d'onglets : capsule flottante en bas ── */
+.tabs, :root.has-seasonal .tabs {
+  position: fixed; left: 20px; right: 20px; bottom: calc(14px + var(--safe-bottom));
+  z-index: 500; height: 66px; padding: 0 7px; gap: 4px; align-items: center;
+  border-radius: 34px; border: 1px solid var(--g-edge);
+  background: var(--g-fill); background-image: none;
+  backdrop-filter: blur(30px) saturate(190%); -webkit-backdrop-filter: blur(30px) saturate(190%);
+  box-shadow: inset 0 1px 0 var(--g-hi), 0 14px 34px var(--g-shadow);
+}
+.tab, :root.has-seasonal .tab {
+  flex: 1; height: 52px; padding: 0; border: none; border-radius: 26px; color: var(--muted);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-size: 10.5px; font-weight: 500; transition: background .2s, color .2s;
+}
+.tab svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.tab.active, :root.has-seasonal .tab.active {
+  color: var(--text); font-weight: 600; border: none;
+  background: var(--g-fill-strong); box-shadow: inset 0 1px 0 var(--g-hi);
+}
+.page { padding: 8px 16px calc(110px + var(--safe-bottom)); }
+html.compact-mode .page { padding: 6px 12px calc(100px + var(--safe-bottom)); }
+
+/* ── Surfaces en verre (grandes) ── */
+.clock-card, :root.has-seasonal .clock-card, .settings-card, .stat-card, .solde-card, .objectif-card,
+.add-conge-card, .export-card, .view-selector, .modal-box {
+  background: var(--g-fill); background-image: none;
+  border: 1px solid var(--g-edge); border-radius: 28px;
+  backdrop-filter: var(--g-blur); -webkit-backdrop-filter: var(--g-blur);
+  box-shadow: inset 0 1px 0 var(--g-hi), inset 0 -1px 0 rgba(255,255,255,.08), 0 12px 30px var(--g-shadow);
+}
+.settings-card { border-radius: 24px; }
+.stat-card, .solde-card, .objectif-card { border-radius: 24px; }
+.view-selector { border-radius: 22px; }
+.modal-overlay { background: rgba(8,14,40,.45); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.modal-box { background: var(--g-fill-strong); }
+.view-btn.active { background: var(--g-fill-strong); color: var(--text); box-shadow: inset 0 1px 0 var(--g-hi); border-radius: 16px; }
+
+/* ── Surfaces moyennes (sans flou pour rester fluide) ── */
+.status-pill, .note-row, .session-item, .conge-list-item {
+  background: var(--g-fill); border: 1px solid var(--g-edge); border-radius: 20px;
+  box-shadow: inset 0 1px 0 var(--g-hi);
+}
+.status-pill { border-radius: 22px; }
+
+/* ── Chrono ── */
+.clock-card { padding: 26px 20px; }
+.big-time { font-weight: 300; font-size: 72px; letter-spacing: -3px; text-shadow: 0 4px 30px rgba(10,20,80,.3); }
+.big-time.running { color: var(--text); }
+.big-time.paused { color: var(--orange); }
+.elapsed-label { color: var(--muted); }
+:root.has-seasonal .big-time.running, :root.has-seasonal .big-time.paused, :root.has-seasonal .elapsed-label { text-shadow: none; }
+
+/* ── Boutons : capsules de verre ── */
+.btn {
+  height: 60px; padding: 0 16px; border-radius: 30px; color: var(--text);
+  border: 1px solid rgba(255,255,255,.34);
+  backdrop-filter: blur(22px) saturate(180%); -webkit-backdrop-filter: blur(22px) saturate(180%);
+  box-shadow: inset 0 1px 0 var(--g-hi), 0 10px 24px var(--g-shadow);
+}
+.btn-start  { background: rgba(47,224,194,.42); color: var(--text); }
+.btn-pause  { background: rgba(255,195,143,.40); color: var(--text); }
+.btn-resume { background: rgba(124,92,255,.50); color: #fff; }
+.btn-stop   { background: rgba(255,120,80,.55); border-color: rgba(255,255,255,.5); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.65), 0 10px 26px rgba(255,90,40,.35); }
+.btn-disabled { background: var(--g-fill); color: var(--muted); }
+:root.light-mode .btn-start, :root.light-mode .btn-pause { color: #12203A; }
+.btn-export, .btn-add-conge, .modal-actions button { border-radius: 22px; }
+.btn-csv, .btn-add-conge, .modal-btn-save { background: var(--accent); color: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,.4); }
+.modal-btn-cancel { background: var(--g-fill-strong); color: var(--text); }
+
+/* ── Champs ── */
+.form-field input, .form-field select, .settings-row input[type=number], .settings-row input[type=text],
+.modal-row input, select, textarea, input[type=date], input[type=time] {
+  background: rgba(255,255,255,.12); border: 1px solid var(--g-edge); color: var(--text);
+  border-radius: 14px; box-shadow: inset 0 1px 2px rgba(5,10,40,.15);
+}
+:root.light-mode .form-field input, :root.light-mode .form-field select, :root.light-mode .modal-row input { background: rgba(255,255,255,.7); }
+.switch .slider { background: rgba(255,255,255,.25); }
+.switch input:checked + .slider { background: #34D399; }
+.settings-row { border-bottom-color: var(--g-edge); }
+
+/* ── Barres de progression ── */
+.objectif-bar-bg, .solde-card .sc-bar { background: rgba(255,255,255,.18); border-radius: 6px; }
+.objectif-bar-fill, .solde-card .sc-fill { border-radius: 6px; }
+.objectif-bar-fill.done { background: linear-gradient(90deg,#8CF5D2,#fff); }
+.objectif-bar-fill.progress { background: linear-gradient(90deg,#8CF5D2,#fff); }
+.objectif-bar-fill.warning { background: linear-gradient(90deg,#FFC38F,#fff); }
+
+/* ── Calendrier des congés ── */
+.cal-grid { gap: 2px; }
+.cal-day { border-radius: 14px; }
+.cal-day.today { border: 1.5px solid rgba(255,255,255,.9); font-weight: 800; }
+.cal-day.cp  { background: rgba(140,245,210,.40); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.5); }
+.cal-day.rtt { background: rgba(255,195,143,.50); color: var(--text); box-shadow: inset 0 1px 0 rgba(255,255,255,.5); }
+.cal-day.css { background: rgba(255,214,140,.40); color: var(--text); }
+.cal-day.csp { background: rgba(255,130,160,.40); color: var(--text); }
+.cal-day.other-month { color: rgba(255,255,255,.28); }
+:root.light-mode .cal-day.other-month { color: rgba(18,32,58,.25); }
+.cal-nav button { background: var(--g-fill); border: 1px solid var(--g-edge); box-shadow: inset 0 1px 0 var(--g-hi); border-radius: 14px; }
+
+.toast { background: var(--g-fill-strong); border: 1px solid var(--g-edge); backdrop-filter: var(--g-blur); -webkit-backdrop-filter: var(--g-blur); color: var(--text); box-shadow: inset 0 1px 0 var(--g-hi), 0 10px 26px var(--g-shadow); }
+
+/* Repli : pas de flou → verre un peu plus opaque */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root { --g-fill: rgba(30,60,110,.78); --g-fill-strong: rgba(60,100,160,.85); }
+  :root.light-mode { --g-fill: rgba(255,255,255,.9); --g-fill-strong: #fff; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  :root { --g-fill: rgba(30,60,110,.9); --g-fill-strong: rgba(60,100,160,.95); }
+  :root.light-mode { --g-fill: rgba(255,255,255,.95); --g-fill-strong: #fff; }
+  * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+}
+
+/* ── Lisibilité du texte d'accent sur le verre ── */
+:root { --accent-text: color-mix(in srgb, var(--accent) 38%, #ffffff); }
+:root.light-mode { --accent-text: color-mix(in srgb, var(--accent) 80%, #000000); }
+[style*="color:var(--accent)"]:not([style*="background"]),
+[style*="color: var(--accent)"]:not([style*="background"]),
+.group-total, .day-total, .objectif-values, .cal-day.cp {
+  color: var(--accent-text) !important;
+}
+.cal-day.cp { color: var(--text) !important; }

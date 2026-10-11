@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'orvia-v2.2.1';
+const CACHE_VERSION = 'orvia-v2.3.0';
 const CACHE_NAME = CACHE_VERSION;
 const ASSETS_TO_CACHE = [
 '.',
@@ -9,6 +9,7 @@ const ASSETS_TO_CACHE = [
 './icon-maskable-192.png',
 './icon-maskable-512.png',
 './css/app.css',
+'./css/glass.css',
 './js/01-etat-sync.js',
 './js/02-audit-remuneration.js',
 './js/03-aides-minuteur.js',

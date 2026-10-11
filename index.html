@@ -13,6 +13,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/glass.css">
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
@@ -57,10 +58,10 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 </div>
 
 <div class="tabs">
-  <div class="tab active" onclick="switchTab('today')">Aujourd'hui</div>
-  <div class="tab" onclick="switchTab('history')">Historique</div>
-  <div class="tab" onclick="switchTab('conges')">Congés</div>
-  <div class="tab" onclick="switchTab('reglages')">⚙️</div>
+  <div class="tab active" onclick="switchTab('today')"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Aujourd'hui</div>
+  <div class="tab" onclick="switchTab('history')"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Historique</div>
+  <div class="tab" onclick="switchTab('conges')"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2.5"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>Congés</div>
+  <div class="tab" onclick="switchTab('reglages')"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/></svg>Réglages</div>
 </div>
 
 <!-- PAGE TODAY -->
