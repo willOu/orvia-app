@@ -632,8 +632,8 @@ function renderHistory() {
       const sessions = byDate[date];
       const dayNet = sessions.reduce((a, s) => a + s.net, 0);
       return `<div class="day-group">
-        <div class="day-header">
-          <span class="day-label">${date}</span>
+        <div class="day-header" onclick="openDayEditor('${date}')" style="cursor:pointer" title="Toucher pour corriger la journée">
+          <span class="day-label">${date} <span style="font-size:11px;color:var(--muted)">✏️</span></span>
           <span class="day-total">${fmtHM(dayNet)}</span>
         </div>
         ${sessions.map(sessionItemHtml).join('')}
@@ -664,8 +664,8 @@ function renderHistory() {
         ${sortedDays.map(date => {
           const ds = byDay[date];
           const dayNet = ds.reduce((a,s) => a+s.net, 0);
-          return `<div class="day-subheader">
-            <span class="day-sublabel">${date}</span>
+          return `<div class="day-subheader" onclick="openDayEditor('${date}')" style="cursor:pointer" title="Toucher pour corriger la journée">
+            <span class="day-sublabel">${date} <span style="font-size:11px">✏️</span></span>
             <span class="day-subtotal">${fmtHM(dayNet)}</span>
           </div>
           ${ds.map(sessionItemHtml).join('')}`;
@@ -715,8 +715,8 @@ function renderHistory() {
             const ds = byDay[date];
             const dayNet = ds.reduce((a,s) => a+s.net, 0);
             return `<div style="margin-left:8px">
-              <div class="day-subheader" style="margin-top:6px">
-                <span class="day-sublabel" style="font-size:12px;color:var(--border)">${date}</span>
+              <div class="day-subheader" style="margin-top:6px;cursor:pointer" onclick="openDayEditor('${date}')" title="Toucher pour corriger la journée">
+                <span class="day-sublabel" style="font-size:12px;color:var(--muted)">${date} ✏️</span>
                 <span class="day-subtotal" style="font-size:12px">${fmtHM(dayNet)}</span>
               </div>
               ${ds.map(sessionItemHtml).join('')}

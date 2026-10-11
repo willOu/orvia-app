@@ -159,6 +159,41 @@ function buildBackupData() {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
+function backupDaysSinceLast() {
+  const last = getLastAutoBackupDate();
+  if (!last) return Infinity;
+  const t = new Date(last + 'T00:00:00').getTime();
+  return Number.isNaN(t) ? Infinity : Math.floor((Date.now() - t) / 86400000);
+}
+function renderBackupDueBanner() {
+  const el = document.getElementById('backupDueBanner');
+  if (!el) return;
+  if (!getPendingAutoBackupDate()) { el.style.display = 'none'; el.innerHTML = ''; return; }
+  const d = backupDaysSinceLast();
+  el.style.display = 'block';
+  el.innerHTML = `<div class="settings-card" style="padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:10px;justify-content:space-between">
+    <div style="font-size:13px;line-height:1.35"><b>💾 Sauvegarde de la semaine</b><br><span style="color:var(--muted);font-size:12px">${d === Infinity ? 'Aucune sauvegarde faite pour l\'instant.' : 'Dernière il y a ' + d + ' jour' + (d > 1 ? 's' : '') + '.'}</span></div>
+    <button onclick="confirmAutoBackup()" style="background:var(--accent);color:#fff;border:none;border-radius:999px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0">Enregistrer</button>
+  </div>`;
+}
+// Export du fichier : feuille de partage iOS (Fichiers, iCloud, AirDrop…) si disponible, sinon téléchargement.
+async function shareOrDownloadBackup(suffix) {
+  const name = `timetracker_backup${suffix ? '_' + suffix : ''}.json`;
+  const data = JSON.stringify(buildBackupData(), null, 2);
+  try {
+    const file = new File([data], name, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Sauvegarde Orvia' });
+      return true;
+    }
+  } catch (e) {
+    if (e && e.name === 'AbortError') return false; // annulé par l'utilisateur
+  }
+  performBackupDownload(suffix);
+  return true;
+}
+
+
   function exportBackup() {
     performBackupDownload();
     createVersionSnapshot('Export manuel');
@@ -210,23 +245,32 @@ function buildBackupData() {
   function checkAutoBackup() {
     const settings = getAutoBackupSettings();
     if (!settings.enabled) return;
+    if (!state.sessions.length && !state.conges.length) return;
     const now = new Date();
-    if (now.getDay() !== settings.weekday) return;
     const todayStr = toLocalISO(now);
     if (getLastAutoBackupDate() === todayStr) return;
-    if (getPendingAutoBackupDate() === todayStr) return;
+    const since = backupDaysSinceLast();
+    // Due après 7 jours, de préférence le jour choisi ; après 9 jours quel que soit le jour.
+    const due = since >= 9 || (since >= 7 && now.getDay() === settings.weekday) || since === Infinity;
+    if (!due) return;
+    if (getPendingAutoBackupDate() === todayStr) { renderBackupDueBanner(); return; }
     setPendingAutoBackupDate(todayStr);
-    showToast('💾 Sauvegarde automatique disponible dans Réglages > Sauvegarde');
+    // Copie locale immédiate (dans l'appli), le fichier exportable demande un tap.
+    createVersionSnapshot('Sauvegarde automatique (locale)');
+    renderBackupDueBanner();
+    orviaNotify('Sauvegarde de la semaine 💾', { body: 'Ouvre Orvia pour enregistrer ton fichier de sauvegarde.', tag: 'orvia-backup' });
   }
 
-  function confirmAutoBackup() {
+  async function confirmAutoBackup() {
     const todayStr = getPendingAutoBackupDate() || toLocalISO(new Date());
-    performBackupDownload(todayStr);
+    const done = await shareOrDownloadBackup(todayStr);
+    if (!done) return;
     createVersionSnapshot('Sauvegarde automatique');
     setLastAutoBackupDate(todayStr);
     setPendingAutoBackupDate(null);
     renderBackupSettings();
-    showToast('💾 Sauvegarde automatique effectuée');
+    renderBackupDueBanner();
+    showToast('💾 Sauvegarde effectuée');
   }
 
   function toggleAutoBackup(enabled) {

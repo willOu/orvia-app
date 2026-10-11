@@ -60,6 +60,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 
 <!-- PAGE TODAY -->
 <div class="page active" id="page-today">
+  <div id="backupDueBanner" style="display:none"></div>
 
   <div id="weeklyCapBanner" style="display:none;"></div>
   <div id="dailyComplianceBanner" style="display:none;"></div>
@@ -241,6 +242,22 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       </div>
     </div>
     <button class="btn-add-conge" onclick="addConge()">Enregistrer</button>
+  </div>
+
+  <!-- Simulateur -->
+  <div class="add-conge-card" id="congeSimCard">
+    <h3>🔮 Simuler un congé</h3>
+    <div class="form-row">
+      <div class="form-field">
+        <label>Type de congé</label>
+        <select id="simType" onchange="simulateConge()"></select>
+      </div>
+      <div class="form-dates">
+        <div class="form-field"><label>Du</label><input type="date" id="simStart" onchange="if(!document.getElementById('simEnd').value||document.getElementById('simEnd').value<this.value)document.getElementById('simEnd').value=this.value;simulateConge()"></div>
+        <div class="form-field"><label>Au</label><input type="date" id="simEnd" onchange="simulateConge()"></div>
+      </div>
+    </div>
+    <div id="simResult" style="margin-top:8px"></div>
   </div>
 
   <!-- Liste des congés -->
@@ -1541,6 +1558,23 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     </div>
   </div>
 
+  <div class="settings-card" style="margin-bottom:10px;padding:14px;">
+    <div class="settings-row" style="padding-left:0;padding-right:0;">
+      <label style="font-weight:700">Rappel de fin de journée</label>
+      <label class="switch">
+        <input type="checkbox" id="finJourneeEnabled" onchange="onFinJourneeChange()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="form-field" style="margin-top:8px">
+      <label>Heure de fin de journée</label>
+      <input type="time" id="finJourneeTime" onchange="onFinJourneeChange()">
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:10px;line-height:1.4;">
+      Si le chrono tourne encore après cette heure, Orvia t'envoie une notification (si l'appli est ouverte) et te propose de terminer à cette heure-là dès que tu rouvres l'appli.
+    </div>
+  </div>
+
   <div class="settings-card" style="margin-bottom:10px;">
     <div class="settings-row">
       <label style="font-weight:700">Activer la détection</label>
@@ -1771,7 +1805,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 <div class="modal-overlay" id="forgottenSessionModal" style="display:none;">
   <div class="modal-box">
     <div class="modal-title">⏰ Session peut-être oubliée ?</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.4;">
+    <div id="forgottenSessionIntro" style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.4;">
       Ton chrono tourne depuis longtemps. Démarré à <strong id="forgottenSessionStart"></strong>, soit <strong id="forgottenSessionElapsed"></strong> écoulées.
     </div>
     <div class="modal-row">
@@ -1782,6 +1816,20 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <div class="modal-actions">
       <button class="modal-btn-cancel" onclick="keepForgottenSessionRunning()">Laisser tourner</button>
       <button class="modal-btn-save" onclick="fixForgottenSessionEnd()">Corriger et terminer</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="dayEditModal" style="display:none;">
+  <div class="modal-box" style="max-width:380px;max-height:88vh;overflow-y:auto;">
+    <div class="modal-title" id="dayEditTitle">Journée</div>
+    <div id="dayEditRows"></div>
+    <div id="dayEditTemplates"></div>
+    <button onclick="dayEditAddRow()" style="width:100%;background:rgba(255,255,255,.12);border:1px dashed var(--border);color:var(--text);border-radius:14px;padding:10px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:10px">➕ Ajouter une session</button>
+    <div class="modal-error" id="dayEditError"></div>
+    <div class="modal-actions">
+      <button class="modal-btn-cancel" onclick="closeDayEditor()">Annuler</button>
+      <button class="modal-btn-save" onclick="saveDayEditor()">Enregistrer</button>
     </div>
   </div>
 </div>
@@ -1980,5 +2028,6 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 <script src="js/08-reglages.js"></script>
 <script src="js/09-geofence-stats.js"></script>
 <script src="js/10-interface-init.js"></script>
+<script src="js/11-nouveautes.js"></script>
 </body>
 </html>

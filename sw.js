@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'orvia-v2.4.0';
+const CACHE_VERSION = 'orvia-v2.5.0';
 const CACHE_NAME = CACHE_VERSION;
 const ASSETS_TO_CACHE = [
 '.',
@@ -20,7 +20,8 @@ const ASSETS_TO_CACHE = [
 './js/07-conges.js',
 './js/08-reglages.js',
 './js/09-geofence-stats.js',
-'./js/10-interface-init.js'
+'./js/10-interface-init.js',
+'./js/11-nouveautes.js'
 ];
 
 self.addEventListener('install', event => {
