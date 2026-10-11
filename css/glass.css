@@ -70,7 +70,7 @@ body::before {
   position: fixed; left: 20px; right: 20px; bottom: calc(14px + var(--safe-bottom));
   z-index: 500; height: 66px; padding: 0 7px; gap: 4px; align-items: center;
   border-radius: 34px; border: 1px solid var(--g-edge);
-  background: rgba(40,80,130,.72); background-image: none;
+  background: rgba(30,66,115,.96); background-image: none;
   backdrop-filter: none; -webkit-backdrop-filter: none;
   box-shadow: inset 0 1px 0 var(--g-hi), 0 8px 20px var(--g-shadow);
 }
@@ -88,7 +88,7 @@ body::before {
 html.compact-mode .page { padding: 6px 12px calc(100px + var(--safe-bottom)); }
 
 /* ── Surfaces en verre (grandes) ── */
-:root.light-mode .tabs { background: rgba(255,255,255,.85); }
+:root.light-mode .tabs { background: rgba(255,255,255,.96); }
 .clock-card, :root.has-seasonal .clock-card, .settings-card, .stat-card, .solde-card, .objectif-card,
 .add-conge-card, .export-card, .view-selector, .modal-box {
   background: var(--g-fill); background-image: none;
