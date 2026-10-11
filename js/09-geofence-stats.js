@@ -455,6 +455,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.3.1', date: '2026-10-11', items: ['Correctif : Suppression du flou en haut et en bas de l\u2019écran (Liquid Glass)'] },
     { version: '2.3.0', date: '2026-10-11', items: ['Nouveauté : Refonte du design en Liquid Glass (verre dépoli, barre d\u2019onglets flottante)'] },
     { version: '2.2.1', date: '2026-10-10', items: ['Correctif : Congés BTP alignés sur les règles CIBTP (ETAM)'] },
     { version: '2.2.0', date: '2026-10-10', items: ['Nouveauté : Fusion de synchro entre appareils et découpage du code'] },

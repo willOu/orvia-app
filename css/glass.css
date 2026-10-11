@@ -39,10 +39,12 @@
   --g-orb1: #B7A4FF; --g-orb2: #FFC2A3; --g-orb3: #9BEBD8;
 }
 
-html { background: var(--g-bg); background-attachment: fixed; min-height: 100%; }
+html { background: #17497A; min-height: 100%; }
+:root.light-mode { background-color: #DCE8F7; }
+html::before { content: ''; position: fixed; left: 0; right: 0; top: -120px; bottom: -120px; z-index: -2; pointer-events: none; background: var(--g-bg); }
 body { background: transparent; font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Figtree', sans-serif; }
 body::before {
-  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  content: ''; position: fixed; left: 0; right: 0; top: -120px; bottom: -120px; z-index: -1; pointer-events: none;
   background:
     radial-gradient(circle 170px at 4% 22%, var(--g-orb1) 0%, transparent 100%),
     radial-gradient(circle 160px at 98% 48%, var(--g-orb2) 0%, transparent 100%),
@@ -60,7 +62,7 @@ body::before {
 :root.has-seasonal .header .date, :root.has-seasonal .header h1 { text-shadow: none; color: var(--text); }
 .version-badge-topright {
   background: var(--g-fill); color: var(--text); border: 1px solid var(--g-edge);
-  box-shadow: inset 0 1px 0 var(--g-hi); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 0 var(--g-hi);
 }
 
 /* ── Barre d'onglets : capsule flottante en bas ── */
@@ -68,9 +70,9 @@ body::before {
   position: fixed; left: 20px; right: 20px; bottom: calc(14px + var(--safe-bottom));
   z-index: 500; height: 66px; padding: 0 7px; gap: 4px; align-items: center;
   border-radius: 34px; border: 1px solid var(--g-edge);
-  background: var(--g-fill); background-image: none;
-  backdrop-filter: blur(30px) saturate(190%); -webkit-backdrop-filter: blur(30px) saturate(190%);
-  box-shadow: inset 0 1px 0 var(--g-hi), 0 14px 34px var(--g-shadow);
+  background: rgba(40,80,130,.72); background-image: none;
+  backdrop-filter: none; -webkit-backdrop-filter: none;
+  box-shadow: inset 0 1px 0 var(--g-hi), 0 8px 20px var(--g-shadow);
 }
 .tab, :root.has-seasonal .tab {
   flex: 1; height: 52px; padding: 0; border: none; border-radius: 26px; color: var(--muted);
@@ -86,6 +88,7 @@ body::before {
 html.compact-mode .page { padding: 6px 12px calc(100px + var(--safe-bottom)); }
 
 /* ── Surfaces en verre (grandes) ── */
+:root.light-mode .tabs { background: rgba(255,255,255,.85); }
 .clock-card, :root.has-seasonal .clock-card, .settings-card, .stat-card, .solde-card, .objectif-card,
 .add-conge-card, .export-card, .view-selector, .modal-box {
   background: var(--g-fill); background-image: none;
