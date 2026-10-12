@@ -133,8 +133,28 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
 </div>
 
 <!-- PAGE HISTORY -->
+<div class="page" id="page-yearstats">
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('history')">
+      <label>← Retour</label>
+      <div class="settings-summary">Historique</div>
+    </div>
+  </div>
+  <div class="view-selector" style="margin-bottom:10px;">
+    <button class="view-btn" id="ysModeCal" onclick="setYearStatsMode('cal')">Année civile</button>
+    <button class="view-btn" id="ysModeRoll" onclick="setYearStatsMode('roll')">12 derniers mois</button>
+  </div>
+  <div class="cal-nav" id="ysNav" style="margin-bottom:10px;">
+    <button onclick="yearStatsStep(-1)">‹</button>
+    <span class="cal-month" id="ysTitle"></span>
+    <button onclick="yearStatsStep(1)">›</button>
+  </div>
+  <div id="ysBody"></div>
+</div>
+
 <div class="page" id="page-history">
   <div id="anomalyBanner" style="display:none;"></div>
+  <button class="btn-add-conge" style="margin-bottom:12px;width:100%" onclick="openYearStats()">📊 Statistiques de l'année</button>
   <div class="stats-grid" id="statsGrid"></div>
 
   <div class="section-title" style="display:flex;justify-content:space-between;align-items:center;">

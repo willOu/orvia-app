@@ -456,6 +456,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.9.0', date: '2026-10-12', items: ['Nouveauté : Page Statistiques de l\u2019année (mois le plus chargé, moyennes, graphiques sur 12 mois, semaines et jours)'] },
     { version: '2.8.0', date: '2026-10-12', items: ['Nouveauté : Animations soignées (transitions, chrono à chiffres défilants, anneau, retour haptique)'] },
     { version: '2.7.0', date: '2026-10-12', items: ['Nouveauté : Afficher ou masquer objectifs, heures supplémentaires et rémunération sur la page Aujourd\u2019hui'] },
     { version: '2.6.0', date: '2026-10-12', items: ['Nouveauté : Grand anneau de progression sur l\u2019écran Aujourd\u2019hui (jour, pause, objectif atteint)'] },

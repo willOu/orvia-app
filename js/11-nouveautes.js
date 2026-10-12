@@ -378,3 +378,122 @@ function haptic(kind) {
     was = reached;
   };
 })();
+
+// ═══ STATISTIQUES DE L'ANNÉE ═══════════════════════════════
+let _ys = { mode: 'cal', year: new Date().getFullYear() };
+const YS_MONTHS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+const YS_MONTHS_LONG = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+const YS_DOW = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+function openYearStats() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-yearstats').classList.add('active');
+  const tabs = document.querySelectorAll('.tab'); if (tabs[1]) tabs[1].classList.add('active');
+  renderYearStats();
+}
+function setYearStatsMode(m) { _ys.mode = m; renderYearStats(); }
+function yearStatsStep(d) { _ys.year += d; renderYearStats(); }
+
+function ysHours(ms) { const h = ms / 3600000; return h >= 100 ? Math.round(h) + ' h' : (Math.round(h * 10) / 10).toString().replace('.', ',') + ' h'; }
+
+function ysRange() {
+  const now = new Date();
+  if (_ys.mode === 'roll') {
+    const start = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    return { start, end, months: Array.from({ length: 12 }, (_, i) => new Date(start.getFullYear(), start.getMonth() + i, 1)) };
+  }
+  return { start: new Date(_ys.year, 0, 1), end: new Date(_ys.year + 1, 0, 1), months: Array.from({ length: 12 }, (_, i) => new Date(_ys.year, i, 1)) };
+}
+
+function ysBarChart(title, sub, items, opts) {
+  opts = opts || {};
+  const W = 340, H = opts.h || 150, padB = 20, padT = 16;
+  const n = items.length, gap = opts.gap == null ? 6 : opts.gap, bw = (W - gap * (n - 1)) / n;
+  const maxV = Math.max(1, ...items.map(i => i.v));
+  const ch = H - padB - padT;
+  const avgY = opts.avg != null ? padT + ch - (opts.avg / maxV) * ch : null;
+  const maxIdx = items.reduce((m, it, i) => (it.v > items[m].v ? i : m), 0);
+  const bars = items.map((it, i) => {
+    const h = Math.max(it.v > 0 ? 2 : 0, (it.v / maxV) * ch);
+    const x = i * (bw + gap), y = padT + ch - h;
+    const cls = 'ys-bar' + (i === maxIdx && it.v > 0 ? ' max' : it.cur ? ' cur' : '');
+    const lab = opts.valueLabels && it.v > 0 ? `<text class="ys-t${i === maxIdx ? ' b' : ''}" x="${x + bw / 2}" y="${y - 4}" text-anchor="middle">${it.lbl2 || Math.round(it.v / 3600000)}</text>` : '';
+    const showX = !opts.xEvery || i % opts.xEvery === 0;
+    return `<rect class="${cls}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="${Math.min(5, bw / 2)}" style="animation-delay:${i * 25}ms"><title>${it.tip || ''}</title></rect>${lab}${showX ? `<text class="ys-t" x="${i === 0 && opts.gap < 3 ? 0 : x + bw / 2}" y="${H - 5}" text-anchor="${i === 0 && opts.gap < 3 ? 'start' : 'middle'}">${it.x}</text>` : ''}`;
+  }).join('');
+  const avg = avgY != null ? `<line class="ys-avg" x1="0" x2="${W}" y1="${avgY.toFixed(1)}" y2="${avgY.toFixed(1)}"/>` : '';
+  return `<div class="settings-card ys-chart"><h3>${title}</h3><div class="sub">${sub}</div><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${title}">${avg}${bars}</svg>${opts.avg != null ? `<div class="ys-legend"><span><i></i>${opts.avgLabel}</span></div>` : ''}</div>`;
+}
+
+function renderYearStats() {
+  const calBtn = document.getElementById('ysModeCal'), rollBtn = document.getElementById('ysModeRoll');
+  if (calBtn) calBtn.classList.toggle('active', _ys.mode === 'cal');
+  if (rollBtn) rollBtn.classList.toggle('active', _ys.mode === 'roll');
+  const nav = document.getElementById('ysNav'); if (nav) nav.style.display = _ys.mode === 'cal' ? '' : 'none';
+  const { start, end, months } = ysRange();
+  document.getElementById('ysTitle').textContent = _ys.mode === 'cal' ? String(_ys.year) : '12 derniers mois';
+  const sessions = state.sessions.filter(s => s.start >= start.getTime() && s.start < end.getTime());
+  const body = document.getElementById('ysBody');
+  if (!sessions.length) { body.innerHTML = '<div class="empty"><div class="emoji">📊</div>Aucune session sur cette période</div>'; return; }
+
+  // agrégats
+  const byDay = {}, byMonth = months.map(() => 0), byWeek = {};
+  sessions.forEach(s => {
+    const d = new Date(s.start), dk = tsToDateInput(s.start);
+    byDay[dk] = (byDay[dk] || 0) + (s.net || 0);
+    const mi = months.findIndex(m => m.getFullYear() === d.getFullYear() && m.getMonth() === d.getMonth());
+    if (mi >= 0) byMonth[mi] += s.net || 0;
+    const wk = tsToDateInput(getMondayOf(d).getTime());
+    byWeek[wk] = (byWeek[wk] || 0) + (s.net || 0);
+  });
+  const total = sessions.reduce((a, s) => a + (s.net || 0), 0);
+  const days = Object.keys(byDay).length;
+  const weeksArr = Object.keys(byWeek).sort();
+  const avgWeek = total / Math.max(1, weeksArr.length);
+  const avgDay = total / Math.max(1, days);
+  const bestMonthIdx = byMonth.reduce((m, v, i) => (v > byMonth[m] ? i : m), 0);
+  const bm = months[bestMonthIdx];
+  const longestKey = Object.keys(byDay).reduce((m, k) => (byDay[k] > byDay[m] ? k : m), Object.keys(byDay)[0]);
+  const longestD = new Date(longestKey + 'T00:00:00');
+  const bestWeekKey = weeksArr.reduce((m, k) => (byWeek[k] > byWeek[m] ? k : m), weeksArr[0]);
+  const bwD = new Date(bestWeekKey + 'T00:00:00');
+
+  const card = (k, v, sub, hl) => `<div class="settings-card ys-card${hl ? ' hl' : ''}"><div class="k">${k}</div><div class="v">${v}</div><div class="s">${sub || ''}</div></div>`;
+  const cards = `<div class="ys-grid">
+    ${card('Total', ysHours(total), days + ' jour' + (days > 1 ? 's' : '') + ' travaillé' + (days > 1 ? 's' : ''), true)}
+    ${card('Moyenne / semaine', ysHours(avgWeek), weeksArr.length + ' semaine' + (weeksArr.length > 1 ? 's' : '') + ' avec activité')}
+    ${card('Mois le plus chargé', YS_MONTHS_LONG[bm.getMonth()].replace(/^./, c => c.toUpperCase()), ysHours(byMonth[bestMonthIdx]) + (_ys.mode === 'roll' ? ' · ' + bm.getFullYear() : ''))}
+    ${card('Journée moyenne', ysHours(avgDay), 'sur les jours travaillés')}
+    ${card('Journée la plus longue', ysHours(byDay[longestKey]), longestD.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }))}
+    ${card('Semaine la plus chargée', ysHours(byWeek[bestWeekKey]), 'du ' + bwD.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }))}
+  </div>`;
+
+  // graphique 12 mois
+  const nowM = new Date();
+  const monthItems = months.map((m, i) => ({
+    v: byMonth[i], x: YS_MONTHS[m.getMonth()], cur: m.getFullYear() === nowM.getFullYear() && m.getMonth() === nowM.getMonth(),
+    tip: YS_MONTHS_LONG[m.getMonth()] + ' ' + m.getFullYear() + ' : ' + ysHours(byMonth[i]),
+  }));
+  const activeMonths = byMonth.filter(v => v > 0);
+  const avgMonth = activeMonths.length ? activeMonths.reduce((a, b) => a + b, 0) / activeMonths.length : 0;
+  const c1 = ysBarChart('Évolution sur 12 mois', 'Heures travaillées par mois (en heures)', monthItems, { valueLabels: true, avg: avgMonth, avgLabel: 'Moyenne mensuelle : ' + ysHours(avgMonth), gap: 5 });
+
+  // graphique semaines
+  const weekItems = [];
+  const w0 = getMondayOf(start);
+  for (let d = new Date(w0); d < end; d.setDate(d.getDate() + 7)) {
+    const k = tsToDateInput(d.getTime());
+    weekItems.push({ v: byWeek[k] || 0, x: weekItems.length % 8 === 0 ? (d.getDate() + ' ' + YS_MONTHS[d.getMonth()]) : '', tip: 'Semaine du ' + d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' }) + ' : ' + ysHours(byWeek[k] || 0) });
+  }
+  const c2 = ysBarChart('Heures par semaine', 'Chaque barre est une semaine', weekItems, { avg: avgWeek, avgLabel: 'Moyenne : ' + ysHours(avgWeek), gap: 1.5, h: 130 });
+
+  // jours de la semaine
+  const dowSum = [0, 0, 0, 0, 0, 0, 0], dowN = [0, 0, 0, 0, 0, 0, 0];
+  Object.keys(byDay).forEach(k => { const i = (new Date(k + 'T00:00:00').getDay() + 6) % 7; dowSum[i] += byDay[k]; dowN[i]++; });
+  const dowItems = YS_DOW.map((l, i) => { const a = dowN[i] ? dowSum[i] / dowN[i] : 0; return { v: a, x: l, lbl2: a ? (Math.round(a / 360000) / 10).toString().replace('.', ',') : '', tip: l + ' : ' + ysHours(a) + ' en moyenne' }; });
+  const c3 = ysBarChart('Journée type', 'Durée moyenne selon le jour de la semaine (en heures)', dowItems, { valueLabels: true, gap: 10, h: 130 });
+
+  body.innerHTML = cards + c1 + c2 + c3;
+}
