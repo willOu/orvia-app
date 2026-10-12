@@ -310,3 +310,31 @@ html.compact-mode .ring-center .big-time { font-size: 32px; }
 .ys-t.b { fill: var(--text); font-weight: 700; }
 .ys-legend { display: flex; gap: 14px; font-size: 11px; color: var(--muted); margin: 6px 4px 0; }
 .ys-legend i { display: inline-block; width: 14px; height: 0; border-top: 2px dashed var(--orange); margin-right: 5px; vertical-align: middle; }
+
+/* ── Fériés et ponts ── */
+.pt-summary { padding: 12px 14px; margin-bottom: 12px; font-size: 13px; line-height: 1.45; }
+.pt-item { padding: 12px 14px; margin-bottom: 8px; }
+.pt-item .t { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.pt-item .t b { font-size: 15px; }
+.pt-item .ratio { font-size: 12px; font-weight: 700; color: var(--green); white-space: nowrap; }
+.pt-item .d { font-size: 12.5px; color: var(--muted); margin-top: 3px; line-height: 1.4; }
+.pt-item .tip { font-size: 12.5px; margin-top: 6px; line-height: 1.4; }
+.pt-item.done { opacity: .55; }
+.pt-item button { margin-top: 8px; background: var(--accent); color: #fff; border: none; border-radius: 999px; padding: 7px 14px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+.pt-months { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 12px; }
+.pt-month { padding: 8px 6px 6px; }
+.pt-month .mt { font-size: 11px; font-weight: 700; text-align: center; margin-bottom: 4px; text-transform: capitalize; }
+.pt-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; }
+.pt-d { font-size: 8.5px; text-align: center; line-height: 14px; height: 14px; border-radius: 4px; font-variant-numeric: tabular-nums; }
+.pt-d.we { opacity: .4; }
+.pt-d.hol { background: #FF8A5B; color: #fff; font-weight: 700; opacity: 1; }
+.pt-d.br { background: rgba(140,245,210,.35); outline: 1px dashed #8CF5D2; outline-offset: -1px; }
+.pt-d.cg { background: rgba(124,92,255,.55); color: #fff; opacity: 1; }
+.pt-d.td { outline: 1.5px solid var(--text); outline-offset: -1px; }
+:root.light-mode .pt-d.br { background: rgba(11,143,104,.18); outline-color: #0B8F68; }
+.pt-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px; color: var(--muted); margin: -4px 2px 12px; }
+.pt-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
+.pt-hols { padding: 4px 14px; margin-bottom: 12px; }
+.pt-hols .r { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--g-edge); font-size: 13px; }
+.pt-hols .r:last-child { border-bottom: none; }
+.pt-hols .r > span:last-child { color: var(--muted); text-transform: capitalize; text-align: right; }

@@ -497,3 +497,152 @@ function renderYearStats() {
 
   body.innerHTML = cards + c1 + c2 + c3;
 }
+
+// ═══ FÉRIÉS ET PONTS ═══════════════════════════════════════
+let _pontsYear = new Date().getFullYear();
+function openPonts() {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-ponts').classList.add('active');
+  const tabs = document.querySelectorAll('.tab'); if (tabs[2]) tabs[2].classList.add('active');
+  renderPonts();
+}
+function pontsStep(d) { _pontsYear += d; renderPonts(); }
+
+function ptISO(d) { return toLocalISO(d); }
+function ptAdd(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function ptIsWorkday(d) {
+  const iso = ptISO(d);
+  return getGoalForDow(d.getDay()) > 0 && !isDateHoliday(iso);
+}
+function ptCongeOn(iso) { return state.conges.find(c => c.start <= iso && c.end >= iso); }
+function ptOff(d) { return !ptIsWorkday(d) || !!ptCongeOn(ptISO(d)); }
+const PT_FMT = (d, o) => d.toLocaleDateString('fr-FR', o || { weekday: 'short', day: 'numeric', month: 'short' });
+
+// Ponts = suites de 1 à 4 jours travaillés coincées entre deux périodes non travaillées,
+// dont au moins une contient un jour férié.
+function computePonts(year) {
+  const res = [];
+  const start = new Date(year, 0, 1), end = new Date(year, 11, 31);
+  let d = new Date(start);
+  while (d <= end) {
+    if (ptOff(d)) { d = ptAdd(d, 1); continue; }
+    // début d'une suite de jours travaillés
+    let a = new Date(d), b = new Date(d), len = 0;
+    while (b <= ptAdd(end, 7) && !ptOff(b)) { b = ptAdd(b, 1); len++; }
+    const last = ptAdd(b, -1);
+    if (len >= 1 && len <= 4) {
+      // bloc libre avant et après
+      let L = ptAdd(a, -1), R = new Date(b), hasHol = false, hols = [];
+      while (ptOff(L)) { if (isDateHoliday(ptISO(L))) { hasHol = true; hols.push(ptISO(L)); } L = ptAdd(L, -1); }
+      while (ptOff(R)) { if (isDateHoliday(ptISO(R))) { hasHol = true; hols.push(ptISO(R)); } R = ptAdd(R, 1); }
+      const blockStart = ptAdd(L, 1), blockEnd = ptAdd(R, -1);
+      const total = Math.round((blockEnd - blockStart) / 86400000) + 1;
+      if (hasHol && ptAdd(a, -1) >= new Date(year - 1, 11, 25) && total >= 4) {
+        // coût : RTT / jours ouvrés = jours travaillés posés ; CP en jours ouvrables (BTP) = du 1er jour posé à la veille de la reprise, hors dimanches et fériés
+        const costWork = len;
+        const costOuv = ouvrablesBetween(ptISO(a), ptISO(ptAdd(R, -1)));
+        res.push({ a, last, len, total, blockStart, blockEnd, costWork, costOuv, hols: [...new Set(hols)].sort(), ratio: total / len });
+      }
+    }
+    d = b;
+  }
+  return res.filter(p => p.a.getFullYear() === year).sort((x, y) => x.a - y.a);
+}
+
+function renderPonts() {
+  const year = _pontsYear;
+  document.getElementById('pontsTitle').textContent = String(year);
+  const body = document.getElementById('pontsBody');
+  const today = ptISO(new Date());
+  const cfg = getBTPConfig();
+  const cpOuv = cfg.enabled && cfg.ouvrables;
+  const ponts = computePonts(year);
+  const bridgeDays = new Set();
+  ponts.forEach(p => { for (let x = new Date(p.a); x <= p.last; x = ptAdd(x, 1)) bridgeDays.add(ptISO(x)); });
+
+  // soldes
+  const qR = getEffectiveQuotaForYear('rtt', year), tR = getCongesTakenForYear('rtt', year);
+  const qC = getEffectiveQuotaForYear('cp', year), tC = getCongesTakenForYear('cp', year);
+  const leftR = Math.max(0, qR - tR), leftC = Math.max(0, qC - tC);
+
+  // ponts à venir, triés par rendement
+  const upcoming = ponts.filter(p => ptISO(p.last) >= today);
+  const best = [...upcoming].filter(p => !ptCongeOn(ptISO(p.a))).sort((x, y) => y.ratio - x.ratio || x.len - y.len);
+  const totalCostR = best.reduce((a, p) => a + p.costWork, 0);
+  let summary = '';
+  if (best.length) {
+    const top = best[0];
+    summary = `<div class="settings-card pt-summary">💡 <b>${best.length} pont${best.length > 1 ? 's' : ''} encore possible${best.length > 1 ? 's' : ''}</b> en ${year}, pour ${totalCostR} jour${totalCostR > 1 ? 's' : ''} posé${totalCostR > 1 ? 's' : ''} au total.<br>Le plus rentable : <b>${PT_FMT(top.a)}</b> → ${top.total} jours de repos pour ${top.len} posé${top.len > 1 ? 's' : ''}.<br><span style="color:var(--muted)">Soldes ${year} : RTT ${leftR} j · CP ${leftC} j${cpOuv ? ' (jours ouvrables)' : ''}.</span></div>`;
+  } else {
+    summary = `<div class="settings-card pt-summary">Aucun pont restant à poser en ${year}.<br><span style="color:var(--muted)">Soldes ${year} : RTT ${leftR} j · CP ${leftC} j.</span></div>`;
+  }
+
+  // vue de l'année
+  const months = Array.from({ length: 12 }, (_, m) => {
+    const first = new Date(year, m, 1), nb = new Date(year, m + 1, 0).getDate();
+    const offset = (first.getDay() + 6) % 7;
+    let cells = '<span class="pt-d"></span>'.repeat(offset);
+    for (let i = 1; i <= nb; i++) {
+      const dd = new Date(year, m, i), iso = ptISO(dd);
+      const cls = ['pt-d'];
+      if (isDateHoliday(iso)) cls.push('hol');
+      else if (ptCongeOn(iso)) cls.push('cg');
+      else if (bridgeDays.has(iso)) cls.push('br');
+      else if (getGoalForDow(dd.getDay()) === 0) cls.push('we');
+      if (iso === today) cls.push('td');
+      const lab = getHolidayLabel(iso);
+      cells += `<span class="${cls.join(' ')}"${lab ? ` title="${lab}"` : ''}>${i}</span>`;
+    }
+    return `<div class="settings-card pt-month"><div class="mt">${first.toLocaleDateString('fr-FR', { month: 'long' })}</div><div class="pt-grid">${cells}</div></div>`;
+  }).join('');
+  const legend = `<div class="pt-legend"><span><i style="background:#FF8A5B"></i>Férié</span><span><i style="background:rgba(140,245,210,.35);outline:1px dashed #8CF5D2;outline-offset:-1px"></i>Pont possible</span><span><i style="background:rgba(124,92,255,.55)"></i>Congé posé</span></div>`;
+
+  // liste des ponts
+  const items = ponts.map(p => {
+    const isoA = ptISO(p.a), isoL = ptISO(p.last);
+    const past = isoL < today, posed = !!ptCongeOn(isoA);
+    const holNames = p.hols.map(h => getHolidayLabel(h)).filter(Boolean).join(' + ');
+    const range = p.len === 1 ? PT_FMT(p.a, { weekday: 'long', day: 'numeric', month: 'long' }) : `du ${PT_FMT(p.a)} au ${PT_FMT(p.last)}`;
+    let tip = '';
+    if (!past && !posed) {
+      if (cpOuv && p.costOuv > p.costWork) {
+        tip = leftR >= p.costWork
+          ? `👉 Pose plutôt <b>${p.costWork} RTT</b> : en CP, ce pont te coûterait <b>${p.costOuv} jours ouvrables</b> (le samedi compte).`
+          : `👉 En CP, compte <b>${p.costOuv} jours ouvrables</b> (le samedi compte). Il ne te reste que ${leftR} RTT.`;
+      } else {
+        tip = `👉 ${p.costWork} jour${p.costWork > 1 ? 's' : ''} à poser, en RTT ou en CP.`;
+      }
+    }
+    const btn = !past && !posed ? `<button onclick="pontsPoser('${isoA}','${isoL}','${(cpOuv && p.costOuv > p.costWork && leftR >= p.costWork) || !cpOuv ? 'rtt' : 'cp'}')">Simuler ce pont</button>` : '';
+    return `<div class="settings-card pt-item${past || posed ? ' done' : ''}">
+      <div class="t"><b>${holNames || 'Pont'}</b><span class="ratio">${p.total} j de repos · ${p.len} posé${p.len > 1 ? 's' : ''}</span></div>
+      <div class="d">Poser ${range} · repos du ${PT_FMT(p.blockStart)} au ${PT_FMT(p.blockEnd)}${posed ? ' · <b>déjà posé ✓</b>' : past ? ' · passé' : ''}</div>
+      ${tip ? `<div class="tip">${tip}</div>` : ''}${btn}
+    </div>`;
+  }).join('') || '<div class="empty"><div class="emoji">🌉</div>Aucun pont cette année avec tes jours de travail</div>';
+
+  // liste des fériés
+  const { labels } = getFrenchHolidays(year);
+  const hols = Object.keys(labels).sort().map(iso => {
+    const d = new Date(iso + 'T00:00:00');
+    const wk = getGoalForDow(d.getDay()) === 0;
+    return `<div class="r"><span>${labels[iso]}${iso.endsWith('-05-25') || labels[iso] === 'Lundi de Pentecôte' ? ' <span style="font-size:11px;color:var(--muted)">(souvent journée de solidarité)</span>' : ''}${wk ? ' <span style="font-size:11px;color:var(--orange)">· tombe un jour non travaillé</span>' : ''}</span><span>${PT_FMT(d, { weekday: 'long', day: 'numeric', month: 'long' })}</span></div>`;
+  }).join('');
+
+  body.innerHTML = summary + legend + `<div class="pt-months">${months}</div>`
+    + `<div class="section-title">Ponts de l'année</div>${items}`
+    + `<div class="section-title" style="margin-top:14px">Jours fériés ${year}</div><div class="settings-card pt-hols">${hols}</div>`
+    + `<div style="font-size:11px;color:var(--muted);line-height:1.4;margin:4px 2px 12px">Calculé à partir de tes jours travaillés (objectifs par jour) et de tes congés déjà posés. ${cpOuv ? 'Mode BTP : les CP sont décomptés en jours ouvrables (du lundi au samedi), un pont le vendredi coûte donc 2 jours de CP mais 1 seul RTT.' : ''}</div>`;
+}
+
+function pontsPoser(a, b, type) {
+  switchTab('conges');
+  setTimeout(() => {
+    const t = document.getElementById('simType'); if (t) { syncSimTypes(); t.value = type; }
+    document.getElementById('simStart').value = a;
+    document.getElementById('simEnd').value = b;
+    simulateConge();
+    const card = document.getElementById('congeSimCard'); if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 80);
+}

@@ -152,6 +152,21 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div id="ysBody"></div>
 </div>
 
+<div class="page" id="page-ponts">
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('conges')">
+      <label>← Retour</label>
+      <div class="settings-summary">Congés</div>
+    </div>
+  </div>
+  <div class="cal-nav" style="margin-bottom:10px;">
+    <button onclick="pontsStep(-1)">‹</button>
+    <span class="cal-month" id="pontsTitle"></span>
+    <button onclick="pontsStep(1)">›</button>
+  </div>
+  <div id="pontsBody"></div>
+</div>
+
 <div class="page" id="page-history">
   <div id="anomalyBanner" style="display:none;"></div>
   <button class="btn-add-conge" style="margin-bottom:12px;width:100%" onclick="openYearStats()">📊 Statistiques de l'année</button>
@@ -281,6 +296,8 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     </div>
     <button class="btn-add-conge" onclick="addConge()">Enregistrer</button>
   </div>
+
+  <button class="btn-add-conge" style="margin-bottom:12px;width:100%" onclick="openPonts()">🌉 Fériés et ponts de l'année</button>
 
   <!-- Simulateur -->
   <div class="add-conge-card" id="congeSimCard">
