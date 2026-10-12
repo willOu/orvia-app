@@ -219,3 +219,27 @@ html.compact-mode .page { padding: 6px 12px calc(100px + var(--safe-bottom)); }
 .btn-resume { background: color-mix(in srgb, var(--accent) 55%, transparent); }
 :root.themed .tabs, :root.has-seasonal .tabs { background: color-mix(in srgb, var(--accent) 28%, #0B1830 72%); }
 :root.themed.light-mode .tabs, :root.has-seasonal.light-mode .tabs { background: rgba(255,255,255,.96); }
+
+/* ── Grand anneau de progression (écran Aujourd'hui) ── */
+.clock-card.ring-card { background: none; border: none; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none; padding: 4px 0 8px; margin-bottom: 8px; }
+.ring-wrap { position: relative; width: min(300px, 82vw); aspect-ratio: 1; margin: 0 auto; }
+.ring-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ring-disc { fill: var(--g-fill); stroke: var(--g-edge); stroke-width: 1.5; }
+.ring-tick { stroke: rgba(255,255,255,.28); stroke-width: 1; }
+.ring-tick.major { stroke: rgba(255,255,255,.45); stroke-width: 2; }
+:root.light-mode .ring-tick { stroke: rgba(18,32,58,.2); }
+:root.light-mode .ring-tick.major { stroke: rgba(18,32,58,.35); }
+.ring-track { fill: none; stroke: rgba(255,255,255,.18); stroke-width: 22; }
+:root.light-mode .ring-track { stroke: rgba(18,32,58,.12); }
+.ring-prog { fill: none; stroke: url(#ringGrad); stroke-width: 22; stroke-linecap: round; transition: stroke-dashoffset .8s cubic-bezier(.2,.8,.2,1); filter: drop-shadow(0 0 10px rgba(140,245,210,.5)); }
+.ring-g1 { stop-color: #8CF5D2; } .ring-g2 { stop-color: #ffffff; }
+:root.light-mode .ring-g1 { stop-color: #0B8F68; } :root.light-mode .ring-g2 { stop-color: #2BB89A; }
+.ring-svg.paused .ring-g1 { stop-color: #FFC38F; } .ring-svg.paused .ring-g2 { stop-color: #FFE2A8; }
+.ring-svg.paused .ring-prog { filter: drop-shadow(0 0 10px rgba(255,195,143,.5)); }
+:root.light-mode .ring-svg.paused .ring-g1 { stop-color: #C26A12; } :root.light-mode .ring-svg.paused .ring-g2 { stop-color: #E8A24A; }
+.ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.ring-center .big-time { font-size: 40px; font-weight: 200; letter-spacing: -1.5px; margin: 6px 0 2px; }
+.ring-center .elapsed-label { font-weight: 700; letter-spacing: .14em; font-size: 11px; }
+.ring-sub { font-size: 14px; color: var(--muted); font-weight: 500; min-height: 18px; }
+html.compact-mode .ring-wrap { width: min(240px, 70vw); }
+html.compact-mode .ring-center .big-time { font-size: 32px; }

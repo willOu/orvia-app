@@ -261,3 +261,34 @@ function simPoser() {
 setInterval(checkEndOfDay, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkEndOfDay(); checkAutoBackup(); } });
 setTimeout(checkEndOfDay, 1500);
+
+// ── GRAND ANNEAU DE PROGRESSION (écran Aujourd'hui) ─────────
+function updateRing() {
+  const prog = document.getElementById('ringProg');
+  const svg = document.getElementById('ringSvg');
+  const sub = document.getElementById('ringSub');
+  if (!prog || !svg) return;
+  const now = new Date();
+  let done = state.sessions.filter(s => s.date === todayKey()).reduce((a, s) => a + (s.net || 0), 0);
+  if (isDateOnRTT(toLocalISO(now))) done += getGoalForDow(now.getDay());
+  if (state.status !== 'idle' && state.startTs) {
+    let pause = state.totalPauseMs;
+    if (state.status === 'paused' && state.pauseStart) pause += now.getTime() - state.pauseStart;
+    done += Math.max(0, now.getTime() - state.startTs - pause);
+  }
+  const goal = getGoalForDow(now.getDay());
+  const pct = goal > 0 ? done / goal : 0;
+  const R = 112, C = 2 * Math.PI * R;
+  prog.style.strokeDashoffset = (C * (1 - Math.min(1, pct))).toFixed(1);
+  svg.classList.toggle('paused', state.status === 'paused');
+  if (sub) {
+    sub.textContent = goal > 0
+      ? (pct >= 1 ? 'objectif atteint 🎉' : `${fmtHM(done)} sur ${fmtHM(goal)} · ${Math.round(pct * 100)} %`)
+      : (done > 0 ? fmtHM(done) + ' aujourd\'hui' : '');
+  }
+}
+(function hookRing() {
+  const t = tick; tick = function () { const r = t.apply(this, arguments); try { updateRing(); } catch (e) {} return r; };
+  const rt = renderToday; renderToday = function () { const r = rt.apply(this, arguments); try { updateRing(); } catch (e) {} return r; };
+})();
+updateRing();
