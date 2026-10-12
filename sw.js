@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'orvia-v2.9.0';
+const CACHE_VERSION = 'orvia-v2.9.1';
 const CACHE_NAME = CACHE_VERSION;
 const ASSETS_TO_CACHE = [
 '.',
@@ -26,7 +26,7 @@ const ASSETS_TO_CACHE = [
 
 self.addEventListener('install', event => {
 event.waitUntil(
-caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS_TO_CACHE))
+caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS_TO_CACHE.map(u => new Request(u, { cache: 'reload' }))))
 );
 });
 
