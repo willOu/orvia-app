@@ -292,3 +292,26 @@ function updateRing() {
   const rt = renderToday; renderToday = function () { const r = rt.apply(this, arguments); try { updateRing(); } catch (e) {} return r; };
 })();
 updateRing();
+
+// ── SECTIONS AFFICHÉES SUR LA PAGE AUJOURD'HUI ──────────────
+const HOME_SECTIONS = { objectifs: 'homeSecObjectifs', overtime: 'homeSecOvertime', remuneration: 'homeSecRemuneration' };
+const HOME_SECTION_CHECKS = { objectifs: 'homeShowObjectifs', overtime: 'homeShowOvertime', remuneration: 'homeShowRemuneration' };
+function getHomeSections() {
+  const def = { objectifs: true, overtime: true, remuneration: true };
+  try { return Object.assign(def, JSON.parse(localStorage.getItem('orvia_home_sections') || '{}')); } catch (e) { return def; }
+}
+function applyHomeSections() {
+  const c = getHomeSections();
+  Object.keys(HOME_SECTIONS).forEach(k => {
+    const el = document.getElementById(HOME_SECTIONS[k]);
+    if (el) el.style.display = c[k] === false ? 'none' : '';
+    const chk = document.getElementById(HOME_SECTION_CHECKS[k]);
+    if (chk) chk.checked = c[k] !== false;
+  });
+}
+function onHomeSectionToggle(key, on) {
+  const c = getHomeSections(); c[key] = !!on;
+  localStorage.setItem('orvia_home_sections', JSON.stringify(c));
+  applyHomeSections();
+}
+applyHomeSections();

@@ -106,17 +106,23 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <input type="text" id="noteInput" placeholder="Note (ex: réunion client, dev…)" maxlength="60" oninput="onNoteInputChange()">
   </div>
 
-  <div class="section-title">Objectifs</div>
-  <div id="objectifsBlock" style="margin-bottom:16px"></div>
+  <div id="homeSecObjectifs">
+    <div class="section-title">Objectifs</div>
+    <div id="objectifsBlock" style="margin-bottom:16px"></div>
 
-  <div id="monthForecastCard" style="margin-bottom:16px"></div>
+    <div id="monthForecastCard" style="margin-bottom:16px"></div>
+  </div>
   <div id="taxThresholdBanner" style="display:none;"></div>
 
-  <div class="section-title">Heures supplémentaires</div>
-  <div id="overtimeCard" style="margin-bottom:16px"></div>
+  <div id="homeSecOvertime">
+    <div class="section-title">Heures supplémentaires</div>
+    <div id="overtimeCard" style="margin-bottom:16px"></div>
+  </div>
 
-  <div class="section-title">Rémunération</div>
-  <div id="remunerationCard" style="margin-bottom:16px"></div>
+  <div id="homeSecRemuneration">
+    <div class="section-title">Rémunération</div>
+    <div id="remunerationCard" style="margin-bottom:16px"></div>
+  </div>
 
   <div class="section-title">Sessions du jour</div>
   <div id="todaySessions"></div>
@@ -1642,6 +1648,23 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       </label>
     </div>
     <div class="settings-desc-box">Réduit les espacements et tailles de police pour afficher plus d'informations sans défiler.</div>
+  </div>
+
+  <div class="section-title">Page Aujourd'hui</div>
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:700">Afficher les objectifs</label>
+      <label class="switch"><input type="checkbox" id="homeShowObjectifs" onchange="onHomeSectionToggle('objectifs', this.checked)"><span class="slider"></span></label>
+    </div>
+    <div class="settings-row">
+      <label style="font-weight:700">Afficher les heures supplémentaires</label>
+      <label class="switch"><input type="checkbox" id="homeShowOvertime" onchange="onHomeSectionToggle('overtime', this.checked)"><span class="slider"></span></label>
+    </div>
+    <div class="settings-row">
+      <label style="font-weight:700">Afficher la rémunération</label>
+      <label class="switch"><input type="checkbox" id="homeShowRemuneration" onchange="onHomeSectionToggle('remuneration', this.checked)"><span class="slider"></span></label>
+    </div>
+    <div class="settings-desc-box">Choisis les blocs visibles sous le chrono. Les données restent calculées, elles sont seulement masquées.</div>
   </div>
 
   <div class="section-title">Thèmes saisonniers</div>
