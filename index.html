@@ -1650,6 +1650,14 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <div class="settings-desc-box">Réduit les espacements et tailles de police pour afficher plus d'informations sans défiler.</div>
   </div>
 
+  <div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:700">Retour haptique</label>
+      <label class="switch"><input type="checkbox" id="hapticsEnabled" onchange="onHapticsToggle(this.checked)"><span class="slider"></span></label>
+    </div>
+    <div class="settings-desc-box">Petite vibration au démarrage, à la pause et à l'arrêt, et sur les onglets (iPhone sous iOS 17.4 ou plus récent).</div>
+  </div>
+
   <div class="section-title">Page Aujourd'hui</div>
   <div class="settings-card" style="margin-bottom:10px;">
     <div class="settings-row">

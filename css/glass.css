@@ -243,3 +243,46 @@ html.compact-mode .page { padding: 6px 12px calc(100px + var(--safe-bottom)); }
 .ring-sub { font-size: 14px; color: var(--muted); font-weight: 500; min-height: 18px; }
 html.compact-mode .ring-wrap { width: min(240px, 70vw); }
 html.compact-mode .ring-center .big-time { font-size: 32px; }
+
+/* ═══ ANIMATIONS (v2.8) ═══ */
+@keyframes orviaItemIn { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
+.page.active > * { animation: orviaItemIn .5s cubic-bezier(.2,.8,.2,1) both; }
+.page.active > *:nth-child(1) { animation-delay: 0ms; }
+.page.active > *:nth-child(2) { animation-delay: 40ms; }
+.page.active > *:nth-child(3) { animation-delay: 80ms; }
+.page.active > *:nth-child(4) { animation-delay: 120ms; }
+.page.active > *:nth-child(5) { animation-delay: 160ms; }
+.page.active > *:nth-child(6) { animation-delay: 200ms; }
+.page.active > *:nth-child(n+7) { animation-delay: 240ms; }
+
+/* Retour tactile : les éléments « s'enfoncent » légèrement */
+.tab, .status-pill, .settings-row, .session-item, .day-header, .day-subheader, .cal-day, .btn-add-conge, .modal-actions button {
+  transition: transform .18s cubic-bezier(.2,.8,.2,1), background .2s, color .2s;
+}
+.tab:active { transform: scale(.9); }
+.status-pill:active, .settings-row:active, .session-item:active { transform: scale(.98); }
+.btn { transition: transform .18s cubic-bezier(.2,.8,.2,1), background .2s; }
+.btn:active { transform: scale(.95); }
+.tab.active svg { animation: orviaTabPop .4s cubic-bezier(.3,1.6,.5,1); }
+@keyframes orviaTabPop { 0% { transform: scale(.7); } 100% { transform: scale(1); } }
+
+/* Fenêtres : apparition en ressort */
+@keyframes orviaModalIn { from { opacity: 0; transform: translateY(18px) scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes orviaFade { from { opacity: 0; } to { opacity: 1; } }
+.modal-overlay { animation: orviaFade .2s ease both; }
+.modal-box { animation: orviaModalIn .35s cubic-bezier(.2,1.1,.3,1) both; }
+
+/* Chrono : les chiffres défilent */
+.big-time .dg { display: inline-block; }
+.big-time .dg.roll { animation: orviaDigit .32s cubic-bezier(.2,.9,.3,1); }
+@keyframes orviaDigit { from { opacity: 0; transform: translateY(.38em); filter: blur(2px); } to { opacity: 1; transform: none; filter: none; } }
+
+/* Anneau : pulsation quand l'objectif est atteint */
+.ring-svg.reached .ring-prog { animation: orviaRingGlow 1.6s ease-in-out 2; }
+@keyframes orviaRingGlow { 0%,100% { filter: drop-shadow(0 0 10px rgba(140,245,210,.5)); } 50% { filter: drop-shadow(0 0 26px rgba(140,245,210,.95)); } }
+.ring-svg.reached { animation: orviaRingPop .6s cubic-bezier(.3,1.5,.5,1); transform-origin: 50% 50%; }
+@keyframes orviaRingPop { 0% { transform: scale(1); } 40% { transform: scale(1.04); } 100% { transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0ms !important; transition-duration: .01ms !important; }
+}

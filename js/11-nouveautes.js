@@ -315,3 +315,66 @@ function onHomeSectionToggle(key, on) {
   applyHomeSections();
 }
 applyHomeSections();
+
+// ═══ ANIMATIONS & RETOUR HAPTIQUE (v2.8) ═══════════════════
+function hapticsOn() { return localStorage.getItem('orvia_haptics') !== '0'; }
+function onHapticsToggle(on) { localStorage.setItem('orvia_haptics', on ? '1' : '0'); if (on) haptic('medium'); showToast(on ? 'Retour haptique activé' : 'Retour haptique désactivé'); }
+// iOS 17.4+ : basculer un <input type="checkbox" switch> déclenche un retour haptique natif.
+// Android et autres : navigator.vibrate. Sans effet ailleurs.
+let _hapticLabel = null;
+function haptic(kind) {
+  if (!hapticsOn()) return;
+  try {
+    if (!_hapticLabel) {
+      const l = document.createElement('label');
+      l.setAttribute('aria-hidden', 'true');
+      l.style.cssText = 'position:fixed;left:-100px;top:-100px;width:1px;height:1px;opacity:0;pointer-events:none';
+      const i = document.createElement('input'); i.type = 'checkbox'; i.setAttribute('switch', '');
+      l.appendChild(i); document.body.appendChild(l); _hapticLabel = l;
+    }
+    _hapticLabel.click();
+    if (navigator.vibrate && !/iPhone|iPad/.test(navigator.userAgent)) navigator.vibrate(kind === 'medium' ? 22 : kind === 'double' ? [18, 40, 18] : 10);
+    if (kind === 'double') setTimeout(() => { try { _hapticLabel.click(); } catch (e) {} }, 90);
+  } catch (e) {}
+}
+(function hookHaptics() {
+  const hm = handleMainBtn; handleMainBtn = function () { const was = state.status; const r = hm.apply(this, arguments); haptic(was === 'idle' ? 'medium' : 'light'); return r; };
+  const ss = stopSession; stopSession = function () { const r = ss.apply(this, arguments); haptic('double'); return r; };
+  const st = switchTab; switchTab = function (n) { const r = st.apply(this, arguments); haptic('light'); return r; };
+})();
+(function initHapticsToggle() { const c = document.getElementById('hapticsEnabled'); if (c) c.checked = hapticsOn(); })();
+
+// Chrono : seuls les chiffres qui changent défilent.
+(function rollingClock() {
+  const el = document.getElementById('bigTime');
+  if (!el || !window.MutationObserver) return;
+  let prev = el.textContent;
+  const build = (txt) => {
+    const changed = [];
+    for (let i = 0; i < txt.length; i++) changed.push(prev.length === txt.length ? prev[i] !== txt[i] : false);
+    const nbChanged = changed.filter(Boolean).length;
+    const animate = nbChanged > 0 && nbChanged <= 3;
+    el.dataset.v = txt;
+    el.innerHTML = [...txt].map((ch, i) => `<span class="dg${animate && changed[i] ? ' roll' : ''}">${ch}</span>`).join('');
+    prev = txt;
+  };
+  const mo = new MutationObserver(() => {
+    const txt = el.textContent;
+    if (el.dataset.v === txt) return;
+    build(txt);
+  });
+  mo.observe(el, { childList: true, characterData: true, subtree: true });
+})();
+
+// Anneau : effet quand l'objectif est franchi
+(function hookRingReached() {
+  const u = updateRing; let was = false, first = true;
+  updateRing = function () {
+    u.apply(this, arguments);
+    const svg = document.getElementById('ringSvg'); const sub = document.getElementById('ringSub');
+    const reached = !!(sub && sub.textContent.indexOf('objectif atteint') === 0);
+    if (first) { first = false; was = reached; return; }
+    if (svg) { if (reached && !was) { svg.classList.remove('reached'); void svg.getBoundingClientRect(); svg.classList.add('reached'); haptic('double'); } if (!reached) svg.classList.remove('reached'); }
+    was = reached;
+  };
+})();

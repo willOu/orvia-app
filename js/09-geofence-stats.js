@@ -456,6 +456,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.8.0', date: '2026-10-12', items: ['Nouveauté : Animations soignées (transitions, chrono à chiffres défilants, anneau, retour haptique)'] },
     { version: '2.7.0', date: '2026-10-12', items: ['Nouveauté : Afficher ou masquer objectifs, heures supplémentaires et rémunération sur la page Aujourd\u2019hui'] },
     { version: '2.6.0', date: '2026-10-12', items: ['Nouveauté : Grand anneau de progression sur l\u2019écran Aujourd\u2019hui (jour, pause, objectif atteint)'] },
     { version: '2.5.1', date: '2026-10-11', items: ['Correctif : Les thèmes de couleur et saisonniers fonctionnent de nouveau avec le Liquid Glass'] },
