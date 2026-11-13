@@ -548,6 +548,13 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
       <div class="settings-summary">Revenir aux réglages</div>
     </div>
   </div>
+<div class="settings-card" style="margin-bottom:10px;">
+    <div class="settings-row">
+      <label style="font-weight:700">CP comptés comme travail effectif</label>
+      <label class="switch"><input type="checkbox" id="cpEffectifEnabled" onchange="onCpEffectifToggle(this.checked)"><span class="slider"></span></label>
+    </div>
+    <div class="settings-desc-box">Un jour de congé payé compte comme une journée travaillée (objectif du jour) dans les objectifs, la semaine, le mois, les heures supplémentaires et l'anneau. Comme pour les RTT.</div>
+  </div>
 <div class="section-title">Quotas annuels de congés</div>
   <div style="margin-bottom:20px" id="quotaCards"></div>
   <div class="section-title">Noms des types de congés</div>

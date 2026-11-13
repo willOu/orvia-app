@@ -646,3 +646,10 @@ function pontsPoser(a, b, type) {
     const card = document.getElementById('congeSimCard'); if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, 80);
 }
+
+// ── CP comptés comme travail effectif ──
+function onCpEffectifToggle(on) {
+  localStorage.setItem('orvia_cp_effectif', on ? '1' : '0');
+  try { renderToday(); renderHistory(); renderConges(); } catch (e) {}
+  showToast(on ? 'CP comptés comme travail effectif ✓' : 'CP exclus du temps travaillé');
+}

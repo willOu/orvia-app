@@ -456,6 +456,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.11.0', date: '2026-11-13', items: ['Nouveauté : Congés payés comptés comme travail effectif (option, activée par défaut)'] },
     { version: '2.10.0', date: '2026-10-12', items: ['Nouveauté : Page Fériés et ponts (vue de l\u2019année, ponts possibles, conseil RTT ou CP en jours ouvrables)'] },
     { version: '2.9.1', date: '2026-10-12', items: ['Correctif : Mise à jour hors ligne fiable (cache navigateur contourné) et fenêtre de type de congé sortie de sa page'] },
     { version: '2.9.0', date: '2026-10-12', items: ['Nouveauté : Page Statistiques de l\u2019année (mois le plus chargé, moyennes, graphiques sur 12 mois, semaines et jours)'] },
@@ -590,6 +591,7 @@ function openAboutSettings() {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('page-conges-settings').classList.add('active');
+    const cpEl = document.getElementById('cpEffectifEnabled'); if (cpEl) cpEl.checked = cpCountsAsWork();
   }
 
 let trendRange = 7;

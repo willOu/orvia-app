@@ -66,7 +66,7 @@ function maybeShowWeeklyReport() {
   document.body.appendChild(modal);
 }
 
-const APP_VERSION = '2.10.0';
+const APP_VERSION = '2.11.0';
 
 
 // ── STORAGE ──

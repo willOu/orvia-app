@@ -486,8 +486,13 @@ function isDateOnConge(dateStr) {
 // côté paie) : contrairement aux CP, elles ne réduisent pas l'objectif du jour
 // et sont comptabilisées comme "réalisées" à hauteur de l'objectif du jour,
 // pour que compteur hebdo et graphiques ne tombent pas à 0h ces jours-là.
+// Option : les congés payés (CP) peuvent aussi être comptés comme travail effectif
+// (activée par défaut). Un jour férié inclus dans un CP n'est pas compté.
+function cpCountsAsWork() { return localStorage.getItem('orvia_cp_effectif') !== '0'; }
 function isDateOnRTT(dateStr) {
-  return state.conges.some(c => c.type === 'rtt' && dateStr >= c.start && dateStr <= (c.end || c.start));
+  const cpOn = cpCountsAsWork();
+  return state.conges.some(c => dateStr >= c.start && dateStr <= (c.end || c.start)
+    && (c.type === 'rtt' || (cpOn && c.type === 'cp' && !isDateHoliday(dateStr))));
 }
 
 function getGoalForDow(dow) {
