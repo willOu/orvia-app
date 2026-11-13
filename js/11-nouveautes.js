@@ -653,3 +653,10 @@ function onCpEffectifToggle(on) {
   try { renderToday(); renderHistory(); renderConges(); } catch (e) {}
   showToast(on ? 'CP comptés comme travail effectif ✓' : 'CP exclus du temps travaillé');
 }
+
+// ── Jours fériés comptés comme travail effectif ──
+function onFeriesEffectifToggle(on) {
+  localStorage.setItem('orvia_feries_effectif', on ? '1' : '0');
+  try { renderToday(); renderHistory(); renderConges(); } catch (e) {}
+  showToast(on ? 'Fériés comptés comme travail effectif ✓' : 'Fériés exclus du temps travaillé');
+}

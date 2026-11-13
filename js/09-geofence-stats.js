@@ -456,6 +456,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.12.0', date: '2026-11-13', items: ['Nouveauté : Option jours fériés comptés comme travail effectif (désactivée par défaut)'] },
     { version: '2.11.1', date: '2026-11-13', items: ['Correctif : Les jours de CP et RTT comptés apparaissent dans l\u2019historique et ses totaux'] },
     { version: '2.11.0', date: '2026-11-13', items: ['Nouveauté : Congés payés comptés comme travail effectif (option, activée par défaut)'] },
     { version: '2.10.0', date: '2026-10-12', items: ['Nouveauté : Page Fériés et ponts (vue de l\u2019année, ponts possibles, conseil RTT ou CP en jours ouvrables)'] },
@@ -593,6 +594,7 @@ function openAboutSettings() {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('page-conges-settings').classList.add('active');
     const cpEl = document.getElementById('cpEffectifEnabled'); if (cpEl) cpEl.checked = cpCountsAsWork();
+    const frEl = document.getElementById('feriesEffectifEnabled'); if (frEl) frEl.checked = feriesCountAsWork();
   }
 
 let trendRange = 7;

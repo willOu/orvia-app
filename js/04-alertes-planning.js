@@ -489,7 +489,11 @@ function isDateOnConge(dateStr) {
 // Option : les congés payés (CP) peuvent aussi être comptés comme travail effectif
 // (activée par défaut). Un jour férié inclus dans un CP n'est pas compté.
 function cpCountsAsWork() { return localStorage.getItem('orvia_cp_effectif') !== '0'; }
+// Option : jours fériés comptés comme travail effectif (désactivée par défaut,
+// la loi ne les assimile pas sauf convention, accord ou usage contraire).
+function feriesCountAsWork() { return localStorage.getItem('orvia_feries_effectif') === '1'; }
 function isDateOnRTT(dateStr) {
+  if (feriesCountAsWork() && isDateHoliday(dateStr)) return true;
   const cpOn = cpCountsAsWork();
   return state.conges.some(c => dateStr >= c.start && dateStr <= (c.end || c.start)
     && (c.type === 'rtt' || (cpOn && c.type === 'cp' && !isDateHoliday(dateStr))));

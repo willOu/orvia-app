@@ -595,12 +595,12 @@ function getHistorySessions() {
   const today = toLocalISO(new Date());
   const extra = [];
   const seen = new Set();
-  state.conges.forEach(c => {
+    state.conges.forEach(c => {
     if (!c || !c.start) return;
     const d = new Date(c.start + 'T00:00:00'), e = new Date((c.end || c.start) + 'T00:00:00');
     for (; d <= e; d.setDate(d.getDate() + 1)) {
       const iso = toLocalISO(d);
-      if (iso > today || seen.has(iso) || !isDateOnRTT(iso)) continue;
+      if (iso > today || seen.has(iso) || !isDateOnRTT(iso) || isDateHoliday(iso)) continue;
       const goal = getGoalForDow(d.getDay());
       if (!goal) continue;
       seen.add(iso);
@@ -609,18 +609,32 @@ function getHistorySessions() {
       extra.push({ virtual: true, congeType: cg.type, date: tsToKey(t), start: t, end: t, pauseMs: 0, net: goal, note: cg.note || '' });
     }
   });
+  if (feriesCountAsWork()) {
+    const years = new Set(state.sessions.map(x => new Date(x.start).getFullYear()));
+    years.add(new Date().getFullYear());
+    years.forEach(y => {
+      Object.keys(getFrenchHolidays(y).labels).forEach(iso => {
+        if (iso > today || seen.has(iso)) return;
+        const d = new Date(iso + 'T00:00:00');
+        const goal = getGoalForDow(d.getDay());
+        if (!goal) return;
+        seen.add(iso);
+        extra.push({ virtual: true, ferie: true, congeType: null, date: tsToKey(d.getTime()), start: d.getTime(), end: d.getTime(), pauseMs: 0, net: goal, note: getHolidayLabel(iso) || '' });
+      });
+    });
+  }
   return state.sessions.concat(extra).sort((x, y) => x.start - y.start);
 }
 
 function sessionItemHtml(s) {
   if (s && s.virtual) {
-    const lbl = getCongeTypeLabel(s.congeType);
+    const lbl = s.ferie ? 'Jour férié' : getCongeTypeLabel(s.congeType);
     return `<div class="session-item" style="opacity:.9">
       <div class="session-left">
-        <div class="session-time">🏖️ ${escapeHtml(lbl)}</div>
+        <div class="session-time">${s.ferie ? '🎌' : '🏖️'} ${escapeHtml(lbl)}</div>
         <div class="session-note">Compté comme travail effectif${s.note ? ' · ' + escapeHtml(s.note) : ''}</div>
       </div>
-      <div style="text-align:right"><div class="session-duration">${fmtHM(s.net)}</div><div class="session-pause-badge" style="color:var(--muted)">congé</div></div>
+      <div style="text-align:right"><div class="session-duration">${fmtHM(s.net)}</div><div class="session-pause-badge" style="color:var(--muted)">${s.ferie ? 'férié' : 'congé'}</div></div>
     </div>`;
   }
   return sessionItemHtmlBase(s);
@@ -789,7 +803,7 @@ function renderHistory() {
       const diffSign = diff >= 0 ? '+' : '-';
       const monthPct = monthGoal > 0 ? Math.min(100, Math.round((monthNet / monthGoal) * 100)) : 0;
       const monthBarClass = monthPct >= 100 ? 'done' : monthPct >= 75 ? 'warning' : 'progress';
-      const rttBadge = monthRTTMs > 0 ? ` <span style="color:var(--green);font-weight:600;font-size:11px;">(dont ${fmtHM(monthRTTMs)} de congés comptés)</span>` : '';
+      const rttBadge = monthRTTMs > 0 ? ` <span style="color:var(--green);font-weight:600;font-size:11px;">(dont ${fmtHM(monthRTTMs)} de congés/fériés comptés)</span>` : '';
 
       const byWeek = {};
       sessions.forEach(s => {
