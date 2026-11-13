@@ -505,7 +505,7 @@ function fixSessionAnomaly(idx) {
   showToast('Session corrigée ✓');
 }
 
-function sessionItemHtml(s) {
+function sessionItemHtmlBase(s) {
   const globalIdx = state.sessions.indexOf(s);
   const startGeoHtml = s.startGeo
     ? `<div class="geo-badge">📍 <a href="${geoMapsUrl(s.startGeo)}" target="_blank">${escapeHtml(s.startGeo.label)}</a></div>`
@@ -588,11 +588,51 @@ function fmtSignedHM(ms) {
   return sign + fmtHM(Math.abs(ms));
 }
 
+
+// Jours de congé comptés comme travail effectif (RTT, et CP si l'option est active),
+// ajoutés à l'historique sous forme d'entrées « virtuelles », jusqu'à aujourd'hui inclus.
+function getHistorySessions() {
+  const today = toLocalISO(new Date());
+  const extra = [];
+  const seen = new Set();
+  state.conges.forEach(c => {
+    if (!c || !c.start) return;
+    const d = new Date(c.start + 'T00:00:00'), e = new Date((c.end || c.start) + 'T00:00:00');
+    for (; d <= e; d.setDate(d.getDate() + 1)) {
+      const iso = toLocalISO(d);
+      if (iso > today || seen.has(iso) || !isDateOnRTT(iso)) continue;
+      const goal = getGoalForDow(d.getDay());
+      if (!goal) continue;
+      seen.add(iso);
+      const cg = state.conges.find(x => iso >= x.start && iso <= (x.end || x.start) && (x.type === 'rtt' || x.type === 'cp')) || c;
+      const t = d.getTime();
+      extra.push({ virtual: true, congeType: cg.type, date: tsToKey(t), start: t, end: t, pauseMs: 0, net: goal, note: cg.note || '' });
+    }
+  });
+  return state.sessions.concat(extra).sort((x, y) => x.start - y.start);
+}
+
+function sessionItemHtml(s) {
+  if (s && s.virtual) {
+    const lbl = getCongeTypeLabel(s.congeType);
+    return `<div class="session-item" style="opacity:.9">
+      <div class="session-left">
+        <div class="session-time">🏖️ ${escapeHtml(lbl)}</div>
+        <div class="session-note">Compté comme travail effectif${s.note ? ' · ' + escapeHtml(s.note) : ''}</div>
+      </div>
+      <div style="text-align:right"><div class="session-duration">${fmtHM(s.net)}</div><div class="session-pause-badge" style="color:var(--muted)">congé</div></div>
+    </div>`;
+  }
+  return sessionItemHtmlBase(s);
+}
+
 function renderHistory() {
+  const _hs = getHistorySessions();
   // stats
-  const totalMs = state.sessions.reduce((a, s) => a + s.net, 0);
-  const days = [...new Set(state.sessions.map(s => s.date))].length;
-  const thisWeek = getWeekSessions();
+  const totalMs = _hs.reduce((a, s) => a + s.net, 0);
+  const days = [...new Set(_hs.map(s => s.date))].length;
+  const _mon = getMondayOf(new Date()).getTime();
+  const thisWeek = _hs.filter(s => s.start >= _mon);
   const weekMs = thisWeek.reduce((a, s) => a + s.net, 0);
   const cmp = getMonthComparison();
   const cmpColor = cmp.diffMs > 0 ? 'var(--green)' : (cmp.diffMs < 0 ? 'var(--accent2)' : 'var(--muted)');
@@ -620,13 +660,13 @@ function renderHistory() {
 
   const list = document.getElementById('historyList');
   const empty = document.getElementById('emptyHistory');
-  if (!state.sessions.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
+  if (!_hs.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
 
   if (currentView === 'day') {
     // group by date
     const byDate = {};
-    state.sessions.forEach(s => { if (!byDate[s.date]) byDate[s.date] = []; byDate[s.date].push(s); });
+    _hs.forEach(s => { if (!byDate[s.date]) byDate[s.date] = []; byDate[s.date].push(s); });
     const sorted = Object.keys(byDate).sort((a, b) => byDate[b][0].start - byDate[a][0].start);
     list.innerHTML = sorted.map(date => {
       const sessions = byDate[date];
@@ -643,7 +683,7 @@ function renderHistory() {
   } else if (currentView === 'week') {
     // group by week then by day inside
     const byWeek = {};
-    state.sessions.forEach(s => {
+    _hs.forEach(s => {
       const {key, label} = getWeekKey(s.start);
       if (!byWeek[key]) byWeek[key] = {label, sessions: []};
       byWeek[key].sessions.push(s);
@@ -676,7 +716,7 @@ function renderHistory() {
   } else if (currentView === 'year') {
     // group by year then by month
     const byYear = {};
-    state.sessions.forEach(s => {
+    _hs.forEach(s => {
       const {key, label} = getYearKey(s.start);
       if (!byYear[key]) byYear[key] = {label, sessions: []};
       byYear[key].sessions.push(s);
@@ -728,7 +768,7 @@ function renderHistory() {
 
   } else if (currentView === 'month') {
     const byMonth = {};
-    state.sessions.forEach(s => {
+    _hs.forEach(s => {
       const d = new Date(s.start);
       const mk = d.getFullYear() * 100 + d.getMonth();
       const ml = d.toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
@@ -741,15 +781,15 @@ function renderHistory() {
       const monthStart = new Date(year, month, 1);
       const monthEnd = new Date(year, month + 1, 1);
       // RTT comptée comme temps de travail effectif dans le total mensuel affiché.
-      const monthRTTMs = getRTTGoalMsForRange(monthStart, monthEnd);
-      const monthNet = sessions.reduce((a,s) => a+s.net, 0) + monthRTTMs;
+      const monthRTTMs = sessions.filter(s => s.virtual).reduce((a,s) => a+s.net, 0);
+      const monthNet = sessions.reduce((a,s) => a+s.net, 0);
       const monthGoal = getMonthGoal(year, month);
       const diff = monthNet - monthGoal;
       const diffColor = diff >= 0 ? 'var(--green)' : 'var(--accent2)';
       const diffSign = diff >= 0 ? '+' : '-';
       const monthPct = monthGoal > 0 ? Math.min(100, Math.round((monthNet / monthGoal) * 100)) : 0;
       const monthBarClass = monthPct >= 100 ? 'done' : monthPct >= 75 ? 'warning' : 'progress';
-      const rttBadge = monthRTTMs > 0 ? ` <span style="color:var(--green);font-weight:600;font-size:11px;">(dont ${fmtHM(monthRTTMs)} RTT)</span>` : '';
+      const rttBadge = monthRTTMs > 0 ? ` <span style="color:var(--green);font-weight:600;font-size:11px;">(dont ${fmtHM(monthRTTMs)} de congés comptés)</span>` : '';
 
       const byWeek = {};
       sessions.forEach(s => {

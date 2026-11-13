@@ -456,6 +456,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.11.1', date: '2026-11-13', items: ['Correctif : Les jours de CP et RTT comptés apparaissent dans l\u2019historique et ses totaux'] },
     { version: '2.11.0', date: '2026-11-13', items: ['Nouveauté : Congés payés comptés comme travail effectif (option, activée par défaut)'] },
     { version: '2.10.0', date: '2026-10-12', items: ['Nouveauté : Page Fériés et ponts (vue de l\u2019année, ponts possibles, conseil RTT ou CP en jours ouvrables)'] },
     { version: '2.9.1', date: '2026-10-12', items: ['Correctif : Mise à jour hors ligne fiable (cache navigateur contourné) et fenêtre de type de congé sortie de sa page'] },
