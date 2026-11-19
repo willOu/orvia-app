@@ -66,7 +66,7 @@ function maybeShowWeeklyReport() {
   document.body.appendChild(modal);
 }
 
-const APP_VERSION = '2.12.0';
+const APP_VERSION = '2.12.1';
 
 
 // ── STORAGE ──
@@ -221,6 +221,7 @@ function mergeBackups(local, remote) {
 // (MERGE:END)
 
 function enqueueSyncChange(kind, summary, noTrack) {
+  if (!sb) return; // plus de synchro cloud
   if (_syncSuppress > 0) return;
   if (!noTrack) { try { trackLocalChanges(); } catch (e) {} }
   const q = getSyncQueue();
@@ -320,19 +321,18 @@ function onNetworkOffline() {
   renderSyncStatusBadge();
 }
 
-// ── SUPABASE (synchronisation cloud) ──
-// L'anon key Supabase est publique par conception : la sécurité est assurée
-// par les policies Row Level Security côté serveur (voir supabase_schema.sql),
-// pas par le secret de cette clé. Elle peut donc être embarquée côté client.
-const SUPABASE_URL = 'https://aazoafadntpgwzfgrgsx.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFhem9hZmFkbnRwZ3d6ZmdyZ3N4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQzOTUxMTAsImV4cCI6MjA5OTk3MTExMH0.rd0-Bcg_WE-NbbeHWY82bCm56Y60rZiT8SBVqepFooc';
-
-let sb = null;
-try {
-  if (window.supabase && typeof window.supabase.createClient === 'function') {
-    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  }
-} catch (e) { sb = null; }
+// ── SYNCHRONISATION CLOUD : retirée (v2.13) ──
+// Orvia fonctionne désormais uniquement en stockage local (sauvegardes par fichier).
+// Le client cloud reste à null : toutes les fonctions de synchro deviennent sans effet.
+const sb = null;
+(function cleanupCloudLeftovers() {
+  try {
+    Object.keys(localStorage).filter(k => /^sb-.*-auth-token$/.test(k)).forEach(k => localStorage.removeItem(k));
+    localStorage.removeItem('orvia_sync_queue');
+    const st = JSON.parse(localStorage.getItem('orvia_sync_state') || 'null');
+    if (st && st.cloudEnabled) { st.cloudEnabled = false; localStorage.setItem('orvia_sync_state', JSON.stringify(st)); }
+  } catch (e) {}
+})();
 
 let _cloudUser = null;
 

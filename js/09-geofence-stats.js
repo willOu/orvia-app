@@ -456,6 +456,7 @@ function openAboutSettings() {
   }
 
   const CHANGELOG = [
+    { version: '2.12.1', date: '2026-11-20', items: ['Correctif : Suppression de la synchronisation cloud et du compte Supabase (stockage local uniquement)'] },
     { version: '2.12.0', date: '2026-11-13', items: ['Nouveauté : Option jours fériés comptés comme travail effectif (désactivée par défaut)'] },
     { version: '2.11.1', date: '2026-11-13', items: ['Correctif : Les jours de CP et RTT comptés apparaissent dans l\u2019historique et ses totaux'] },
     { version: '2.11.0', date: '2026-11-13', items: ['Nouveauté : Congés payés comptés comme travail effectif (option, activée par défaut)'] },

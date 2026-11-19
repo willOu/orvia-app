@@ -15,7 +15,6 @@
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/glass.css">
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
 </head>
 <body><div id='topSplashLogo' style='position:absolute;left:50%;top:calc(env(safe-area-inset-top, 0px) + 12px);transform:translateX(-50%);width:120px;height:50px;display:flex;justify-content:center;align-items:center;overflow:auto;pointer-events:auto;z-index:9999'><svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 190 80' width='114' height='48' role='img' aria-label='Orvia' style='display:block;margin:0 auto'><defs><linearGradient id='lgH' x1='0' y1='1' x2='1' y2='0'><stop offset='0' stop-color='#8CF5D2'/><stop offset='1' stop-color='#ffffff'/></linearGradient></defs><circle cx='40' cy='40' r='28' fill='none' stroke='rgba(255,255,255,.28)' stroke-width='9'/><circle cx='40' cy='40' r='28' fill='none' stroke='url(#lgH)' stroke-width='9' stroke-linecap='round' stroke-dasharray='132 176' transform='rotate(-90 40 40)'/><path d='M40 24v17l10 7' fill='none' stroke='#fff' stroke-width='6' stroke-linecap='round' stroke-linejoin='round'/><circle cx='40' cy='41' r='3.5' fill='#FF8A5B'/><text x='86' y='54' fill='#fff' font-family='-apple-system,BlinkMacSystemFont,SF Pro Display,Figtree,Arial,sans-serif' font-size='38' font-weight='700' letter-spacing='-1'>Orvia</text></svg></div><div class="tabs-guard"></div>
@@ -47,7 +46,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <div class="date" id="headerDate"></div>
     <div class="date" id="headerTime" style="font-variant-numeric:tabular-nums;letter-spacing:.5px"></div>
   </div>
-  <div id="syncStatusBadge" onclick="openSyncStatusModal()" style="position:absolute;top:calc(env(safe-area-inset-top, 0px) + 14px);left:12px;font-size:10px;font-weight:800;padding:4px 9px;border-radius:999px;display:flex;align-items:center;gap:5px;cursor:pointer;z-index:5;"></div>
+  <div id="syncStatusBadge" style="display:none;position:absolute;top:calc(env(safe-area-inset-top, 0px) + 14px);left:12px;font-size:10px;font-weight:800;padding:4px 9px;border-radius:999px;display:flex;align-items:center;gap:5px;cursor:pointer;z-index:5;"></div>
   <div id="versionBadgeTop" class="version-badge-topright" onclick="openAboutSettings()" style="cursor:pointer;top:calc(env(safe-area-inset-top, 0px) + 14px);"></div>
 </div>
 
@@ -502,12 +501,6 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <div class="settings-desc-box">Exporter ou importer toutes les données</div>
   </div>
 
-  <div class="settings-card" style="margin-bottom:10px;">
-    <div class="settings-row" style="cursor:pointer;" onclick="openCloudSyncSettings()">
-      <label style="font-weight:800;color:var(--accent);">Synchronisation cloud</label>
-    </div>
-    <div class="settings-desc-box" id="cloudSyncSummary">Connexion par code email, sauvegarde automatique</div>
-  </div>
 
   <div class="section-title" style="margin-top:20px;">ℹ️ Autres</div>
 
