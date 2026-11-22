@@ -46,7 +46,6 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
     <div class="date" id="headerDate"></div>
     <div class="date" id="headerTime" style="font-variant-numeric:tabular-nums;letter-spacing:.5px"></div>
   </div>
-  <div id="syncStatusBadge" style="display:none;position:absolute;top:calc(env(safe-area-inset-top, 0px) + 14px);left:12px;font-size:10px;font-weight:800;padding:4px 9px;border-radius:999px;display:flex;align-items:center;gap:5px;cursor:pointer;z-index:5;"></div>
   <div id="versionBadgeTop" class="version-badge-topright" onclick="openAboutSettings()" style="cursor:pointer;top:calc(env(safe-area-inset-top, 0px) + 14px);"></div>
 </div>
 
@@ -830,62 +829,7 @@ window.addEventListener('load',()=>{const s=document.getElementById('orvia-splas
   <div id="schoolCalendarUpcoming"></div>
 </div>
 
-<div class="page" id="page-cloudsync-settings">
-  <div class="settings-card" style="margin-bottom:10px;">
-    <div class="settings-row" style="cursor:pointer;" onclick="switchTab('reglages')">
-      <label>← Retour</label>
-      <div class="settings-summary">Revenir aux réglages</div>
-    </div>
-  </div>
 
-  <div class="section-title">Synchronisation cloud</div>
-
-  <div id="cloudSyncLoggedOutBox" style="display:none;">
-    <div class="settings-card" style="margin-bottom:10px;padding:14px;">
-      <div style="font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:14px;">
-        Connectez-vous pour sauvegarder vos données dans le cloud et les retrouver sur un autre appareil. Pas de mot de passe : un code à 6 chiffres vous est envoyé par email, à saisir ci-dessous.
-      </div>
-      <div id="cloudSyncStep1">
-        <input type="email" id="cloudSyncEmail" placeholder="votre@email.com" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;margin-bottom:10px;">
-        <button onclick="onSendMagicLinkClick()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">Envoyer le code</button>
-      </div>
-      <div id="cloudSyncStep2" style="display:none;">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Email envoyé à <strong id="cloudSyncEmailSent" style="color:var(--text)"></strong></div>
-        <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" id="cloudSyncCode" placeholder="Code à 6 chiffres" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:20px;letter-spacing:4px;text-align:center;margin-bottom:10px;">
-        <button onclick="onVerifyCodeClick()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:14px;">Valider le code</button>
-
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-          <div style="flex:1;height:1px;background:var(--border);"></div>
-          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;">ou</div>
-          <div style="flex:1;height:1px;background:var(--border);"></div>
-        </div>
-
-        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Dans l'email, appui long sur "Sign in" → <strong style="color:var(--text)">Copier le lien</strong> (ne pas cliquer dessus), puis collez-le ici :</div>
-        <input type="text" id="cloudSyncPastedLink" placeholder="Coller le lien ici" style="width:100%;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:12px;margin-bottom:10px;">
-        <button onclick="onVerifyPastedLinkClick()" style="width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);padding:12px;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;">Valider le lien collé</button>
-
-        <button onclick="onResendCodeClick()" style="width:100%;background:transparent;border:none;color:var(--muted);padding:6px;font-size:12px;cursor:pointer;">Renvoyer / changer d'email</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="cloudSyncLoggedInBox" style="display:none;">
-    <div class="settings-card" style="margin-bottom:10px;padding:14px;">
-      <div style="font-size:12px;color:var(--muted);margin-bottom:2px;">Connecté en tant que</div>
-      <div id="cloudSyncEmailLabel" style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;"></div>
-      <div id="cloudSyncLastSync" style="font-size:12px;color:var(--muted);margin-bottom:14px;"></div>
-      <button onclick="manualPushToCloud()" style="width:100%;background:var(--accent);color:#fff;border:none;padding:11px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;">📤 Sauvegarder maintenant</button>
-      <button onclick="manualPullFromCloud()" style="width:100%;background:var(--card);border:1px solid var(--border);color:var(--text);padding:11px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:8px;">📥 Restaurer depuis le cloud</button>
-      <button onclick="signOutCloud()" style="width:100%;background:transparent;border:none;color:var(--accent2);padding:8px;font-size:13px;font-weight:600;cursor:pointer;">Se déconnecter</button>
-    </div>
-  </div>
-
-  <div class="settings-card" style="padding:14px;">
-    <div style="font-size:12px;color:var(--muted);line-height:1.5;">
-      💡 Vos sessions et congés sont envoyés automatiquement au cloud dès qu'une modification est faite, et reçus en temps réel sur vos autres appareils connectés (si en ligne). Les autres réglages (thème, objectifs...) restent uniquement locaux pour l'instant.
-    </div>
-  </div>
-</div>
 
 <div class="page" id="page-workmode-settings">
   <div class="settings-card" style="margin-bottom:10px;">

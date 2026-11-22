@@ -143,7 +143,7 @@ function updateHeaderTime() {
   }
 
 function buildBackupData() {
-    return { version: APP_VERSION, sessions: state.sessions, conges: state.conges, quotas: state.quotas, objectifs: objectifs, primesHistory: primesHistory, tauxHoraireHistory: tauxHoraireHistory, customCongeTypes: customCongeTypes, congeLabels: CONGE_LABELS, tombstones: loadTombstones(), savedAt: getLocalSavedAt() };
+    return { version: APP_VERSION, sessions: state.sessions, conges: state.conges, quotas: state.quotas, objectifs: objectifs, primesHistory: primesHistory, tauxHoraireHistory: tauxHoraireHistory, customCongeTypes: customCongeTypes, congeLabels: CONGE_LABELS, savedAt: Date.now() };
   }
 
   function performBackupDownload(filenameSuffix) {
@@ -489,7 +489,6 @@ function sanitizeBackupData(data) {
     quotas,
     customCongeTypes: _customTypes,
     congeLabels: _labels,
-    tombstones: normalizeTombstones(data.tombstones),
     savedAt: Number(data.savedAt) || 0,
     objectifs: objectifsNorm,
     primesHistory: primesHist,
@@ -552,8 +551,6 @@ function importBackup(event) {
     event.target.value = '';
   }
 
-  window.addEventListener('online', onNetworkOnline);
-  window.addEventListener('offline', onNetworkOffline);
 
   let swReady = false;
   let swRefreshing = false;
@@ -597,8 +594,6 @@ applyMode(getCurrentMode());
 initSeasonalTheme();
 load();
 loadConges(); checkLowQuotaAlerts(); checkCongeExpiryNotification(); checkBTP5eSemaineNotification(); loadAuditLog();
-renderSyncStatusBadge();
-processSyncQueue();
 loadObjectifs();
 loadRemuneration();
 loadTauxHoraireHistory();
@@ -614,12 +609,9 @@ setInterval(updateHeaderTime, 1000);
 setInterval(checkReminderTrigger, 60000);
 checkReminderTrigger();
 setInterval(checkForgottenSession, 60000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkForgottenSession(); autoSyncOnOpen(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { checkForgottenSession(); } });
 checkForgottenSession();
 checkAutoBackup();
-if (!localStorage.getItem(SYNC_KEYS_KEY)) { try { rememberSyncKeys(); } catch (e) {} }
-refreshCloudUser().then(() => { renderSyncStatusBadge(); autoSyncOnOpen(); if (_cloudUser) subscribeToCloudChanges(); });
-setInterval(autoSyncOnOpen, 30 * 60000);
 initCompactMode();
 checkWorkAnniversary();
 checkTaxThresholdProximity();

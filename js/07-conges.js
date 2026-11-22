@@ -28,7 +28,6 @@ function saveConges() {
   localStorage.setItem('timetracker_conges', JSON.stringify(state.conges));
   localStorage.setItem('timetracker_quotas', JSON.stringify(state.quotas));
   localStorage.setItem('timetracker_labels', JSON.stringify(CONGE_LABELS));   localStorage.setItem('timetracker_custom_types', JSON.stringify(customCongeTypes));
-  if (typeof enqueueSyncChange === 'function') enqueueSyncChange('conges', 'Congés mis à jour');
 }
 
 function workdaysBetween(d1, d2) {
